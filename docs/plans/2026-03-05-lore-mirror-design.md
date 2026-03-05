@@ -32,17 +32,21 @@
 ### 模块 3: FastAPI 后端 (Phase 3) ✅
 - `server/app.py`: REST API
 - 端点: /api/inboxes, /api/locate, /api/inboxes/{name}, /api/messages/{id}, /api/raw, /api/threads/{id}, /api/search, /api/stats, /api/sync/status
+- 搜索: lore 兼容前缀语法 (s: f: b: d: t: c: a: m: bs: tc:)，Message-ID 自动检测
 - 跨 inbox 搜索：遍历所有 inbox 数据库
+- 日期排序：过滤异常日期（Y2K、未来时间戳、non-ISO 格式）
 - 生产模式: 同时 serve Vue SPA 静态文件
 
 ### 模块 4: Vue 3 前端 (Phase 4) ✅
 - 5 个页面: Home, Inbox, Message, Thread, Search
-- 功能: locate inbox、search all inboxes、邮件分页浏览、线程树视图、全文搜索、diff 高亮
-- 支持暗色模式
+- 功能: locate inbox、search all inboxes（带 inbox 选择器和搜索语法帮助）
+- 邮件分页浏览、线程树视图、diff 高亮
+- 左对齐布局，暗色模式
 
 ### 模块 5: 同步与维护 (Phase 5) ✅
 - `scripts/sync.py`: git fetch + 增量导入（仅通过 CLI/cron 触发）
 - `scripts/healthcheck.py`: git 仓库和数据库完整性检查与修复
+- `scripts/config_utils.py`: 统一配置加载，支持相对/绝对路径
 - 前端仅显示同步状态（只读）
 
 ## 数据库设计 (SQLite3，每 inbox 独立)
@@ -97,30 +101,36 @@
 
 ## 目录结构
 ```
-/vol_8t/lore/
-├── config.yaml                 # 配置（inbox 列表、下载参数）
+lore-mirror/
+├── config.yaml                 # 配置（inbox 列表、路径、下载参数）
 ├── requirements.txt            # Python 依赖
 ├── start.sh                    # 一键启动脚本
-├── repos/                      # git mirror 仓库
+├── CLAUDE.md                   # AI 助手项目上下文
+├── README.md                   # 部署安装说明
+├── repos/                      # git mirror 仓库（相对路径，可配置）
 │   └── {inbox}/git/{N}.git
-├── db/                         # 每 inbox 独立 SQLite 数据库
+├── db/                         # 每 inbox 独立 SQLite 数据库（相对路径，可配置）
 │   └── {inbox}.db
 ├── scripts/
+│   ├── config_utils.py         # 统一配置加载（相对/绝对路径解析）
 │   ├── mirror.py               # 首次下载 git 仓库
 │   ├── database.py             # 数据库 schema
-│   ├── import_mail.py          # 邮件导入
+│   ├── import_mail.py          # 邮件导入（含日期修复）
 │   ├── sync.py                 # 同步（fetch + 增量导入）
-│   └── healthcheck.py          # 完整性检查与修复
+│   ├── healthcheck.py          # 完整性检查与修复
+│   └── test_search.py          # 搜索功能测试用例
 ├── server/
-│   └── app.py                  # FastAPI 后端
+│   └── app.py                  # FastAPI 后端（搜索前缀解析 + SPA 服务）
 ├── frontend/
-│   ├── src/views/              # Vue 页面组件
-│   ├── src/components/         # 可复用组件
+│   ├── src/views/              # Vue 页面：Home, Inbox, Message, Thread, Search
+│   ├── src/components/         # 可复用组件：ThreadNode
 │   ├── src/api.js              # API 客户端
 │   ├── src/router.js           # 路由配置
 │   └── dist/                   # 生产构建产物
-├── docs/plans/                 # 设计文档
-└── ref/                        # 参考网页
+├── docs/
+│   ├── API.md                  # REST API 文档（供 AI 工具参考）
+│   └── plans/                  # 设计文档
+└── ref/                        # 参考网页（lore 原站数据）
 ```
 
 ## 数据规模 (lkml)
@@ -199,7 +209,30 @@ python3 scripts/import_mail.py --stats
 
 访问 http://localhost:3000（开发）或 http://localhost:8000（生产）。
 
-### 5. 日常同步
+### 5. 搜索
+
+搜索支持 lore.kernel.org 兼容的前缀语法：
+
+| 前缀 | 说明 | 示例 |
+|------|------|------|
+| `s:` | 搜索主题 | `s:PATCH` `s:"memory leak"` |
+| `f:` | 搜索发件人 | `f:torvalds` |
+| `b:` | 搜索正文 | `b:kasan` |
+| `bs:` | 搜索主题+正文 | `bs:regression` |
+| `d:` | 日期范围 | `d:2026-01-01..2026-03-01` `d:2026-01-01..` |
+| `t:` | 搜索 To 头 | `t:linux-mm@kvack.org` |
+| `c:` | 搜索 Cc 头 | `c:stable@vger.kernel.org` |
+| `a:` | 搜索所有地址 | `a:torvalds` |
+| `tc:` | 搜索 To+Cc | `tc:netdev` |
+| `m:` | 搜索 Message-ID | `m:20260110-can@pengutronix.de` |
+
+操作符：AND（默认）、OR、NOT、`"exact phrase"`、`prefix*`
+
+直接在搜索框粘贴 Message-ID（含 `@`）会自动识别并精确查找。
+
+搜索页面可通过下拉框选择特定 inbox 或搜索全部。点击 `[search help]` 查看完整语法帮助。
+
+### 6. 日常同步
 
 同步 = git fetch 更新仓库 + 增量导入新邮件。
 
@@ -224,7 +257,7 @@ crontab -e
 
 同步状态会实时写入 `sync_status.json`，前端首页可查看。
 
-### 6. 健康检查与修复
+### 7. 健康检查与修复
 
 ```bash
 # 检查所有 inbox 的 git 仓库和数据库完整性
@@ -253,14 +286,14 @@ crontab -e
 0 3 * * 0 cd /vol_8t/lore && python3 scripts/healthcheck.py >> healthcheck.log 2>&1
 ```
 
-### 7. 添加新 inbox
+### 8. 添加新 inbox
 
 1. 在 `config.yaml` 中取消注释或添加新的 inbox
 2. 下载: `python3 scripts/mirror.py --inbox <name>`
 3. 导入: `python3 scripts/import_mail.py --inbox <name>`
 4. 刷新浏览器即可看到新 inbox
 
-### 8. 删除 inbox
+### 9. 删除 inbox
 
 1. 在 `config.yaml` 中注释掉该 inbox
 2. 删除 git 仓库: `rm -rf repos/<name>/`

@@ -96,6 +96,23 @@ python3 scripts/import_mail.py --stats
 # 前端 http://localhost:3000，API http://localhost:8000
 ```
 
+## 搜索
+
+支持 lore.kernel.org 兼容的前缀语法：
+
+```
+s:PATCH f:torvalds                   Torvalds 的 patch
+s:"memory leak" d:2026-01-01..       2026 年以来的 memory leak 补丁
+b:"use after free"                   正文包含 use after free
+f:torvalds d:2026-01-01..2026-03-01  日期范围内 Torvalds 的邮件
+a:stable@vger.kernel.org             发给 stable 的邮件
+m:message-id@example.com             按 Message-ID 精确查找
+```
+
+完整前缀列表：`s:` (主题), `f:` (发件人), `b:` (正文), `d:` (日期), `t:` (To), `c:` (Cc), `a:` (所有地址), `m:` (Message-ID), `bs:` (主题+正文), `tc:` (To+Cc)
+
+直接粘贴 Message-ID（含 `@`）会自动识别。搜索页面点击 `[search help]` 查看完整语法。
+
 ## 日常维护
 
 ### 同步更新

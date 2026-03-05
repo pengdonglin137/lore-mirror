@@ -38,6 +38,9 @@ Local mirror of lore.kernel.org kernel mailing list archives.
 - **Sync is CLI-only**: No web-triggered sync (security). Use `scripts/sync.py` via cron. Frontend only shows read-only sync status from `sync_status.json`.
 - **Data flow**: `git clone --mirror` → `git show <commit>:m` extracts raw email → Python `email` lib parses → INSERT into SQLite. File `d` in a commit means deletion.
 - **FTS5 triggers**: Search index auto-updated via SQLite triggers on INSERT/UPDATE/DELETE.
+- **Search prefix syntax**: lore-compatible prefixes (s: f: b: d: t: c: a: m: bs: tc:) parsed in `parse_search_query()` in server/app.py, translated to FTS5 column filters + SQL WHERE clauses.
+- **Date handling**: `fix_date()` in import_mail.py corrects Y2K bugs (01xx→20xx), rejects future/pre-1990 dates, falls back to git committer date. Backend ORDER BY also filters anomalous dates.
+- **Portable paths**: config.yaml uses relative paths by default, resolved via `scripts/config_utils.py`.
 
 ## Common Commands
 

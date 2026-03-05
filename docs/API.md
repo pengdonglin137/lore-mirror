@@ -253,6 +253,9 @@ Full-text search with lore.kernel.org-compatible prefix syntax. Uses SQLite FTS5
 | `c:` | Match Cc header | `c:stable@vger.kernel.org` |
 | `a:` | Match any address (From/To/Cc) | `a:torvalds` |
 | `tc:` | Match To + Cc | `tc:netdev@vger.kernel.org` |
+| `m:` | Match Message-ID (exact) | `m:20260110-can@pengutronix.de` |
+
+**Message-ID auto-detection:** If the search query contains `@` and no spaces, it is automatically treated as a Message-ID lookup (no prefix needed). Angle brackets are stripped: `<foo@bar.com>` → `foo@bar.com`.
 
 **Date range formats:**
 - `d:2026-01-01..2026-03-01` — between two dates
