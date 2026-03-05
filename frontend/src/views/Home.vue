@@ -77,27 +77,23 @@ function formatDate(d) {
   <div>
     <pre v-if="loading" class="loading">Loading...</pre>
     <template v-else>
-      <pre>local kernel mailing list archive
-
-<template v-if="stats">Total: {{ formatCount(stats.total_messages) }} messages in {{ stats.total_inboxes }} inbox(es)
-Database: {{ formatSize(stats.database_size_bytes) }}
-</template>
-<template v-if="locateQuery">Matching inboxes for "{{ locateQuery }}" ({{ filteredInboxes.length }} results):
-</template><template v-else>Inboxes:
-</template><template v-if="filteredInboxes.length === 0">  No matching inboxes found.
+      <pre v-if="locateQuery">Matching inboxes for "{{ locateQuery }}" ({{ filteredInboxes.length }} results):
+</pre>
+      <pre><template v-if="filteredInboxes.length === 0">  No matching inboxes found.
 </template><template v-for="inbox in filteredInboxes" :key="inbox.name">
 * <router-link :to="`/inbox/${inbox.name}`">{{ inbox.name }}</router-link>
   {{ inbox.description }}
   {{ formatCount(inbox.message_count) }} messages ({{ formatDate(inbox.earliest) }} ~ {{ formatDate(inbox.latest) }})
 </template></pre>
 
-      <div v-if="syncStatus" class="sync-status">
-        <span v-if="syncStatus.running" class="sync-info">
-          syncing {{ syncStatus.current_inbox || '...' }}
+      <div class="status-bar">
+        <span v-if="stats">{{ formatCount(stats.total_messages) }} messages, {{ stats.total_inboxes }} inbox(es), {{ formatSize(stats.database_size_bytes) }}</span>
+        <span v-if="syncStatus?.running">
+          | syncing {{ syncStatus.current_inbox || '...' }}
           ({{ (syncStatus.completed || []).length }}/{{ syncStatus.total_inboxes }})
         </span>
-        <span v-else-if="syncStatus.finished_at" class="sync-info">
-          last sync: {{ syncStatus.finished_at }}
+        <span v-else-if="syncStatus?.finished_at">
+          | last sync: {{ syncStatus.finished_at }}
         </span>
       </div>
     </template>
@@ -105,16 +101,16 @@ Database: {{ formatSize(stats.database_size_bytes) }}
 </template>
 
 <style scoped>
-.sync-status {
+.status-bar {
   font-family: monospace;
   font-size: 12px;
   color: #888;
   border-top: 1px solid #ddd;
-  margin-top: 16px;
-  padding-top: 8px;
+  margin-top: 12px;
+  padding-top: 6px;
 }
 
 @media (prefers-color-scheme: dark) {
-  .sync-status { border-color: #444; color: #666; }
+  .status-bar { border-color: #444; color: #666; }
 }
 </style>
