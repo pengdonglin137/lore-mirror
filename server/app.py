@@ -10,6 +10,7 @@ Usage:
 
 import json
 import sqlite3
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -39,6 +40,9 @@ app.add_middleware(
 )
 
 
+QUERY_TIMEOUT_SECONDS = 30
+
+
 def get_db(inbox_name: str) -> sqlite3.Connection:
     """Open a connection to an inbox's database."""
     db_path = DB_DIR / f"{inbox_name}.db"
@@ -47,6 +51,17 @@ def get_db(inbox_name: str) -> sqlite3.Connection:
     conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
+
+    # Set a progress handler to abort queries that run too long.
+    # The callback is invoked every ~100k VM instructions (~50-100ms).
+    deadline = time.monotonic() + QUERY_TIMEOUT_SECONDS
+
+    def _progress():
+        if time.monotonic() > deadline:
+            return 1  # non-zero → abort
+        return 0
+
+    conn.set_progress_handler(_progress, 100_000)
     return conn
 
 
@@ -472,6 +487,7 @@ def search(
 
     all_results = []
     total = 0
+    timed_out = False
 
     for name in inboxes_to_search:
         try:
@@ -526,8 +542,12 @@ def search(
                 d = row_to_dict(r)
                 d["inbox_name"] = name
                 all_results.append(d)
+        except sqlite3.OperationalError as e:
+            if "interrupted" in str(e):
+                timed_out = True
+            # else: malformed query, skip gracefully
         except Exception:
-            pass  # skip malformed queries gracefully
+            pass
 
         conn.close()
 
@@ -542,7 +562,7 @@ def search(
     for r in page_results:
         r.pop("rank", None)
 
-    return {
+    result = {
         "query": q,
         "total": total,
         "page": page,
@@ -550,6 +570,11 @@ def search(
         "pages": (total + per_page - 1) // per_page,
         "messages": page_results,
     }
+
+    if timed_out:
+        result["warning"] = "Some results may be incomplete due to query timeout"
+
+    return result
 
 
 # ── Stats ────────────────────────────────────────────
@@ -568,7 +593,9 @@ def get_stats():
             total_messages += count
 
             row = conn.execute(
-                "SELECT date, subject, sender FROM messages ORDER BY date DESC LIMIT 1"
+                """SELECT date, subject, sender FROM messages
+                WHERE date GLOB '[0-9][0-9][0-9][0-9]-*' AND date <= '2027'
+                ORDER BY date DESC LIMIT 1"""
             ).fetchone()
             if row and (not latest or (row["date"] and row["date"] > latest["date"])):
                 latest = {"date": row["date"], "subject": row["subject"],
