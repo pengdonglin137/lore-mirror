@@ -75,8 +75,8 @@ def list_inboxes():
             conn = get_db(name)
             row = conn.execute("""
                 SELECT COUNT(*) as message_count,
-                       MIN(CASE WHEN date GLOB '[0-9][0-9][0-9][0-9]-*' THEN date END) as earliest,
-                       MAX(CASE WHEN date GLOB '[0-9][0-9][0-9][0-9]-*' THEN date END) as latest
+                       MIN(CASE WHEN date GLOB '[0-9][0-9][0-9][0-9]-*' AND date >= '1990' THEN date END) as earliest,
+                       MAX(CASE WHEN date GLOB '[0-9][0-9][0-9][0-9]-*' AND date <= '2027' THEN date END) as latest
                 FROM messages
             """).fetchone()
             conn.close()
