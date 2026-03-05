@@ -31,12 +31,12 @@ inboxes:
   # ── Core subsystems ────────────────────────────────
   # - name: netdev
   #   description: "Netdev List"
-  # - name: linux-mm
-  #   description: "Linux Memory Management"
-  # - name: linux-fsdevel
-  #   description: "Linux filesystem development"
-  # - name: linux-block
-  #   description: "Linux block layer"
+  - name: linux-mm
+    description: "Linux Memory Management"
+  - name: linux-fsdevel
+    description: "Linux filesystem development"
+  - name: linux-block
+    description: "Linux block layer"
   # - name: linux-pm
   #   description: "Linux Power Management development"
   # - name: linux-arch
@@ -53,16 +53,16 @@ inboxes:
   #   description: "Linux Security Modules development"
   # - name: driver-core
   #   description: "Linux driver-core infrastructure"
-  # - name: stable
-  #   description: "Linux kernel -stable discussions"
+  - name: stable
+    description: "Linux kernel -stable discussions"
   # - name: linux-next
   #   description: "Linux-Next discussions"
   # - name: regressions
   #   description: "Linux kernel regressions"
-  # - name: linux-patches
-  #   description: "Archive-only list for patches"
-  # - name: mm-commits
-  #   description: "Linux MM tree latest commits"
+  - name: linux-patches
+    description: "Archive-only list for patches"
+  - name: mm-commits
+    description: "Linux MM tree latest commits"
   # - name: soc
   #   description: "Linux SOC development"
 
@@ -89,8 +89,8 @@ inboxes:
   #   description: "Discussion of the VIRTIO specification"
 
   # ── Networking ─────────────────────────────────────
-  # - name: bpf
-  #   description: "BPF List"
+  - name: bpf
+    description: "BPF List"
   # - name: mptcp
   #   description: "MPTCP Linux Development"
   # - name: netfilter-devel
@@ -123,16 +123,16 @@ inboxes:
   #   description: "Linux XFS filesystem development"
   # - name: linux-btrfs
   #   description: "Linux Btrfs filesystem development"
-  # - name: linux-ext4
-  #   description: "Linux EXT4 FS development"
+  - name: linux-ext4
+    description: "Linux EXT4 FS development"
   # - name: linux-f2fs-devel
   #   description: "Linux f2fs filesystem development"
   # - name: linux-nfs
   #   description: "Linux NFS development"
   # - name: linux-cifs
   #   description: "Linux CIFS filesystem development"
-  # - name: linux-erofs
-  #   description: "Linux EROFS"
+  - name: linux-erofs
+    description: "Linux EROFS"
   # - name: linux-unionfs
   #   description: "Linux Overlay Filesystem development"
   # - name: linux-nilfs
@@ -327,8 +327,8 @@ inboxes:
   #   description: "Handshake for in-kernel TLS consumers"
 
   # ── Tracing, testing & debugging ───────────────────
-  # - name: linux-trace-kernel
-  #   description: "Linux Trace Kernel"
+  - name: linux-trace-kernel
+    description: "Linux Trace Kernel"
   # - name: linux-perf-users
   #   description: "Linux Perf Users"
   # - name: linux-kselftest
@@ -371,8 +371,8 @@ inboxes:
   #   description: "Devicetree Spec"
 
   # ── Scheduling & cgroups ───────────────────────────
-  # - name: cgroups
-  #   description: "Linux cgroups development"
+  - name: cgroups
+    description: "Linux cgroups development"
   # - name: sched-ext
   #   description: "Sched_ext development"
 
