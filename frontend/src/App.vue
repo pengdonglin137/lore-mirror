@@ -74,8 +74,6 @@ header nav {
   display: flex;
   align-items: center;
   gap: 6px;
-  max-width: 1200px;
-  margin: 0 auto;
 }
 
 .logo-link {
@@ -104,8 +102,6 @@ header nav {
 }
 
 main {
-  max-width: 1200px;
-  margin: 0 auto;
   padding: 16px;
 }
 
