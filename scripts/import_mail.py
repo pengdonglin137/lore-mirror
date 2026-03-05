@@ -80,7 +80,8 @@ def parse_email_bytes(raw: bytes) -> dict:
             parsed = email.utils.parsedate_to_datetime(date_str)
             date_iso = parsed.isoformat()
         except (ValueError, TypeError):
-            date_iso = date_str  # keep original if unparseable
+            # Keep raw string; will be overridden by git commit date if available
+            date_iso = None
 
     # Extract body
     body_text = ""
@@ -152,6 +153,19 @@ def get_commits_for_epoch(repo_path: Path) -> list[str]:
         log.error(f"Failed to list commits for {repo_path}: {result.stderr}")
         return []
     return [h.strip() for h in result.stdout.strip().split("\n") if h.strip()]
+
+
+def get_commit_date(repo_path: Path, commit_hash: str) -> Optional[str]:
+    """Get the author date of a git commit in ISO format."""
+    result = subprocess.run(
+        ["git", "--git-dir", str(repo_path), "log", "-1", "--format=%aI", commit_hash],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    if result.returncode == 0:
+        return result.stdout.strip()
+    return None
 
 
 def get_email_from_commit(repo_path: Path, commit_hash: str) -> Optional[bytes]:
@@ -241,6 +255,11 @@ def import_epoch(conn, inbox_name: str, epoch: int, repos_dir: Path):
                 skipped += 1
                 continue
 
+            # Use git commit date as fallback for unparseable email dates
+            msg_date = parsed["date"]
+            if not msg_date:
+                msg_date = get_commit_date(repo_path, commit_hash)
+
             try:
                 cursor = conn.execute(
                     """INSERT OR IGNORE INTO messages
@@ -252,7 +271,7 @@ def import_epoch(conn, inbox_name: str, epoch: int, repos_dir: Path):
                         parsed["message_id"],
                         parsed["subject"],
                         parsed["sender"],
-                        parsed["date"],
+                        msg_date,
                         parsed["in_reply_to"],
                         parsed["references_ids"],
                         parsed["body_text"],
