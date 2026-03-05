@@ -54,6 +54,9 @@ def check_git_repo(repo_path: Path) -> tuple[str, str]:
         return "corrupted", "HEAD file missing"
 
     # Run git fsck (quick check)
+    # Skip known harmless warnings from old public-inbox commits
+    HARMLESS_ERRORS = {"badTimezone", "badDate", "badEmail", "missingEmail"}
+
     result = subprocess.run(
         ["git", "--git-dir", str(repo_path), "fsck", "--no-dangling", "--no-progress"],
         capture_output=True,
@@ -62,8 +65,13 @@ def check_git_repo(repo_path: Path) -> tuple[str, str]:
     )
 
     if result.returncode != 0:
-        errors = result.stderr.strip()[:200]
-        return "corrupted", f"fsck failed: {errors}"
+        # Filter out harmless errors
+        serious = [
+            line for line in result.stderr.strip().split("\n")
+            if line.strip() and not any(h in line for h in HARMLESS_ERRORS)
+        ]
+        if serious:
+            return "corrupted", f"fsck failed: {serious[0][:200]}"
 
     # Verify we can read HEAD
     result = subprocess.run(
