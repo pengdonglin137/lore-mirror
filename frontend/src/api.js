@@ -34,11 +34,8 @@ export function getSyncStatus() {
   return fetchJSON(`${BASE}/sync/status`)
 }
 
-export function search(q, { inbox, sender, dateFrom, dateTo, page = 1, perPage = 50 } = {}) {
+export function search(q, { inbox, page = 1, perPage = 50 } = {}) {
   const params = new URLSearchParams({ q, page, per_page: perPage })
   if (inbox) params.set('inbox', inbox)
-  if (sender) params.set('sender', sender)
-  if (dateFrom) params.set('date_from', dateFrom)
-  if (dateTo) params.set('date_to', dateTo)
   return fetchJSON(`${BASE}/search?${params}`)
 }

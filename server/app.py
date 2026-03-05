@@ -315,19 +315,125 @@ def get_thread(message_id: str):
 
 # ── Search ───────────────────────────────────────────
 
+import re
+
+
+def parse_search_query(raw_query: str) -> tuple[str, list[str], list]:
+    """
+    Parse lore-style search prefixes into FTS5 query + SQL WHERE clauses.
+
+    Supported prefixes (compatible with lore.kernel.org):
+      s:    subject           f:    from/sender
+      b:    body              t:    to header
+      c:    cc header         a:    any address (from/to/cc)
+      d:    date range        bs:   subject + body
+      tc:   to + cc
+
+    Date range format (d:):
+      d:YYYY-MM-DD..YYYY-MM-DD   d:2026-01-01..
+      d:..2026-01-31              d:2026-01-01
+
+    Returns (fts_query, where_clauses, params).
+    """
+    fts_parts = []
+    where_clauses = []
+    params = []
+
+    # FTS5 column mapping for lore prefixes
+    FTS_PREFIX_MAP = {
+        "s": "subject",
+        "b": "body_text",
+        "bs": None,  # special: subject OR body
+    }
+
+    # SQL LIKE search on headers JSON
+    SQL_PREFIX_MAP = {
+        "f": "m.sender",
+        "t": "m.headers",   # search To in headers JSON
+        "c": "m.headers",   # search Cc in headers JSON
+        "a": None,           # special: sender + headers
+        "tc": None,          # special: headers (To + Cc)
+    }
+
+    # Extract prefix:value tokens (handle quoted values)
+    tokens = re.findall(r'(\w+):"([^"]+)"|(\w+):(\S+)|("(?:[^"\\]|\\.)*")|(\S+)', raw_query)
+
+    for match in tokens:
+        prefix_q, value_q, prefix_s, value_s, quoted, plain = match
+
+        prefix = prefix_q or prefix_s
+        value = value_q or value_s or quoted or plain
+
+        if not value:
+            continue
+
+        if prefix == "d":
+            # Date range: d:2026-01-01..2026-03-01 or d:2026-01-01.. or d:..2026-03-01
+            if ".." in value:
+                parts = value.split("..", 1)
+                if parts[0]:
+                    where_clauses.append("m.date >= ?")
+                    params.append(parts[0])
+                if parts[1]:
+                    where_clauses.append("m.date <= ?")
+                    params.append(parts[1] + "T23:59:59" if len(parts[1]) == 10 else parts[1])
+            else:
+                # Single date = that day
+                where_clauses.append("m.date >= ?")
+                params.append(value)
+                if len(value) == 10:
+                    where_clauses.append("m.date <= ?")
+                    params.append(value + "T23:59:59")
+        elif prefix in FTS_PREFIX_MAP:
+            col = FTS_PREFIX_MAP[prefix]
+            if col:
+                fts_parts.append(f"{col}:{value}")
+            elif prefix == "bs":
+                # subject OR body
+                fts_parts.append(f"(subject:{value} OR body_text:{value})")
+        elif prefix == "f":
+            where_clauses.append("m.sender LIKE ?")
+            params.append(f"%{value}%")
+        elif prefix == "t":
+            where_clauses.append("m.headers LIKE ?")
+            params.append(f"%\"To\"%{value}%")
+        elif prefix == "c":
+            where_clauses.append("m.headers LIKE ?")
+            params.append(f"%\"Cc\"%{value}%")
+        elif prefix == "a":
+            where_clauses.append("(m.sender LIKE ? OR m.headers LIKE ?)")
+            params.extend([f"%{value}%", f"%{value}%"])
+        elif prefix == "tc":
+            where_clauses.append("m.headers LIKE ?")
+            params.append(f"%{value}%")
+        else:
+            # Unknown prefix or no prefix - treat as plain FTS query
+            if prefix:
+                fts_parts.append(f"{prefix}:{value}")
+            else:
+                fts_parts.append(value)
+
+    fts_query = " ".join(fts_parts) if fts_parts else None
+    return fts_query, where_clauses, params
+
+
 @app.get("/api/search")
 def search(
     q: str = Query(..., min_length=1),
     inbox: Optional[str] = None,
-    sender: Optional[str] = None,
-    date_from: Optional[str] = None,
-    date_to: Optional[str] = None,
     page: int = Query(1, ge=1),
     per_page: int = Query(50, ge=1, le=200),
 ):
-    """Full-text search. If inbox is specified, search only that inbox.
-    Otherwise search all inboxes."""
+    """
+    Full-text search with lore-compatible prefix syntax.
+
+    Prefixes: s: (subject), f: (from), b: (body), d: (date range),
+    t: (to), c: (cc), a: (any address), bs: (subject+body), tc: (to+cc)
+
+    Date range: d:2026-01-01..2026-03-01  d:2026-01-01..  d:..2026-03-01
+    """
     offset = (page - 1) * per_page
+    fts_query, extra_where, extra_params = parse_search_query(q)
 
     inboxes_to_search = [inbox] if inbox else get_available_inboxes()
 
@@ -340,55 +446,66 @@ def search(
         except HTTPException:
             continue
 
-        where_clauses = ["messages_fts MATCH ?"]
-        params: list = [q]
+        where_clauses = list(extra_where)
+        params = list(extra_params)
 
-        if sender:
-            where_clauses.append("m.sender LIKE ?")
-            params.append(f"%{sender}%")
-        if date_from:
-            where_clauses.append("m.date >= ?")
-            params.append(date_from)
-        if date_to:
-            where_clauses.append("m.date <= ?")
-            params.append(date_to)
+        if fts_query:
+            where_clauses.insert(0, "messages_fts MATCH ?")
+            params.insert(0, fts_query)
+
+        if not where_clauses:
+            conn.close()
+            continue
 
         where = " AND ".join(where_clauses)
 
-        count = conn.execute(
-            f"""SELECT COUNT(*) FROM messages_fts
-            JOIN messages m ON m.id = messages_fts.rowid
-            WHERE {where}""",
-            params,
-        ).fetchone()[0]
-        total += count
+        # Need FTS join only if we have a MATCH clause
+        if fts_query:
+            count_sql = f"""SELECT COUNT(*) FROM messages_fts
+                JOIN messages m ON m.id = messages_fts.rowid
+                WHERE {where}"""
+            search_sql = f"""SELECT m.id, m.message_id, m.subject, m.sender, m.date,
+                       m.in_reply_to,
+                       snippet(messages_fts, 2, '<mark>', '</mark>', '...', 40) as snippet,
+                       rank
+                FROM messages_fts
+                JOIN messages m ON m.id = messages_fts.rowid
+                WHERE {where}
+                ORDER BY rank
+                LIMIT ?"""
+        else:
+            # Pure SQL search (e.g. d: or f: only, no FTS)
+            count_sql = f"SELECT COUNT(*) FROM messages m WHERE {where}"
+            search_sql = f"""SELECT m.id, m.message_id, m.subject, m.sender, m.date,
+                       m.in_reply_to, '' as snippet, 0 as rank
+                FROM messages m
+                WHERE {where}
+                ORDER BY m.date DESC
+                LIMIT ?"""
 
-        rows = conn.execute(
-            f"""SELECT m.id, m.message_id, m.subject, m.sender, m.date,
-                   m.in_reply_to,
-                   snippet(messages_fts, 2, '<mark>', '</mark>', '...', 40) as snippet,
-                   rank
-            FROM messages_fts
-            JOIN messages m ON m.id = messages_fts.rowid
-            WHERE {where}
-            ORDER BY rank
-            LIMIT ?""",
-            params + [offset + per_page],  # fetch enough to merge
-        ).fetchall()
+        try:
+            count = conn.execute(count_sql, params).fetchone()[0]
+            total += count
 
-        for r in rows:
-            d = row_to_dict(r)
-            d["inbox_name"] = name
-            all_results.append(d)
+            rows = conn.execute(search_sql, params + [offset + per_page]).fetchall()
+
+            for r in rows:
+                d = row_to_dict(r)
+                d["inbox_name"] = name
+                all_results.append(d)
+        except Exception:
+            pass  # skip malformed queries gracefully
 
         conn.close()
 
     # Sort merged results by rank (lower is better in FTS5)
-    all_results.sort(key=lambda x: x.get("rank", 0))
+    if fts_query:
+        all_results.sort(key=lambda x: x.get("rank", 0))
+    else:
+        all_results.sort(key=lambda x: x.get("date", ""), reverse=True)
 
     # Paginate
     page_results = all_results[offset:offset + per_page]
-    # Remove rank from output
     for r in page_results:
         r.pop("rank", None)
 

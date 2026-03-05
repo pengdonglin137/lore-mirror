@@ -230,36 +230,59 @@ Get the full discussion thread containing the specified message. The API walks u
 
 ### GET /api/search
 
-Full-text search across all inboxes (or a specific one). Uses SQLite FTS5 with BM25 ranking.
+Full-text search with lore.kernel.org-compatible prefix syntax. Uses SQLite FTS5 with BM25 ranking.
 
 **Parameters:**
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
-| q | yes | | Search query (FTS5 syntax: words, phrases `"exact phrase"`, AND/OR/NOT) |
-| inbox | no | all | Limit search to this inbox |
-| sender | no | | Filter by sender (substring match) |
-| date_from | no | | Start date (ISO 8601, e.g. `2026-01-01`) |
-| date_to | no | | End date |
+| q | yes | | Search query with optional prefix syntax (see below) |
+| inbox | no | all | Limit search to this inbox name |
 | page | no | 1 | Page number |
 | per_page | no | 50 | Results per page (1-200) |
 
-**Example:** `GET /api/search?q=memory+leak&inbox=lkml&per_page=10`
+**Search prefix syntax** (compatible with lore.kernel.org):
 
-**FTS5 query syntax examples:**
-- `memory leak` — matches emails containing both words
-- `"memory leak"` — exact phrase match
-- `memory OR leak` — either word
-- `memory NOT leak` — contains "memory" but not "leak"
-- `memory*` — prefix match (memory, memoryleak, etc.)
+| Prefix | Description | Example |
+|--------|-------------|---------|
+| `s:` | Match in Subject | `s:PATCH` `s:"memory leak"` |
+| `f:` | Match From/sender | `f:torvalds` |
+| `b:` | Match in message body | `b:kasan` `b:"use after free"` |
+| `bs:` | Match in Subject + body | `bs:regression` |
+| `d:` | Date range (ISO format) | `d:2026-01-01..2026-03-01` |
+| `t:` | Match To header | `t:linux-mm@kvack.org` |
+| `c:` | Match Cc header | `c:stable@vger.kernel.org` |
+| `a:` | Match any address (From/To/Cc) | `a:torvalds` |
+| `tc:` | Match To + Cc | `tc:netdev@vger.kernel.org` |
+
+**Date range formats:**
+- `d:2026-01-01..2026-03-01` — between two dates
+- `d:2026-01-01..` — from a date onwards
+- `d:..2026-03-01` — up to a date
+- `d:2026-01-15` — a single day
+
+**Operators:** AND (default), OR, NOT, `"exact phrase"`, `prefix*`
+
+**Examples:**
+```
+memory leak                          plain text search
+s:PATCH f:torvalds                   patches from Torvalds
+s:"use after free" d:2026-01-01..    UAF patches since Jan 2026
+f:torvalds d:2026-01-01..2026-03-01  Torvalds' emails in date range
+b:kasan NOT s:Re:                    body contains "kasan", not a reply
+s:PATCH b:mm_struct                  patches mentioning mm_struct in body
+a:stable@vger.kernel.org             emails to/from/cc stable list
+```
+
+**Example API call:** `GET /api/search?q=s%3APATCH+f%3Atorvalds+d%3A2026-01-01..&inbox=lkml&per_page=10`
 
 **Response:**
 ```json
 {
-  "query": "memory leak",
-  "total": 1324,
+  "query": "s:PATCH f:torvalds d:2026-01-01..",
+  "total": 42,
   "page": 1,
   "per_page": 10,
-  "pages": 133,
+  "pages": 5,
   "messages": [
     {
       "id": 30139,
@@ -276,9 +299,10 @@ Full-text search across all inboxes (or a specific one). Uses SQLite FTS5 with B
 ```
 
 **Notes:**
-- Results are ranked by relevance (BM25).
-- `snippet` contains a text excerpt with `<mark>` tags around matched terms.
+- Results are ranked by relevance (BM25) when using text search, or by date when using only filters (d:, f:).
+- `snippet` contains a text excerpt with `<mark>` tags around matched terms. Empty for filter-only queries.
 - When searching across all inboxes, `inbox_name` indicates which inbox each result comes from.
+- For best performance on large datasets, always specify `inbox` parameter.
 
 ---
 
@@ -319,17 +343,40 @@ Check the status of the background sync process (read-only).
 ### Find discussions about a kernel topic
 
 ```
-1. GET /api/search?q=io_uring+splice+zero+copy
+1. GET /api/search?q=io_uring+splice+zero+copy&inbox=lkml
 2. Pick a relevant result → GET /api/threads/{message_id}
 3. Read the full thread to understand the discussion
+```
+
+### Find patches from a specific developer
+
+```
+1. GET /api/search?q=s%3APATCH+f%3Atorvalds+d%3A2026-01-01..&inbox=lkml
+   (s:PATCH f:torvalds d:2026-01-01..)
+2. For each patch series, get the cover letter (0/N) thread
+3. GET /api/messages/{message_id} to read patch details
 ```
 
 ### Find patches for a specific subsystem
 
 ```
-1. GET /api/search?q=subject:PATCH+btrfs+defrag&date_from=2026-01-01
-2. For each patch series, get the cover letter (0/N) thread
-3. GET /api/messages/{message_id} to read patch details
+1. GET /api/locate?q=btrfs                → find the right inbox
+2. GET /api/search?q=s%3APATCH+b%3Adefrag+d%3A2026-01-01..&inbox=linux-btrfs
+   (s:PATCH b:defrag d:2026-01-01..)
+```
+
+### Search by email address (To/Cc/From)
+
+```
+GET /api/search?q=a%3Atorvalds%40linux-foundation.org&inbox=lkml
+(a:torvalds@linux-foundation.org)
+```
+
+### Search for emails about a bug type in a date range
+
+```
+GET /api/search?q=b%3A%22use+after+free%22+d%3A2026-02-01..2026-03-01&inbox=lkml
+(b:"use after free" d:2026-02-01..2026-03-01)
 ```
 
 ### Get raw email for processing
@@ -349,7 +396,7 @@ GET /api/raw?id={message_id}
 ### Trace a review conversation
 
 ```
-1. Search for the patch: GET /api/search?q="PATCH v3"+driver+name
+1. Search for the patch: GET /api/search?q=s%3A%22PATCH+v3%22+driver+name&inbox=lkml
 2. Get the thread: GET /api/threads/{message_id}
 3. Read each message in the thread chronologically to follow the review
 ```
