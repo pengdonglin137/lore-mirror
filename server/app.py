@@ -148,12 +148,12 @@ def get_message(message_id: str):
     return result
 
 
-@app.get("/api/messages/{message_id:path}/raw")
-def get_message_raw(message_id: str):
-    """Get raw email content."""
+@app.get("/api/raw")
+def get_message_raw(id: str = Query(..., alias="id")):
+    """Get raw email content. Usage: /api/raw?id=<message_id>"""
     conn = get_db()
     row = conn.execute(
-        "SELECT raw_email FROM messages WHERE message_id=?", (message_id,)
+        "SELECT raw_email FROM messages WHERE message_id=?", (id,)
     ).fetchone()
     conn.close()
 

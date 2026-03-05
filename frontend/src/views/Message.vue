@@ -66,7 +66,7 @@ const hasDiff = computed(() => {
 
 <template v-for="h in headerLines" :key="h.key"><b>{{ h.key }}:</b> <template v-if="h.key === 'In-Reply-To' && h.value"><router-link :to="`/message/${encodeURIComponent(h.value.replace(/[<>]/g, ''))}`">{{ h.value }}</router-link></template><template v-else>{{ h.value }}</template>
 </template>
-<a href="#" @click.prevent="showAllHeaders = !showAllHeaders">[{{ showAllHeaders ? 'hide' : 'show all' }} headers]</a>  <router-link :to="`/thread/${encodeURIComponent(msg.message_id)}`">[view thread]</router-link>  <a :href="`/api/messages/${encodeURIComponent(msg.message_id)}/raw`">[raw]</a></pre>
+<a href="#" @click.prevent="showAllHeaders = !showAllHeaders">[{{ showAllHeaders ? 'hide' : 'show all' }} headers]</a>  <router-link :to="`/thread/${encodeURIComponent(msg.message_id)}`">[view thread]</router-link>  <a :href="`/api/raw?id=${encodeURIComponent(msg.message_id)}`">[raw]</a></pre>
 
       <pre class="msg-body"><template v-for="(line, i) in bodyLines" :key="i"><span :class="isDiffLine(line)">{{ line }}</span>
 </template></pre>
