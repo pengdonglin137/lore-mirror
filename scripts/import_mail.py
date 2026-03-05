@@ -155,16 +155,39 @@ def get_commits_for_epoch(repo_path: Path) -> list[str]:
     return [h.strip() for h in result.stdout.strip().split("\n") if h.strip()]
 
 
+def fix_date(date_str: Optional[str]) -> Optional[str]:
+    """Fix known date anomalies (Y2K bugs, epoch dates, etc.)."""
+    if not date_str:
+        return None
+    year = date_str[:4]
+    # Y2K: 0100=2000, 0101=2001, ..., 0104=2004
+    if year.startswith('01') and len(year) == 4 and int(year) < 200:
+        return str(int(year) + 1900) + date_str[4:]
+    # Off by 100: 1903->2003, 1904->2004
+    if year in ('1903', '1904'):
+        return str(int(year) + 100) + date_str[4:]
+    # Epoch/bogus dates before 1990
+    if date_str < '1990':
+        return None
+    # Future dates beyond next year (likely broken)
+    if date_str > '2100':
+        return None
+    return date_str
+
+
 def get_commit_date(repo_path: Path, commit_hash: str) -> Optional[str]:
-    """Get the author date of a git commit in ISO format."""
-    result = subprocess.run(
-        ["git", "--git-dir", str(repo_path), "log", "-1", "--format=%aI", commit_hash],
-        capture_output=True,
-        text=True,
-        timeout=10,
-    )
-    if result.returncode == 0:
-        return result.stdout.strip()
+    """Get commit date in ISO format. Tries author date, then committer date."""
+    for fmt in ["%aI", "%cI"]:
+        result = subprocess.run(
+            ["git", "--git-dir", str(repo_path), "log", "-1", f"--format={fmt}", commit_hash],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode == 0:
+            date = fix_date(result.stdout.strip())
+            if date:
+                return date
     return None
 
 
@@ -255,8 +278,8 @@ def import_epoch(conn, inbox_name: str, epoch: int, repos_dir: Path):
                 skipped += 1
                 continue
 
-            # Use git commit date as fallback for unparseable email dates
-            msg_date = parsed["date"]
+            # Fix date: apply Y2K corrections, then fallback to git date
+            msg_date = fix_date(parsed["date"])
             if not msg_date:
                 msg_date = get_commit_date(repo_path, commit_hash)
 
