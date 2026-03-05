@@ -25,8 +25,9 @@ inboxes:
   #   description: "Linux XFS Filesystem"
 
 database:
-  # SQLite database file path
-  path: "/vol_8t/lore/lore.db"
+  # Directory for per-inbox SQLite databases
+  # Each inbox gets its own file: {dir}/{inbox_name}.db
+  dir: "/vol_8t/lore/db"
 
 sync:
   # cron expression: default every 6 hours

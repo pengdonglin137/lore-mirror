@@ -1,15 +1,4 @@
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-
-const router = useRouter()
-const searchQuery = ref('')
-
-function doSearch() {
-  if (searchQuery.value.trim()) {
-    router.push({ path: '/search', query: { q: searchQuery.value.trim() } })
-  }
-}
 </script>
 
 <template>
@@ -17,15 +6,6 @@ function doSearch() {
     <header>
       <nav>
         <router-link to="/" class="logo-link">lore-mirror</router-link>
-        <form class="search-form" @submit.prevent="doSearch">
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search emails..."
-            class="search-input"
-          />
-          <button type="submit" class="search-btn">search</button>
-        </form>
       </nav>
     </header>
     <main>
@@ -82,30 +62,6 @@ header nav {
   color: #333;
 }
 
-.search-form {
-  display: flex;
-  gap: 4px;
-  flex: 1;
-  max-width: 500px;
-}
-
-.search-input {
-  flex: 1;
-  font-family: monospace;
-  font-size: 14px;
-  padding: 4px 8px;
-  border: 1px solid #999;
-}
-
-.search-btn {
-  font-family: monospace;
-  font-size: 14px;
-  padding: 4px 12px;
-  cursor: pointer;
-  border: 1px solid #999;
-  background: #eee;
-}
-
 main {
   max-width: 1200px;
   margin: 0 auto;
@@ -152,7 +108,7 @@ mark {
   a { color: #6cb6ff; }
   header { background: #252525; border-color: #444; }
   .logo-link { color: #ddd; }
-  .search-input, .search-btn, .pagination button {
+  .pagination button {
     background: #333; color: #ddd; border-color: #555;
   }
   mark { background: #665500; color: #fff; }

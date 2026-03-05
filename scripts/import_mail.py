@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """
-Import emails from public-inbox git repos into SQLite database.
+Import emails from public-inbox git repos into per-inbox SQLite databases.
 
-In public-inbox git repos, each commit contains a file 'm' (the raw email)
-or 'd' (deletion marker). We iterate through commits, extract 'm', and
-parse it with Python's email library.
+Each inbox gets its own database file: db/{inbox_name}.db
 
 Usage:
     python3 scripts/import_mail.py                # import all configured inboxes
@@ -21,7 +19,6 @@ import logging
 import subprocess
 import sys
 import time
-from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -46,6 +43,13 @@ BATCH_SIZE = 500
 def load_config(config_path: Path) -> dict:
     with open(config_path) as f:
         return yaml.safe_load(f)
+
+
+def get_db_path(config: dict, inbox_name: str) -> Path:
+    """Get the database file path for an inbox."""
+    db_dir = Path(config["database"]["dir"])
+    db_dir.mkdir(parents=True, exist_ok=True)
+    return db_dir / f"{inbox_name}.db"
 
 
 def parse_email_bytes(raw: bytes) -> dict:
@@ -155,7 +159,6 @@ def get_email_from_commit(repo_path: Path, commit_hash: str) -> Optional[bytes]:
     Extract the raw email from a commit.
     Returns None if the commit is a deletion (contains 'd' instead of 'm').
     """
-    # Check if 'm' file exists in this commit
     result = subprocess.run(
         ["git", "--git-dir", str(repo_path), "show", f"{commit_hash}:m"],
         capture_output=True,
@@ -164,7 +167,6 @@ def get_email_from_commit(repo_path: Path, commit_hash: str) -> Optional[bytes]:
     if result.returncode == 0:
         return result.stdout
 
-    # Check for 'd' (deletion marker) — this is expected, not an error
     result_d = subprocess.run(
         ["git", "--git-dir", str(repo_path), "show", f"{commit_hash}:d"],
         capture_output=True,
@@ -177,16 +179,16 @@ def get_email_from_commit(repo_path: Path, commit_hash: str) -> Optional[bytes]:
     return None
 
 
-def get_last_imported_commit(conn, inbox_id: int, epoch: int) -> Optional[str]:
-    """Get the last imported commit hash for an inbox/epoch."""
+def get_last_imported_commit(conn, epoch: int) -> Optional[str]:
+    """Get the last imported commit hash for an epoch."""
     row = conn.execute(
-        "SELECT last_commit FROM import_progress WHERE inbox_id=? AND epoch=?",
-        (inbox_id, epoch),
+        "SELECT last_commit FROM import_progress WHERE epoch=?",
+        (epoch,),
     ).fetchone()
     return row["last_commit"] if row else None
 
 
-def import_epoch(conn, inbox_id: int, inbox_name: str, epoch: int, repos_dir: Path):
+def import_epoch(conn, inbox_name: str, epoch: int, repos_dir: Path):
     """Import emails from a single epoch git repo."""
     repo_path = repos_dir / inbox_name / "git" / f"{epoch}.git"
 
@@ -196,14 +198,12 @@ def import_epoch(conn, inbox_id: int, inbox_name: str, epoch: int, repos_dir: Pa
 
     log.info(f"Processing {inbox_name} epoch {epoch}: {repo_path}")
 
-    # Get all commits
     all_commits = get_commits_for_epoch(repo_path)
     if not all_commits:
         log.info(f"  No commits found")
         return
 
-    # Find where we left off
-    last_commit = get_last_imported_commit(conn, inbox_id, epoch)
+    last_commit = get_last_imported_commit(conn, epoch)
     if last_commit:
         try:
             start_idx = all_commits.index(last_commit) + 1
@@ -241,16 +241,14 @@ def import_epoch(conn, inbox_id: int, inbox_name: str, epoch: int, repos_dir: Pa
                 skipped += 1
                 continue
 
-            # Insert message (ignore duplicates by message_id)
             try:
                 cursor = conn.execute(
                     """INSERT OR IGNORE INTO messages
-                    (inbox_id, message_id, subject, sender, date,
+                    (message_id, subject, sender, date,
                      in_reply_to, references_ids, body_text, body_html,
                      raw_email, headers, git_commit, epoch)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
-                        inbox_id,
                         parsed["message_id"],
                         parsed["subject"],
                         parsed["sender"],
@@ -266,7 +264,6 @@ def import_epoch(conn, inbox_id: int, inbox_name: str, epoch: int, repos_dir: Pa
                     ),
                 )
 
-                # Insert attachments if the message was actually inserted
                 if cursor.lastrowid and parsed["attachments"]:
                     msg_id = cursor.lastrowid
                     for att in parsed["attachments"]:
@@ -291,9 +288,9 @@ def import_epoch(conn, inbox_id: int, inbox_name: str, epoch: int, repos_dir: Pa
         if (i + 1) % BATCH_SIZE == 0:
             conn.execute(
                 """INSERT OR REPLACE INTO import_progress
-                (inbox_id, epoch, last_commit, commit_count, updated_at)
-                VALUES (?, ?, ?, ?, datetime('now'))""",
-                (inbox_id, epoch, commit_hash, start_idx + i + 1),
+                (epoch, last_commit, commit_count, updated_at)
+                VALUES (?, ?, ?, datetime('now'))""",
+                (epoch, commit_hash, start_idx + i + 1),
             )
             conn.commit()
 
@@ -310,9 +307,9 @@ def import_epoch(conn, inbox_id: int, inbox_name: str, epoch: int, repos_dir: Pa
     if remaining:
         conn.execute(
             """INSERT OR REPLACE INTO import_progress
-            (inbox_id, epoch, last_commit, commit_count, updated_at)
-            VALUES (?, ?, ?, ?, datetime('now'))""",
-            (inbox_id, epoch, remaining[-1], start_idx + len(remaining)),
+            (epoch, last_commit, commit_count, updated_at)
+            VALUES (?, ?, ?, datetime('now'))""",
+            (epoch, remaining[-1], start_idx + len(remaining)),
         )
         conn.commit()
 
@@ -321,60 +318,40 @@ def import_epoch(conn, inbox_id: int, inbox_name: str, epoch: int, repos_dir: Pa
     )
 
 
-def get_or_create_inbox(conn, name: str, description: str = "") -> int:
-    """Get inbox ID, creating it if needed."""
-    row = conn.execute("SELECT id FROM inboxes WHERE name=?", (name,)).fetchone()
-    if row:
-        return row["id"]
-    cursor = conn.execute(
-        "INSERT INTO inboxes (name, description) VALUES (?, ?)",
-        (name, description),
-    )
-    conn.commit()
-    return cursor.lastrowid
+def show_stats(config: dict):
+    """Display import statistics for all inboxes."""
+    db_dir = Path(config["database"]["dir"])
 
+    print(f"\n{'Inbox':<25} {'Messages':<12} {'Epochs':<10} {'Size':<10} {'Last Import'}")
+    print("-" * 75)
 
-def show_stats(conn):
-    """Display import statistics."""
-    print(f"\n{'Inbox':<25} {'Messages':<12} {'Epochs':<10} {'Last Import'}")
-    print("-" * 70)
+    total_msgs = 0
+    for inbox_cfg in config["inboxes"]:
+        name = inbox_cfg["name"]
+        db_path = db_dir / f"{name}.db"
+        if not db_path.exists():
+            print(f"{name:<25} {'—':<12} {'—':<10} {'—':<10} not imported")
+            continue
 
-    rows = conn.execute("""
-        SELECT i.name, COUNT(m.id) as msg_count,
-               COUNT(DISTINCT m.epoch) as epoch_count,
-               MAX(p.updated_at) as last_update
-        FROM inboxes i
-        LEFT JOIN messages m ON m.inbox_id = i.id
-        LEFT JOIN import_progress p ON p.inbox_id = i.id
-        GROUP BY i.id
-        ORDER BY i.name
-    """).fetchall()
+        conn = get_connection(db_path)
+        msg_count = conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
+        epoch_count = conn.execute("SELECT COUNT(DISTINCT epoch) FROM messages").fetchone()[0]
+        last_update = conn.execute("SELECT MAX(updated_at) FROM import_progress").fetchone()[0] or "never"
+        conn.close()
 
-    total = 0
-    for row in rows:
-        total += row["msg_count"]
-        last = row["last_update"] or "never"
-        print(f"{row['name']:<25} {row['msg_count']:<12} {row['epoch_count']:<10} {last}")
+        size = db_path.stat().st_size
+        size_str = f"{size / 1e9:.1f} GB" if size > 1e9 else f"{size / 1e6:.0f} MB"
 
-    print("-" * 70)
-    print(f"{'Total':<25} {total:<12}")
+        total_msgs += msg_count
+        print(f"{name:<25} {msg_count:<12} {epoch_count:<10} {size_str:<10} {last_update}")
 
-    # DB file size
-    db_path = conn.execute("PRAGMA database_list").fetchone()[2]
-    if db_path:
-        size = Path(db_path).stat().st_size
-        if size > 1_000_000_000:
-            print(f"\nDatabase size: {size / 1_000_000_000:.1f} GB")
-        else:
-            print(f"\nDatabase size: {size / 1_000_000:.1f} MB")
+    print("-" * 75)
+    print(f"{'Total':<25} {total_msgs:<12}")
 
 
 def run_import(config: dict, inbox_filter: Optional[str] = None):
     """Main import logic."""
-    db_path = config["database"]["path"]
     repos_dir = Path(config["mirror"]["repos_dir"])
-
-    conn = init_db(db_path)
 
     inboxes = config["inboxes"]
     if inbox_filter:
@@ -385,27 +362,28 @@ def run_import(config: dict, inbox_filter: Optional[str] = None):
 
     for inbox_cfg in inboxes:
         name = inbox_cfg["name"]
-        desc = inbox_cfg.get("description", "")
-        inbox_id = get_or_create_inbox(conn, name, desc)
 
         inbox_repo_dir = repos_dir / name / "git"
         if not inbox_repo_dir.exists():
             log.warning(f"No repos found for '{name}' at {inbox_repo_dir}, skipping")
             continue
 
-        # Find all epoch repos
+        db_path = get_db_path(config, name)
+        conn = init_db(db_path)
+
         epochs = sorted(
             int(p.name.replace(".git", ""))
             for p in inbox_repo_dir.iterdir()
             if p.name.endswith(".git") and (p / "HEAD").exists()
         )
 
-        log.info(f"Importing '{name}': {len(epochs)} epochs")
+        log.info(f"Importing '{name}': {len(epochs)} epochs -> {db_path}")
 
         for epoch in epochs:
-            import_epoch(conn, inbox_id, name, epoch, repos_dir)
+            import_epoch(conn, name, epoch, repos_dir)
 
-    conn.close()
+        conn.close()
+
     log.info("Import complete")
 
 
@@ -419,13 +397,7 @@ def main():
     config = load_config(args.config)
 
     if args.stats:
-        db_path = config["database"]["path"]
-        if not Path(db_path).exists():
-            print("Database not found. Run import first.")
-            sys.exit(1)
-        conn = get_connection(db_path)
-        show_stats(conn)
-        conn.close()
+        show_stats(config)
     else:
         run_import(config, inbox_filter=args.inbox)
 

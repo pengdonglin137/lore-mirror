@@ -1,5 +1,6 @@
 # Data (too large for git)
 repos/
+db/
 *.db
 *.db-wal
 *.db-shm

@@ -26,6 +26,10 @@ export function getThread(messageId) {
   return fetchJSON(`${BASE}/threads/${encodeURIComponent(messageId)}`)
 }
 
+export function locateInbox(q) {
+  return fetchJSON(`${BASE}/locate?q=${encodeURIComponent(q)}`)
+}
+
 export function search(q, { inbox, sender, dateFrom, dateTo, page = 1, perPage = 50 } = {}) {
   const params = new URLSearchParams({ q, page, per_page: perPage })
   if (inbox) params.set('inbox', inbox)

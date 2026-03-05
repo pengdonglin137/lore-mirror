@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """
 Database schema and access layer for lore mirror (SQLite3 + FTS5).
+
+Each inbox gets its own database file: db/{inbox_name}.db
+This allows parallel imports and better per-inbox performance.
 """
 
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def get_connection(db_path: str | Path) -> sqlite3.Connection:
@@ -25,15 +28,8 @@ def init_db(db_path: str | Path) -> sqlite3.Connection:
     conn = get_connection(db_path)
 
     conn.executescript("""
-        CREATE TABLE IF NOT EXISTS inboxes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT UNIQUE NOT NULL,
-            description TEXT DEFAULT ''
-        );
-
         CREATE TABLE IF NOT EXISTS messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            inbox_id INTEGER NOT NULL REFERENCES inboxes(id),
             message_id TEXT UNIQUE NOT NULL,
             subject TEXT,
             sender TEXT,
@@ -46,10 +42,9 @@ def init_db(db_path: str | Path) -> sqlite3.Connection:
             headers TEXT,              -- JSON object
             git_commit TEXT,
             epoch INTEGER,
-            UNIQUE(git_commit, epoch, inbox_id)
+            UNIQUE(git_commit, epoch)
         );
 
-        CREATE INDEX IF NOT EXISTS idx_messages_inbox ON messages(inbox_id);
         CREATE INDEX IF NOT EXISTS idx_messages_date ON messages(date);
         CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender);
         CREATE INDEX IF NOT EXISTS idx_messages_in_reply_to ON messages(in_reply_to);
@@ -65,14 +60,12 @@ def init_db(db_path: str | Path) -> sqlite3.Connection:
 
         CREATE INDEX IF NOT EXISTS idx_attachments_message ON attachments(message_id);
 
-        -- Track import progress: which commits have been processed
+        -- Track import progress per epoch
         CREATE TABLE IF NOT EXISTS import_progress (
-            inbox_id INTEGER NOT NULL REFERENCES inboxes(id),
-            epoch INTEGER NOT NULL,
+            epoch INTEGER PRIMARY KEY,
             last_commit TEXT NOT NULL,
             commit_count INTEGER DEFAULT 0,
-            updated_at TEXT DEFAULT (datetime('now')),
-            PRIMARY KEY (inbox_id, epoch)
+            updated_at TEXT DEFAULT (datetime('now'))
         );
 
         -- FTS5 full-text search index
