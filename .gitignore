@@ -1,0 +1,25 @@
+# Data (too large for git)
+repos/
+*.db
+*.db-wal
+*.db-shm
+
+# Logs
+*.log
+
+# Python
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+
+# Build output
+frontend/dist/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store

@@ -1,0 +1,33 @@
+mirror:
+  base_url: "https://lore.kernel.org"
+  repos_dir: "/vol_8t/lore/repos"
+  # Max concurrent git clone/fetch operations
+  max_concurrent_downloads: 2
+  # Retry count for failed downloads
+  max_retries: 3
+  # Timeout per git operation (seconds)
+  git_timeout: 3600
+
+# Inboxes to mirror - add/remove as needed
+# Each inbox will be cloned from {base_url}/{name}/{epoch_num}
+inboxes:
+  - name: lkml
+    description: "Linux Kernel Mailing List"
+  - name: netdev
+    description: "Network Development"
+  # - name: linux-mm
+  #   description: "Linux Memory Management"
+  # - name: linux-pci
+  #   description: "Linux PCI"
+  # - name: bpf
+  #   description: "BPF"
+  # - name: linux-xfs
+  #   description: "Linux XFS Filesystem"
+
+database:
+  # SQLite database file path
+  path: "/vol_8t/lore/lore.db"
+
+sync:
+  # cron expression: default every 6 hours
+  schedule: "0 */6 * * *"

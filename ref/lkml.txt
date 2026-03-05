@@ -1,0 +1,38 @@
+public-inbox mirroring instructions
+
+This public inbox may be cloned and mirrored by anyone:
+
+  # this inbox consists of 19 epochs: (no need to clone all of them)
+  git clone --mirror https://lore.kernel.org/lkml/0 lkml/git/0.git # oldest
+  git clone --mirror https://lore.kernel.org/lkml/1 lkml/git/1.git
+  git clone --mirror https://lore.kernel.org/lkml/2 lkml/git/2.git
+  git clone --mirror https://lore.kernel.org/lkml/3 lkml/git/3.git
+  git clone --mirror https://lore.kernel.org/lkml/4 lkml/git/4.git
+  git clone --mirror https://lore.kernel.org/lkml/5 lkml/git/5.git
+  git clone --mirror https://lore.kernel.org/lkml/6 lkml/git/6.git
+  git clone --mirror https://lore.kernel.org/lkml/7 lkml/git/7.git
+  git clone --mirror https://lore.kernel.org/lkml/8 lkml/git/8.git
+  git clone --mirror https://lore.kernel.org/lkml/9 lkml/git/9.git
+  git clone --mirror https://lore.kernel.org/lkml/10 lkml/git/10.git
+  git clone --mirror https://lore.kernel.org/lkml/11 lkml/git/11.git
+  git clone --mirror https://lore.kernel.org/lkml/12 lkml/git/12.git
+  git clone --mirror https://lore.kernel.org/lkml/13 lkml/git/13.git
+  git clone --mirror https://lore.kernel.org/lkml/14 lkml/git/14.git
+  git clone --mirror https://lore.kernel.org/lkml/15 lkml/git/15.git
+  git clone --mirror https://lore.kernel.org/lkml/16 lkml/git/16.git
+  git clone --mirror https://lore.kernel.org/lkml/17 lkml/git/17.git
+  git clone --mirror https://lore.kernel.org/lkml/18 lkml/git/18.git # newest
+
+  # If you have public-inbox 1.1+ installed, you may
+  # initialize and index your mirror using the following commands:
+  public-inbox-init -V2 --ng org.kernel.vger.linux-kernel \
+    lkml ./lkml https://lore.kernel.org/lkml \
+    linux-kernel@vger.kernel.org
+  public-inbox-index ./lkml
+
+Example config snippet for mirrors: https://lore.kernel.org/lkml/_/text/config/raw
+
+Newsgroup available over NNTP:
+  nntp://nntp.lore.kernel.org/org.kernel.vger.linux-kernel
+AGPL code for this site:
+  git clone http://7fh6tueqddpjyxjmgtdiueylzoqt6pt7hec3pukyptlmohoowvhde4yd.onion/public-inbox.git
