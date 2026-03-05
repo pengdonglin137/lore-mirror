@@ -54,17 +54,13 @@ function formatDate(d) {
   <div>
     <pre v-if="loading" class="loading">Loading...</pre>
     <template v-else>
-      <div class="home-search">
-        <input
+      <pre><b>lore-mirror</b>  <input
           v-model="homeQuery"
           type="text"
-          placeholder="Search..."
+          placeholder=""
           class="home-input"
           @keyup.enter="doSearchAll"
-        />
-        <button class="home-btn" @click="doLocate">locate inbox</button>
-        <button class="home-btn" @click="doSearchAll">search all inboxes</button>
-      </div>
+        /><button class="home-btn" @click="doLocate">locate inbox</button><button class="home-btn" @click="doSearchAll">search all inboxes</button></pre>
 
       <div v-if="locateResults !== null" class="locate-results">
         <pre v-if="locateResults.length === 0">No matching inboxes found.</pre>
@@ -72,8 +68,7 @@ function formatDate(d) {
 </template></pre>
       </div>
 
-      <pre>
-<b>lore-mirror</b> — local kernel mailing list archive
+      <pre>local kernel mailing list archive
 
 <template v-if="stats">Total: {{ formatCount(stats.total_messages) }} messages in {{ stats.total_inboxes }} inbox(es)
 Database: {{ formatSize(stats.database_size_bytes) }}
@@ -89,29 +84,23 @@ Inboxes:
 </template>
 
 <style scoped>
-.home-search {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 12px;
-  align-items: center;
-}
-
 .home-input {
   font-family: monospace;
   font-size: 14px;
-  padding: 4px 8px;
+  padding: 2px 6px;
   border: 1px solid #999;
-  flex: 0 1 300px;
+  width: 200px;
+  margin: 0 4px;
 }
 
 .home-btn {
   font-family: monospace;
   font-size: 14px;
-  padding: 4px 12px;
+  padding: 2px 8px;
   cursor: pointer;
   border: 1px solid #999;
   background: #eee;
-  white-space: nowrap;
+  margin-left: 2px;
 }
 
 .locate-results {
