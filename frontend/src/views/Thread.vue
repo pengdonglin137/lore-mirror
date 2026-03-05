@@ -46,24 +46,22 @@ const tree = computed(() => {
     <template v-else-if="data">
       <pre><router-link to="/">lore-mirror</router-link> — thread ({{ data.total }} messages)
 </pre>
-      <pre class="thread-tree"><template v-for="node in tree" :key="node.message_id"><ThreadNode :node="node" :depth="0" :currentId="props.id" /></template></pre>
+      <div class="thread-tree">
+        <ThreadNode
+          v-for="node in tree"
+          :key="node.message_id"
+          :node="node"
+          :depth="0"
+          :currentId="props.id"
+        />
+      </div>
     </template>
   </div>
 </template>
 
 <style scoped>
 .thread-tree {
-  line-height: 1.4;
-  font-size: 13px;
-}
-
-:deep(.current) {
-  font-weight: bold;
-  background: #fff3cd;
-  padding: 1px 4px;
-}
-
-@media (prefers-color-scheme: dark) {
-  :deep(.current) { background: #4a3f00; }
+  margin-top: 8px;
+  font-family: monospace;
 }
 </style>
