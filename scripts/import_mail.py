@@ -22,9 +22,8 @@ import time
 from pathlib import Path
 from typing import Optional
 
-import yaml
-
 from database import init_db, get_connection
+from config_utils import load_config, PROJECT_ROOT, DEFAULT_CONFIG
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,16 +32,8 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_CONFIG = PROJECT_ROOT / "config.yaml"
-
 # Batch size for commits between DB transactions
 BATCH_SIZE = 500
-
-
-def load_config(config_path: Path) -> dict:
-    with open(config_path) as f:
-        return yaml.safe_load(f)
 
 
 def get_db_path(config: dict, inbox_name: str) -> Path:

@@ -66,9 +66,13 @@ def load_config(config_path: Path) -> MirrorConfig:
         for ib in raw["inboxes"]
     ]
 
+    repos_dir = Path(mirror["repos_dir"])
+    if not repos_dir.is_absolute():
+        repos_dir = PROJECT_ROOT / repos_dir
+
     return MirrorConfig(
         base_url=mirror["base_url"].rstrip("/"),
-        repos_dir=Path(mirror["repos_dir"]),
+        repos_dir=repos_dir,
         max_concurrent_downloads=mirror.get("max_concurrent_downloads", 2),
         max_retries=mirror.get("max_retries", 3),
         git_timeout=mirror.get("git_timeout", 3600),

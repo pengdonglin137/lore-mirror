@@ -1,6 +1,7 @@
 mirror:
   base_url: "https://lore.kernel.org"
-  repos_dir: "/vol_8t/lore/repos"
+  # Relative paths are resolved from project root
+  repos_dir: "repos"
   # Max concurrent git clone/fetch operations
   max_concurrent_downloads: 2
   # Retry count for failed downloads
@@ -11,7 +12,7 @@ mirror:
 database:
   # Directory for per-inbox SQLite databases
   # Each inbox gets its own file: {dir}/{inbox_name}.db
-  dir: "/vol_8t/lore/db"
+  dir: "db"
 
 sync:
   # cron expression: default every 6 hours

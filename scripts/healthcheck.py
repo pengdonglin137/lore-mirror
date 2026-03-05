@@ -24,7 +24,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-import yaml
+from config_utils import load_config, PROJECT_ROOT, DEFAULT_CONFIG
 
 logging.basicConfig(
     level=logging.INFO,
@@ -32,14 +32,6 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 log = logging.getLogger(__name__)
-
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_CONFIG = PROJECT_ROOT / "config.yaml"
-
-
-def load_config(config_path: Path) -> dict:
-    with open(config_path) as f:
-        return yaml.safe_load(f)
 
 
 def check_git_repo(repo_path: Path) -> tuple[str, str]:

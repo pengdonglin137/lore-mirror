@@ -13,19 +13,19 @@ import sqlite3
 from pathlib import Path
 from typing import Optional
 
-import yaml
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, FileResponse
 from fastapi.staticfiles import StaticFiles
 
+import sys
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-CONFIG_PATH = PROJECT_ROOT / "config.yaml"
+sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+from config_utils import load_config as _load_config
+
 FRONTEND_DIST = PROJECT_ROOT / "frontend" / "dist"
 
-with open(CONFIG_PATH) as f:
-    _config = yaml.safe_load(f)
-
+_config = _load_config()
 DB_DIR = Path(_config["database"]["dir"])
 INBOXES_CONFIG = {ib["name"]: ib.get("description", "") for ib in _config["inboxes"]}
 
