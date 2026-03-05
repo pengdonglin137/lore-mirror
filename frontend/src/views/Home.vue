@@ -1,19 +1,31 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { getInboxes, getStats } from '../api.js'
 
-const inboxes = ref([])
+const route = useRoute()
+const allInboxes = ref([])
 const stats = ref(null)
 const loading = ref(true)
 
 onMounted(async () => {
   try {
     const [inboxData, statsData] = await Promise.all([getInboxes(), getStats()])
-    inboxes.value = inboxData
+    allInboxes.value = inboxData
     stats.value = statsData
   } finally {
     loading.value = false
   }
+})
+
+const locateQuery = computed(() => route.query.locate || '')
+
+const filteredInboxes = computed(() => {
+  if (!locateQuery.value) return allInboxes.value
+  const q = locateQuery.value.toLowerCase()
+  return allInboxes.value.filter(
+    ib => ib.name.toLowerCase().includes(q) || (ib.description || '').toLowerCase().includes(q)
+  )
 })
 
 function formatCount(n) {
@@ -43,8 +55,10 @@ function formatDate(d) {
 <template v-if="stats">Total: {{ formatCount(stats.total_messages) }} messages in {{ stats.total_inboxes }} inbox(es)
 Database: {{ formatSize(stats.database_size_bytes) }}
 </template>
-Inboxes:
-<template v-for="inbox in inboxes" :key="inbox.name">
+<template v-if="locateQuery">Matching inboxes for "{{ locateQuery }}" ({{ filteredInboxes.length }} results):
+</template><template v-else>Inboxes:
+</template><template v-if="filteredInboxes.length === 0">  No matching inboxes found.
+</template><template v-for="inbox in filteredInboxes" :key="inbox.name">
 * <router-link :to="`/inbox/${inbox.name}`">{{ inbox.name }}</router-link>
   {{ inbox.description }}
   {{ formatCount(inbox.message_count) }} messages ({{ formatDate(inbox.earliest) }} ~ {{ formatDate(inbox.latest) }})

@@ -1,22 +1,16 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { locateInbox } from './api.js'
 
 const router = useRouter()
 const query = ref('')
-const locateResults = ref(null)
 
-async function doLocate() {
-  if (!query.value.trim()) return
-  locateResults.value = null
-  const data = await locateInbox(query.value.trim())
-  locateResults.value = data.matches
+function doLocate() {
+  router.push({ path: '/', query: query.value.trim() ? { locate: query.value.trim() } : {} })
 }
 
 function doSearchAll() {
   if (!query.value.trim()) return
-  locateResults.value = null
   router.push({ path: '/search', query: { q: query.value.trim() } })
 }
 </script>
@@ -35,11 +29,6 @@ function doSearchAll() {
         <button class="nav-btn" @click="doLocate">locate inbox</button>
         <button class="nav-btn" @click="doSearchAll">search all inboxes</button>
       </nav>
-      <div v-if="locateResults !== null" class="locate-results">
-        <pre v-if="locateResults.length === 0">No matching inboxes found.</pre>
-        <pre v-else><template v-for="m in locateResults" :key="m.name">* <router-link :to="`/inbox/${m.name}`" @click="locateResults = null">{{ m.name }}</router-link>  {{ m.description }}
-</template></pre>
-      </div>
     </header>
     <main>
       <router-view />
@@ -114,14 +103,6 @@ header nav {
   white-space: nowrap;
 }
 
-.locate-results {
-  max-width: 1200px;
-  margin: 8px auto 0;
-  padding: 6px 8px;
-  background: #fefefe;
-  border: 1px solid #ddd;
-}
-
 main {
   max-width: 1200px;
   margin: 0 auto;
@@ -171,7 +152,6 @@ mark {
   .nav-input, .nav-btn, .pagination button {
     background: #333; color: #ddd; border-color: #555;
   }
-  .locate-results { background: #2a2a2a; border-color: #444; }
   mark { background: #665500; color: #fff; }
 }
 </style>
