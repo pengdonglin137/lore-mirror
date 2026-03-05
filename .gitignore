@@ -5,8 +5,9 @@ db/
 *.db-wal
 *.db-shm
 
-# Logs
+# Logs and runtime state
 *.log
+sync_status.json
 
 # Python
 __pycache__/

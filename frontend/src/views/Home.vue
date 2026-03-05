@@ -1,22 +1,31 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getInboxes, getStats } from '../api.js'
+import { getInboxes, getStats, triggerSync, getSyncStatus } from '../api.js'
 
 const route = useRoute()
 const allInboxes = ref([])
 const stats = ref(null)
 const loading = ref(true)
+const syncStatus = ref(null)
+const syncError = ref('')
+let pollTimer = null
 
 onMounted(async () => {
   try {
-    const [inboxData, statsData] = await Promise.all([getInboxes(), getStats()])
+    const [inboxData, statsData, syncData] = await Promise.all([
+      getInboxes(), getStats(), getSyncStatus(),
+    ])
     allInboxes.value = inboxData
     stats.value = statsData
+    syncStatus.value = syncData
+    if (syncData.running) startPolling()
   } finally {
     loading.value = false
   }
 })
+
+onUnmounted(() => stopPolling())
 
 const locateQuery = computed(() => route.query.locate || '')
 
@@ -27,6 +36,36 @@ const filteredInboxes = computed(() => {
     ib => ib.name.toLowerCase().includes(q) || (ib.description || '').toLowerCase().includes(q)
   )
 })
+
+async function doSync() {
+  syncError.value = ''
+  try {
+    await triggerSync()
+    startPolling()
+  } catch (e) {
+    syncError.value = e.message
+  }
+}
+
+function startPolling() {
+  stopPolling()
+  pollTimer = setInterval(async () => {
+    try {
+      syncStatus.value = await getSyncStatus()
+      if (!syncStatus.value.running) {
+        stopPolling()
+        // Refresh inbox data
+        const [inboxData, statsData] = await Promise.all([getInboxes(), getStats()])
+        allInboxes.value = inboxData
+        stats.value = statsData
+      }
+    } catch {}
+  }, 3000)
+}
+
+function stopPolling() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+}
 
 function formatCount(n) {
   if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
@@ -63,6 +102,62 @@ Database: {{ formatSize(stats.database_size_bytes) }}
   {{ inbox.description }}
   {{ formatCount(inbox.message_count) }} messages ({{ formatDate(inbox.earliest) }} ~ {{ formatDate(inbox.latest) }})
 </template></pre>
+
+      <hr class="sep" />
+      <div class="sync-section">
+        <button
+          class="sync-btn"
+          :disabled="syncStatus?.running"
+          @click="doSync"
+        >{{ syncStatus?.running ? 'syncing...' : 'sync now' }}</button>
+        <span v-if="syncStatus?.running" class="sync-info">
+          syncing {{ syncStatus.current_inbox || '...' }}
+          ({{ (syncStatus.completed || []).length }}/{{ syncStatus.total_inboxes }})
+        </span>
+        <span v-else-if="syncStatus?.finished_at" class="sync-info">
+          last sync: {{ syncStatus.finished_at }}
+        </span>
+        <span v-if="syncError" class="sync-error">{{ syncError }}</span>
+      </div>
     </template>
   </div>
 </template>
+
+<style scoped>
+.sep {
+  border: none;
+  border-top: 1px solid #ddd;
+  margin: 16px 0 12px;
+}
+
+.sync-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: monospace;
+  font-size: 13px;
+}
+
+.sync-btn {
+  font-family: monospace;
+  font-size: 13px;
+  padding: 3px 12px;
+  cursor: pointer;
+  border: 1px solid #999;
+  background: #eee;
+}
+
+.sync-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.sync-info { color: #666; }
+.sync-error { color: #c00; }
+
+@media (prefers-color-scheme: dark) {
+  .sep { border-color: #444; }
+  .sync-btn { background: #333; color: #ddd; border-color: #555; }
+  .sync-info { color: #999; }
+}
+</style>
