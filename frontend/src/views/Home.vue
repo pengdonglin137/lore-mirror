@@ -1,14 +1,10 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { getInboxes, getStats, locateInbox } from '../api.js'
+import { getInboxes, getStats } from '../api.js'
 
-const router = useRouter()
 const inboxes = ref([])
 const stats = ref(null)
 const loading = ref(true)
-const homeQuery = ref('')
-const locateResults = ref(null)
 
 onMounted(async () => {
   try {
@@ -19,18 +15,6 @@ onMounted(async () => {
     loading.value = false
   }
 })
-
-async function doLocate() {
-  if (!homeQuery.value.trim()) return
-  locateResults.value = null
-  const data = await locateInbox(homeQuery.value.trim())
-  locateResults.value = data.matches
-}
-
-function doSearchAll() {
-  if (!homeQuery.value.trim()) return
-  router.push({ path: '/search', query: { q: homeQuery.value.trim() } })
-}
 
 function formatCount(n) {
   if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
@@ -54,20 +38,6 @@ function formatDate(d) {
   <div>
     <pre v-if="loading" class="loading">Loading...</pre>
     <template v-else>
-      <pre><b>lore-mirror</b>  <input
-          v-model="homeQuery"
-          type="text"
-          placeholder=""
-          class="home-input"
-          @keyup.enter="doSearchAll"
-        /><button class="home-btn" @click="doLocate">locate inbox</button><button class="home-btn" @click="doSearchAll">search all inboxes</button></pre>
-
-      <div v-if="locateResults !== null" class="locate-results">
-        <pre v-if="locateResults.length === 0">No matching inboxes found.</pre>
-        <pre v-else><template v-for="m in locateResults" :key="m.name">* <router-link :to="`/inbox/${m.name}`">{{ m.name }}</router-link>  {{ m.description }}
-</template></pre>
-      </div>
-
       <pre>local kernel mailing list archive
 
 <template v-if="stats">Total: {{ formatCount(stats.total_messages) }} messages in {{ stats.total_inboxes }} inbox(es)
@@ -82,36 +52,3 @@ Inboxes:
     </template>
   </div>
 </template>
-
-<style scoped>
-.home-input {
-  font-family: monospace;
-  font-size: 14px;
-  padding: 2px 6px;
-  border: 1px solid #999;
-  width: 200px;
-  margin: 0 4px;
-}
-
-.home-btn {
-  font-family: monospace;
-  font-size: 14px;
-  padding: 2px 8px;
-  cursor: pointer;
-  border: 1px solid #999;
-  background: #eee;
-  margin-left: 2px;
-}
-
-.locate-results {
-  margin-bottom: 12px;
-  padding: 8px;
-  background: #f9f9f9;
-  border: 1px solid #ddd;
-}
-
-@media (prefers-color-scheme: dark) {
-  .home-input, .home-btn { background: #333; color: #ddd; border-color: #555; }
-  .locate-results { background: #252525; border-color: #444; }
-}
-</style>

@@ -1,4 +1,24 @@
 <script setup>
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { locateInbox } from './api.js'
+
+const router = useRouter()
+const query = ref('')
+const locateResults = ref(null)
+
+async function doLocate() {
+  if (!query.value.trim()) return
+  locateResults.value = null
+  const data = await locateInbox(query.value.trim())
+  locateResults.value = data.matches
+}
+
+function doSearchAll() {
+  if (!query.value.trim()) return
+  locateResults.value = null
+  router.push({ path: '/search', query: { q: query.value.trim() } })
+}
 </script>
 
 <template>
@@ -6,7 +26,20 @@
     <header>
       <nav>
         <router-link to="/" class="logo-link">lore-mirror</router-link>
+        <input
+          v-model="query"
+          type="text"
+          class="nav-input"
+          @keyup.enter="doSearchAll"
+        />
+        <button class="nav-btn" @click="doLocate">locate inbox</button>
+        <button class="nav-btn" @click="doSearchAll">search all inboxes</button>
       </nav>
+      <div v-if="locateResults !== null" class="locate-results">
+        <pre v-if="locateResults.length === 0">No matching inboxes found.</pre>
+        <pre v-else><template v-for="m in locateResults" :key="m.name">* <router-link :to="`/inbox/${m.name}`" @click="locateResults = null">{{ m.name }}</router-link>  {{ m.description }}
+</template></pre>
+      </div>
     </header>
     <main>
       <router-view />
@@ -51,7 +84,7 @@ header {
 header nav {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 6px;
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -60,6 +93,33 @@ header nav {
   font-weight: bold;
   font-size: 16px;
   color: #333;
+  margin-right: 8px;
+}
+
+.nav-input {
+  font-family: monospace;
+  font-size: 14px;
+  padding: 2px 6px;
+  border: 1px solid #999;
+  width: 200px;
+}
+
+.nav-btn {
+  font-family: monospace;
+  font-size: 14px;
+  padding: 2px 8px;
+  cursor: pointer;
+  border: 1px solid #999;
+  background: #eee;
+  white-space: nowrap;
+}
+
+.locate-results {
+  max-width: 1200px;
+  margin: 8px auto 0;
+  padding: 6px 8px;
+  background: #fefefe;
+  border: 1px solid #ddd;
 }
 
 main {
@@ -108,9 +168,10 @@ mark {
   a { color: #6cb6ff; }
   header { background: #252525; border-color: #444; }
   .logo-link { color: #ddd; }
-  .pagination button {
+  .nav-input, .nav-btn, .pagination button {
     background: #333; color: #ddd; border-color: #555;
   }
+  .locate-results { background: #2a2a2a; border-color: #444; }
   mark { background: #665500; color: #fff; }
 }
 </style>
