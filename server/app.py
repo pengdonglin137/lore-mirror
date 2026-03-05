@@ -346,13 +346,14 @@ def parse_search_query(raw_query: str) -> tuple[str, list[str], list]:
         "bs": None,  # special: subject OR body
     }
 
-    # SQL LIKE search on headers JSON
+    # SQL LIKE/exact search
     SQL_PREFIX_MAP = {
         "f": "m.sender",
-        "t": "m.headers",   # search To in headers JSON
-        "c": "m.headers",   # search Cc in headers JSON
-        "a": None,           # special: sender + headers
-        "tc": None,          # special: headers (To + Cc)
+        "m": "m.message_id",  # Message-ID exact match
+        "t": "m.headers",     # search To in headers JSON
+        "c": "m.headers",     # search Cc in headers JSON
+        "a": None,             # special: sender + headers
+        "tc": None,            # special: headers (To + Cc)
     }
 
     # Extract prefix:value tokens (handle quoted values)
@@ -391,6 +392,9 @@ def parse_search_query(raw_query: str) -> tuple[str, list[str], list]:
             elif prefix == "bs":
                 # subject OR body
                 fts_parts.append(f"(subject:{value} OR body_text:{value})")
+        elif prefix == "m":
+            where_clauses.append("m.message_id = ?")
+            params.append(value.strip("<>"))
         elif prefix == "f":
             where_clauses.append("m.sender LIKE ?")
             params.append(f"%{value}%")
@@ -433,6 +437,35 @@ def search(
     Date range: d:2026-01-01..2026-03-01  d:2026-01-01..  d:..2026-03-01
     """
     offset = (page - 1) * per_page
+
+    # If query looks like a Message-ID (contains @), try exact lookup first
+    q_stripped = q.strip().strip("<>")
+    if "@" in q_stripped and " " not in q_stripped:
+        inboxes_check = [inbox] if inbox else get_available_inboxes()
+        for name in inboxes_check:
+            try:
+                conn = get_db(name)
+            except HTTPException:
+                continue
+            row = conn.execute(
+                """SELECT id, message_id, subject, sender, date, in_reply_to
+                FROM messages WHERE message_id=?""",
+                (q_stripped,),
+            ).fetchone()
+            conn.close()
+            if row:
+                d = row_to_dict(row)
+                d["inbox_name"] = name
+                d["snippet"] = ""
+                return {
+                    "query": q,
+                    "total": 1,
+                    "page": 1,
+                    "per_page": per_page,
+                    "pages": 1,
+                    "messages": [d],
+                }
+
     fts_query, extra_where, extra_params = parse_search_query(q)
 
     inboxes_to_search = [inbox] if inbox else get_available_inboxes()

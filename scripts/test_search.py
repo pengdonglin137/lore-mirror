@@ -102,6 +102,16 @@ tests = [
     ("combined plain + f:", "memory leak f:kasan",
      {"expect_fts": "memory leak", "expect_where_count": 1,
       "expect_params_contains": ["%kasan%"]}),
+
+    # Message-ID prefix
+    ("m: message-id", "m:20260110-can_usb@pengutronix.de",
+     {"expect_fts": None, "expect_where_count": 1,
+      "expect_params_contains": ["20260110-can_usb@pengutronix.de"]}),
+
+    # Message-ID with angle brackets
+    ("m: message-id brackets", "m:<foo@bar.com>",
+     {"expect_fts": None, "expect_where_count": 1,
+      "expect_params_contains": ["foo@bar.com"]}),
 ]
 
 for name, query, kwargs in tests:
