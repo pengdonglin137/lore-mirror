@@ -17,7 +17,7 @@ export default {
 </script>
 
 <template>
-  <div class="thread-node" :style="{ paddingLeft: depth * 24 + 'px' }">
+  <div class="thread-node" :style="{ paddingLeft: depth * 12 + 'px' }">
     <div class="thread-entry">
       <router-link
         :to="'/message/' + encodeURIComponent(node.message_id)"
