@@ -160,8 +160,10 @@ def fix_date(date_str: Optional[str]) -> Optional[str]:
     # Epoch/bogus dates before 1990
     if date_str < '1990':
         return None
-    # Future dates beyond next year (likely broken)
-    if date_str > '2100':
+    # Future dates beyond next year (spoofed or broken timestamp)
+    from datetime import datetime
+    max_year = str(datetime.now().year + 1)
+    if date_str[:4] > max_year:
         return None
     return date_str
 

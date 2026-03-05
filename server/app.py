@@ -140,7 +140,9 @@ def get_inbox(
     messages = conn.execute(
         """SELECT id, message_id, subject, sender, date, in_reply_to
         FROM messages
-        ORDER BY CASE WHEN date GLOB '[0-9][0-9][0-9][0-9]-*' THEN date ELSE '' END DESC,
+        ORDER BY CASE
+                   WHEN date GLOB '[0-9][0-9][0-9][0-9]-*' AND date <= date('now', '+1 day')
+                   THEN date ELSE '' END DESC,
                  id DESC
         LIMIT ? OFFSET ?""",
         (per_page, offset),
