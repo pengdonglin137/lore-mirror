@@ -8,22 +8,6 @@ mirror:
   # Timeout per git operation (seconds)
   git_timeout: 3600
 
-# Inboxes to mirror - add/remove as needed
-# Each inbox will be cloned from {base_url}/{name}/{epoch_num}
-inboxes:
-  - name: lkml
-    description: "Linux Kernel Mailing List"
-  - name: netdev
-    description: "Network Development"
-  # - name: linux-mm
-  #   description: "Linux Memory Management"
-  # - name: linux-pci
-  #   description: "Linux PCI"
-  # - name: bpf
-  #   description: "BPF"
-  # - name: linux-xfs
-  #   description: "Linux XFS Filesystem"
-
 database:
   # Directory for per-inbox SQLite databases
   # Each inbox gets its own file: {dir}/{inbox_name}.db
@@ -32,3 +16,454 @@ database:
 sync:
   # cron expression: default every 6 hours
   schedule: "0 */6 * * *"
+
+# ============================================================
+# Inboxes to mirror
+# Uncomment the ones you want to enable.
+# Full list from lore.kernel.org (as of 2026-03-05, ~200 inboxes)
+# ============================================================
+
+inboxes:
+  # ── Currently enabled ──────────────────────────────
+  - name: lkml
+    description: "The Linux Kernel Mailing List"
+
+  # ── Core subsystems ────────────────────────────────
+  # - name: netdev
+  #   description: "Netdev List"
+  # - name: linux-mm
+  #   description: "Linux Memory Management"
+  # - name: linux-fsdevel
+  #   description: "Linux filesystem development"
+  # - name: linux-block
+  #   description: "Linux block layer"
+  # - name: linux-pm
+  #   description: "Linux Power Management development"
+  # - name: linux-arch
+  #   description: "Generic Linux architectural discussions"
+  # - name: linux-doc
+  #   description: "Linux Documentation"
+  # - name: linux-modules
+  #   description: "Linux Modules"
+  # - name: linux-kbuild
+  #   description: "Linux kbuild/kconfig development"
+  # - name: linux-hardening
+  #   description: "Linux Hardening"
+  # - name: linux-security-module
+  #   description: "Linux Security Modules development"
+  # - name: driver-core
+  #   description: "Linux driver-core infrastructure"
+  # - name: stable
+  #   description: "Linux kernel -stable discussions"
+  # - name: linux-next
+  #   description: "Linux-Next discussions"
+  # - name: regressions
+  #   description: "Linux kernel regressions"
+  # - name: linux-patches
+  #   description: "Archive-only list for patches"
+  # - name: mm-commits
+  #   description: "Linux MM tree latest commits"
+  # - name: soc
+  #   description: "Linux SOC development"
+
+  # ── Virtualization & KVM ───────────────────────────
+  # - name: kvm
+  #   description: "Kernel KVM virtualization development"
+  # - name: kvmarm
+  #   description: "Linux KVM/arm64 development list"
+  # - name: kvm-riscv
+  #   description: "KVM-RISCV"
+  # - name: virtualization
+  #   description: "Linux virtualization list"
+  # - name: qemu-devel
+  #   description: "QEMU-Devel"
+  # - name: qemu-arm
+  #   description: "QEMU-Arm"
+  # - name: qemu-trivial
+  #   description: "QEMU-Trivial"
+  # - name: linux-hyperv
+  #   description: "Linux-HyperV List"
+  # - name: xen-devel
+  #   description: "Xen-Devel"
+  # - name: virtio-comment
+  #   description: "Discussion of the VIRTIO specification"
+
+  # ── Networking ─────────────────────────────────────
+  # - name: bpf
+  #   description: "BPF List"
+  # - name: mptcp
+  #   description: "MPTCP Linux Development"
+  # - name: netfilter-devel
+  #   description: "Linux Netfilter development"
+  # - name: bridge
+  #   description: "Ethernet Bridge development"
+  # - name: linux-wireless
+  #   description: "Linux wireless drivers development"
+  # - name: wireless-regdb
+  #   description: "Wireless-regdb"
+  # - name: linux-bluetooth
+  #   description: "Linux bluetooth development"
+  # - name: linux-can
+  #   description: "Linux CAN drivers development"
+  # - name: linux-ppp
+  #   description: "Linux PPP protocol development"
+  # - name: linux-sctp
+  #   description: "Linux SCTP protocol development"
+  # - name: linux-x25
+  #   description: "Linux X.25 subsystem development"
+  # - name: linux-hams
+  #   description: "Linux HAM/Amateur Radio development"
+  # - name: quic
+  #   description: "Linux QUIC protocol development"
+  # - name: intel-wired-lan
+  #   description: "Intel Wired LAN"
+
+  # ── Filesystems ────────────────────────────────────
+  # - name: linux-xfs
+  #   description: "Linux XFS filesystem development"
+  # - name: linux-btrfs
+  #   description: "Linux Btrfs filesystem development"
+  # - name: linux-ext4
+  #   description: "Linux EXT4 FS development"
+  # - name: linux-f2fs-devel
+  #   description: "Linux f2fs filesystem development"
+  # - name: linux-nfs
+  #   description: "Linux NFS development"
+  # - name: linux-cifs
+  #   description: "Linux CIFS filesystem development"
+  # - name: linux-erofs
+  #   description: "Linux EROFS"
+  # - name: linux-unionfs
+  #   description: "Linux Overlay Filesystem development"
+  # - name: linux-nilfs
+  #   description: "Linux NILFS development"
+  # - name: ntfs3
+  #   description: "NTFS3 file system kernel mode driver"
+  # - name: ceph-devel
+  #   description: "CEPH filesystem development"
+  # - name: gfs2
+  #   description: "gfs2 filesystem and dlm development"
+  # - name: ocfs2-devel
+  #   description: "Linux ocfs2 filesystem development"
+  # - name: v9fs
+  #   description: "Linux 9p file system development"
+  # - name: rpdfs-devel
+  #   description: "RapidFS Filesystem Development"
+  # - name: netfs
+  #   description: "Linux network filesystem support library"
+  # - name: fstests
+  #   description: "FS/XFS testing framework"
+  # - name: fsverity
+  #   description: "Linux fsverity development list"
+  # - name: linux-fscrypt
+  #   description: "Linux FSCRYPT development"
+  # - name: ecryptfs
+  #   description: "EcryptFS development"
+  # - name: autofs
+  #   description: "AutoFS development"
+
+  # ── Storage & drivers ──────────────────────────────
+  # - name: linux-scsi
+  #   description: "Linux SCSI subsystem development"
+  # - name: linux-nvme
+  #   description: "Linux NVME"
+  # - name: linux-raid
+  #   description: "Linux RAID subsystem development"
+  # - name: dm-devel
+  #   description: "Linux Device Mapper development"
+  # - name: linux-mtd
+  #   description: "Linux MTD"
+  # - name: linux-mmc
+  #   description: "Linux MultiMedia Card development"
+  # - name: linux-ide
+  #   description: "Linux ATA/IDE development"
+  # - name: target-devel
+  #   description: "SCSI target development"
+  # - name: nvdimm
+  #   description: "NVDIMM Device and Persistent Memory development"
+  # - name: linux-cxl
+  #   description: "Linux CXL"
+  # - name: linux-bcache
+  #   description: "Linux bcache driver list"
+  # - name: io-uring
+  #   description: "Linux io-uring development"
+
+  # ── GPU & graphics ─────────────────────────────────
+  # - name: dri-devel
+  #   description: "dri-devel"
+  # - name: amd-gfx
+  #   description: "AMD-GFX"
+  # - name: intel-gfx
+  #   description: "Intel-GFX"
+  # - name: intel-xe
+  #   description: "Intel-XE"
+  # - name: nouveau
+  #   description: "Nouveau"
+  # - name: igt-dev
+  #   description: "Igt-dev"
+  # - name: linux-fbdev
+  #   description: "Linux Framebuffer Layer development"
+
+  # ── Architecture specific ──────────────────────────
+  # - name: linux-arm-kernel
+  #   description: "Linux ARM Kernel"
+  # - name: linux-arm-msm
+  #   description: "Linux ARM-MSM sub-architecture"
+  # - name: linux-riscv
+  #   description: "Linux RISC-V"
+  # - name: loongarch
+  #   description: "LoongArch architecture development"
+  # - name: linuxppc-dev
+  #   description: "LinuxPPC-Dev"
+  # - name: linux-s390
+  #   description: "Linux s390 Architecture development"
+  # - name: linux-mips
+  #   description: "Linux MIPS Architecture development"
+  # - name: linux-parisc
+  #   description: "Linux PARISC architecture development"
+  # - name: linux-sh
+  #   description: "SUPERH platform development"
+  # - name: linux-m68k
+  #   description: "Linux M68K Architecture development"
+  # - name: linux-alpha
+  #   description: "Alpha arch development list"
+  # - name: linux-csky
+  #   description: "Linux C-SKY architecture development"
+  # - name: linux-hexagon
+  #   description: "Linux Hexagon architecture development"
+  # - name: linux-um
+  #   description: "linux-um"
+  # - name: openrisc
+  #   description: "Linux OpenRISC platform development"
+  # - name: sparclinux
+  #   description: "SPARC and UltraSPARC platform development"
+
+  # ── SoC / platform ────────────────────────────────
+  # - name: linux-rockchip
+  #   description: "Linux Rockchip"
+  # - name: linux-mediatek
+  #   description: "Linux Mediatek"
+  # - name: linux-samsung-soc
+  #   description: "Linux Samsung SOC development"
+  # - name: linux-renesas-soc
+  #   description: "Linux Renesas SOC kernel development"
+  # - name: linux-tegra
+  #   description: "Linux Tegra architecture development"
+  # - name: linux-amlogic
+  #   description: "Linux Amlogic"
+  # - name: linux-sunxi
+  #   description: "ARM Sunxi Platform Development"
+  # - name: linux-omap
+  #   description: "Linux on ARM based TI OMAP SoCs"
+  # - name: linux-aspeed
+  #   description: "Linux Aspeed"
+  # - name: imx
+  #   description: "Linux kernel and device drivers for NXP i.MX platforms"
+  # - name: sophgo
+  #   description: "Linux Sophgo SoC development"
+  # - name: spacemit
+  #   description: "Linux SpacemiT device drivers"
+  # - name: platform-driver-x86
+  #   description: "X86 platform drivers"
+  # - name: chrome-platform
+  #   description: "Chrome platform driver development"
+
+  # ── Bus & device subsystems ────────────────────────
+  # - name: linux-pci
+  #   description: "Linux PCI subsystem development"
+  # - name: linux-usb
+  #   description: "Linux USB"
+  # - name: linux-i2c
+  #   description: "Linux I2C development"
+  # - name: linux-i3c
+  #   description: "Linux I3C"
+  # - name: linux-spi
+  #   description: "Linux SPI subsystem development"
+  # - name: linux-gpio
+  #   description: "Linux GPIO subsystem development"
+  # - name: linux-iio
+  #   description: "Linux IIO development"
+  # - name: linux-phy
+  #   description: "Linux PHY"
+  # - name: linux-clk
+  #   description: "Linux clock framework development"
+  # - name: dmaengine
+  #   description: "DMA Engine development"
+  # - name: linux-hwmon
+  #   description: "Linux Hardware Monitor development"
+  # - name: linux-leds
+  #   description: "Linux LED subsystem development"
+  # - name: linux-watchdog
+  #   description: "Linux Watchdog driver development"
+  # - name: linux-input
+  #   description: "Linux Input/HID development"
+  # - name: linux-rtc
+  #   description: "Linux RTC"
+  # - name: linux-fpga
+  #   description: "Linux FPGA development"
+  # - name: linux-hotplug
+  #   description: "Linux Hotplug development"
+  # - name: linux-rdma
+  #   description: "Linux RDMA and InfiniBand development"
+  # - name: ntb
+  #   description: "Linux PCI Non-Transparent Bridge framework and drivers"
+
+  # ── Security & crypto ──────────────────────────────
+  # - name: linux-crypto
+  #   description: "Linux cryptographic layer development"
+  # - name: keyrings
+  #   description: "Kernel keyring development"
+  # - name: linux-integrity
+  #   description: "Linux Integrity Measurement development"
+  # - name: selinux
+  #   description: "SELinux Security Module development"
+  # - name: linux-sgx
+  #   description: "Intel SGX development"
+  # - name: linux-coco
+  #   description: "Linux Confidential Computing Development"
+  # - name: audit
+  #   description: "Audit system development"
+  # - name: kernel-tls-handshake
+  #   description: "Handshake for in-kernel TLS consumers"
+
+  # ── Tracing, testing & debugging ───────────────────
+  # - name: linux-trace-kernel
+  #   description: "Linux Trace Kernel"
+  # - name: linux-perf-users
+  #   description: "Linux Perf Users"
+  # - name: linux-kselftest
+  #   description: "Linux Kernel Selftest development"
+  # - name: ltp
+  #   description: "Linux Test Project"
+  # - name: syzbot
+  #   description: "Archive-only list for syzbot"
+  # - name: rcu
+  #   description: "Linux RCU subsystem development"
+  # - name: damon
+  #   description: "DAMON development mailing list"
+  # - name: live-patching
+  #   description: "Live Patching"
+  # - name: linux-rt-devel
+  #   description: "Linux real-time development"
+  # - name: linux-edac
+  #   description: "Linux EDAC development"
+  # - name: dwarves
+  #   description: "Dwarves debugging tools"
+  # - name: dtrace
+  #   description: "Linux DTrace development list"
+  # - name: criu
+  #   description: "CRIU (Checkpoint/Restore in Userspace)"
+
+  # ── Sound & media ──────────────────────────────────
+  # - name: linux-sound
+  #   description: "Linux Sound subsystem development"
+  # - name: alsa-devel
+  #   description: "ALSA Development"
+  # - name: linux-media
+  #   description: "Linux Media Controller development"
+
+  # ── Devicetree ─────────────────────────────────────
+  # - name: linux-devicetree
+  #   description: "Devicetree"
+  # - name: devicetree-compiler
+  #   description: "Devicetree Compiler"
+  # - name: devicetree-spec
+  #   description: "Devicetree Spec"
+
+  # ── Scheduling & cgroups ───────────────────────────
+  # - name: cgroups
+  #   description: "Linux cgroups development"
+  # - name: sched-ext
+  #   description: "Sched_ext development"
+
+  # ── IOMMU & ACPI & EFI ────────────────────────────
+  # - name: linux-iommu
+  #   description: "Linux IOMMU Development"
+  # - name: linux-acpi
+  #   description: "Linux ACPI"
+  # - name: linux-efi
+  #   description: "Linux EFI development"
+  # - name: x86-cpuid
+  #   description: "x86-cpuid.org development mailing list"
+
+  # ── Remoteproc / firmware ──────────────────────────
+  # - name: linux-remoteproc
+  #   description: "Linux Remote Processor Subsystem development"
+  # - name: linux-firmware
+  #   description: "Linux Firmware"
+  # - name: arm-scmi
+  #   description: "SCMI firmware/drivers"
+
+  # ── Build systems & tooling ────────────────────────
+  # - name: rust-for-linux
+  #   description: "Rust for Linux List"
+  # - name: llvm
+  #   description: "Building the Linux kernel with Clang and LLVM"
+  # - name: cocci
+  #   description: "Coccinelle"
+  # - name: tools
+  #   description: "Linux maintainer tooling and workflows"
+  # - name: workflows
+  #   description: "Maintainer workflows discussions"
+  # - name: linux-spdx
+  #   description: "Linux Licenses and SPDX discussions"
+  # - name: linux-man
+  #   description: "Linux Manual Pages development"
+  # - name: kernelci
+  #   description: "KernelCI discussions"
+
+  # ── Build / kbuild / testing infra ─────────────────
+  # - name: oe-kbuild-all
+  #   description: "kbuild Development List"
+  # - name: oe-kbuild
+  #   description: "0 day kernel build service"
+  # - name: oe-lkp
+  #   description: "Linux Kernel Performance"
+  # - name: linux-staging
+  #   description: "Linux kernel staging patches"
+
+  # ── Bootloader ─────────────────────────────────────
+  # - name: u-boot
+  #   description: "U-Boot"
+  # - name: barebox
+  #   description: "barebox mailing list"
+  # - name: grub-devel
+  #   description: "Grub Development"
+
+  # ── Embedded / Yocto / OpenEmbedded ────────────────
+  # - name: yocto
+  #   description: "Yocto Project Discussions"
+  # - name: yocto-patches
+  #   description: "Patches for Yocto layers and components"
+  # - name: yocto-meta-arago
+  #   description: "Yocto Meta Arago"
+  # - name: yocto-meta-ti
+  #   description: "Yocto Meta TI"
+  # - name: yocto-meta-virtualization
+  #   description: "Yocto Meta Virtualization"
+  # - name: openembedded-devel
+  #   description: "Openembedded Devel Discussions"
+  # - name: openembedded-core
+  #   description: "Openembedded Core Discussions"
+  # - name: buildroot
+  #   description: "Buildroot"
+  # - name: cip-dev
+  #   description: "CIP Development"
+
+  # ── Other ──────────────────────────────────────────
+  # - name: all
+  #   description: "All of lore.kernel.org"
+  # - name: git
+  #   description: "Git development"
+  # - name: ddprobe
+  #   description: "List used for roundtrip monitoring"
+  # - name: dpdk-dev
+  #   description: "DPDK development"
+  # - name: openbmc
+  #   description: "OpenBMC"
+  # - name: phone-devel
+  #   description: "Linux smartphone development"
+  # - name: distributions
+  #   description: "Forum for Linux distributions"
+  # - name: dash
+  #   description: "DASH Shell discussions"
