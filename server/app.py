@@ -10,13 +10,11 @@ Usage:
 
 import json
 import sqlite3
-import subprocess
-import sys
 from pathlib import Path
 from typing import Optional
 
 import yaml
-from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -441,33 +439,9 @@ def get_stats():
 SYNC_STATUS_FILE = PROJECT_ROOT / "sync_status.json"
 
 
-def _run_sync_background(inbox: Optional[str] = None):
-    """Run sync script as subprocess."""
-    cmd = [sys.executable, str(PROJECT_ROOT / "scripts" / "sync.py")]
-    if inbox:
-        cmd.extend(["--inbox", inbox])
-    subprocess.Popen(cmd, cwd=str(PROJECT_ROOT))
-
-
-@app.post("/api/sync")
-def trigger_sync(
-    background_tasks: BackgroundTasks,
-    inbox: Optional[str] = None,
-):
-    """Trigger a sync (git fetch + import). Runs in background."""
-    # Check if already running
-    if SYNC_STATUS_FILE.exists():
-        status = json.loads(SYNC_STATUS_FILE.read_text())
-        if status.get("running"):
-            raise HTTPException(409, "Sync already in progress")
-
-    background_tasks.add_task(_run_sync_background, inbox)
-    return {"message": "Sync started", "inbox": inbox or "all"}
-
-
 @app.get("/api/sync/status")
 def get_sync_status():
-    """Get current sync status."""
+    """Get current sync status (read-only, sync is triggered via CLI only)."""
     if SYNC_STATUS_FILE.exists():
         return json.loads(SYNC_STATUS_FILE.read_text())
     return {"running": False}

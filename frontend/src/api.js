@@ -30,13 +30,6 @@ export function locateInbox(q) {
   return fetchJSON(`${BASE}/locate?q=${encodeURIComponent(q)}`)
 }
 
-export async function triggerSync(inbox) {
-  const params = inbox ? `?inbox=${encodeURIComponent(inbox)}` : ''
-  const res = await fetch(`${BASE}/sync${params}`, { method: 'POST' })
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
-  return res.json()
-}
-
 export function getSyncStatus() {
   return fetchJSON(`${BASE}/sync/status`)
 }

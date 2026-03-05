@@ -1,14 +1,13 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getInboxes, getStats, triggerSync, getSyncStatus } from '../api.js'
+import { getInboxes, getStats, getSyncStatus } from '../api.js'
 
 const route = useRoute()
 const allInboxes = ref([])
 const stats = ref(null)
 const loading = ref(true)
 const syncStatus = ref(null)
-const syncError = ref('')
 let pollTimer = null
 
 onMounted(async () => {
@@ -37,16 +36,6 @@ const filteredInboxes = computed(() => {
   )
 })
 
-async function doSync() {
-  syncError.value = ''
-  try {
-    await triggerSync()
-    startPolling()
-  } catch (e) {
-    syncError.value = e.message
-  }
-}
-
 function startPolling() {
   stopPolling()
   pollTimer = setInterval(async () => {
@@ -54,7 +43,6 @@ function startPolling() {
       syncStatus.value = await getSyncStatus()
       if (!syncStatus.value.running) {
         stopPolling()
-        // Refresh inbox data
         const [inboxData, statsData] = await Promise.all([getInboxes(), getStats()])
         allInboxes.value = inboxData
         stats.value = statsData
@@ -103,61 +91,30 @@ Database: {{ formatSize(stats.database_size_bytes) }}
   {{ formatCount(inbox.message_count) }} messages ({{ formatDate(inbox.earliest) }} ~ {{ formatDate(inbox.latest) }})
 </template></pre>
 
-      <hr class="sep" />
-      <div class="sync-section">
-        <button
-          class="sync-btn"
-          :disabled="syncStatus?.running"
-          @click="doSync"
-        >{{ syncStatus?.running ? 'syncing...' : 'sync now' }}</button>
-        <span v-if="syncStatus?.running" class="sync-info">
+      <div v-if="syncStatus" class="sync-status">
+        <span v-if="syncStatus.running" class="sync-info">
           syncing {{ syncStatus.current_inbox || '...' }}
           ({{ (syncStatus.completed || []).length }}/{{ syncStatus.total_inboxes }})
         </span>
-        <span v-else-if="syncStatus?.finished_at" class="sync-info">
+        <span v-else-if="syncStatus.finished_at" class="sync-info">
           last sync: {{ syncStatus.finished_at }}
         </span>
-        <span v-if="syncError" class="sync-error">{{ syncError }}</span>
       </div>
     </template>
   </div>
 </template>
 
 <style scoped>
-.sep {
-  border: none;
+.sync-status {
+  font-family: monospace;
+  font-size: 12px;
+  color: #888;
   border-top: 1px solid #ddd;
-  margin: 16px 0 12px;
+  margin-top: 16px;
+  padding-top: 8px;
 }
-
-.sync-section {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-family: monospace;
-  font-size: 13px;
-}
-
-.sync-btn {
-  font-family: monospace;
-  font-size: 13px;
-  padding: 3px 12px;
-  cursor: pointer;
-  border: 1px solid #999;
-  background: #eee;
-}
-
-.sync-btn:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
-.sync-info { color: #666; }
-.sync-error { color: #c00; }
 
 @media (prefers-color-scheme: dark) {
-  .sep { border-color: #444; }
-  .sync-btn { background: #333; color: #ddd; border-color: #555; }
-  .sync-info { color: #999; }
+  .sync-status { border-color: #444; color: #666; }
 }
 </style>
