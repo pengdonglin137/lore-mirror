@@ -2,10 +2,12 @@
 name: kernel-dev
 description: >-
   Linux kernel development assistant — code reading, feature evolution tracking,
-  patch backporting, and kernel activity monitoring. Use when: reading kernel source,
-  understanding commit history, backporting patches between kernel versions,
-  tracking subsystem development, analyzing Fixes: tags, cherry-picking, or
-  tracing code changes across kernel releases. Requires git and optionally lore-mirror.
+  patch backporting, regression analysis, and kernel activity monitoring. Use when:
+  reading kernel source, understanding commit history, backporting patches between
+  kernel versions, tracking subsystem development, analyzing Fixes: tags,
+  cherry-picking, tracing code changes across kernel releases, analyzing regression
+  cycles, or assessing real-world impact of kernel changes. Requires git and
+  optionally lore-mirror.
 invocation_policy: automatic
 ---
 
@@ -21,6 +23,9 @@ Activate when the user wants to:
 - Track latest patches (merged or in-progress) for a subsystem
 - Analyze commit dependencies for cherry-picking
 - Find the commit that introduced a bug (bisect analysis)
+- Analyze regression cycles (feature → regression → revert/fix)
+- Assess real-world impact of kernel changes via mailing list reports
+- Identify repeatedly-fixed "hot path" code areas
 
 ## Prerequisites
 
@@ -91,6 +96,84 @@ git log --merges --oneline v6.0..v6.1 -- mm/
 3. List all versions: `git tag --contains <initial-commit> | grep '^v[0-9]' | head`
 4. For each version pair, summarize changes: `git log --oneline <v_old>..<v_new> -- <files>`
 5. Search lore-mirror for the original RFC/proposal and major revision discussions
+
+### Multi-strategy commit discovery
+
+A single search strategy will miss commits. Use all three in combination:
+
+```bash
+# Strategy 1: Commit message search (catches mentions in subject/body)
+git log --oneline --all --grep="FEATURE_NAME" -- path/to/subsystem/
+
+# Strategy 2: Code content search (catches commits that add/remove the string in code)
+git log --oneline --all -S "FEATURE_NAME" -- path/to/subsystem/
+
+# Strategy 3: Broad regex for related concepts (catches indirect commits)
+git log --oneline --all --grep="concept_a\|concept_b\|concept_c\|related_func" -- path/to/subsystem/
+```
+
+Merge and deduplicate results. Strategy 1 finds commits that discuss the feature;
+Strategy 2 finds commits that modify code mentioning it; Strategy 3 catches commits
+that affect the feature without naming it (e.g., a fix to `place_entity()` that
+doesn't mention "EEVDF" but is critical to its correctness).
+
+### Batch commit metadata extraction
+
+When analyzing many commits, extract metadata in one pass rather than reading
+each commit individually:
+
+```bash
+for commit in <sha1> <sha2> ...; do
+  tag=$(git tag --contains $commit 2>/dev/null | grep '^v[0-9]' | head -1)
+  date=$(git log -1 --format='%ci' $commit | cut -d' ' -f1)
+  subj=$(git log -1 --format='%s' $commit)
+  fixes=$(git log -1 --format='%b' $commit | grep 'Fixes:' | head -1)
+  echo "$date | $tag | $commit | $subj | $fixes"
+done
+```
+
+This produces a version-annotated timeline in one shot, which is the raw material
+for grouping commits into evolution phases.
+
+### Build Fixes: dependency graph
+
+For deep feature evolution analysis, build the **forward Fixes: graph** — not
+just "what does this commit fix?" but "what commits fix THIS commit?":
+
+```bash
+# For each commit in the feature, find all commits that fix it
+for commit in <feature-commits>; do
+  short=$(echo $commit | cut -c1-12)
+  fixers=$(git log --oneline --grep="$short" -- path/to/subsystem/)
+  if [ -n "$fixers" ]; then
+    echo "=== $short ($(git log -1 --format='%s' $commit)) ==="
+    echo "$fixers"
+  fi
+done
+```
+
+This reveals:
+- **Hot paths**: commits that have been fixed 3+ times indicate fragile or
+  poorly-understood code (e.g., `reweight_entity()` in EEVDF was fixed 6+ times)
+- **Fix cascades**: when a fix itself needs fixing (fix-of-fix chains), it
+  indicates the original design has a subtle flaw
+- **Stable convergence**: when a commit has no forward fixes across 2+ versions,
+  it has likely stabilized
+
+### Organize into evolution phases
+
+Raw timelines are hard to read. Group commits into **thematic phases**:
+
+1. **Identify natural boundaries**: major version releases, large feature additions,
+   or subsystem-wide refactors act as phase boundaries
+2. **Group by theme**: within each phase, cluster commits by what they address —
+   bug category (data structure integrity, math errors, race conditions),
+   feature area (placement, preemption, migration), or code path (reweight, pick, enqueue)
+3. **Mark regression/revert cycles**: when a feature is introduced and later
+   reverted, treat the entire cycle as one phase with the narrative arc:
+   introduction → regression reports → analysis → revert/fix
+
+The goal is a narrative that explains WHY changes happened, not just WHAT changed.
 
 ## Capability 3: Patch Backport (CRITICAL — Read Carefully)
 
@@ -397,6 +480,77 @@ git log -1 --format='%b' <commit> | grep 'Message-Id:'
 # 3. Or search by subject
 # Use lore-mirror: GET /api/search?q=s:"<commit-subject>"
 ```
+
+## Capability 5: Regression & Impact Analysis
+
+### Track regression cycles
+
+A regression cycle follows the pattern: feature merge → user reports → analysis → revert or fix.
+This is one of the most important patterns to document in feature evolution.
+
+```bash
+# Step 1: Find the feature commit
+git show --oneline <feature-commit>
+
+# Step 2: Search for regression reports on lore
+# Use subject search for formal regression tags
+GET /api/search?q=s:REGRESSION+bs:<feature-keyword>&inbox=lkml&per_page=20
+
+# Step 3: Find the revert or fix
+git log --oneline --grep="Revert.*<feature-subject-fragment>" -- <path>
+git log --oneline --grep="Fixes:.*<feature-sha-short>" -- <path>
+
+# Step 4: Read the revert commit for root cause analysis
+git show <revert-commit>
+```
+
+Document the full cycle: who reported, on what platform/workload, what the regression
+was (throughput drop, latency spike, crash), and what the resolution was (revert,
+targeted fix, or design revision).
+
+### Assess real-world impact via lore
+
+Beyond finding the discussion for a specific commit, search lore for real-world
+impact signals:
+
+```bash
+# Find backport requests (users who hit the bug on stable kernels)
+GET /api/search?q=s:backport+bs:<feature-or-fix-keyword>&inbox=lkml
+
+# Find user-reported performance regressions
+GET /api/search?q=s:REGRESSION+bs:<subsystem-keyword>&inbox=lkml
+
+# Find benchmark/test results mentioning the feature
+GET /api/search?q=bs:<feature-keyword>+bs:benchmark&inbox=lkml
+GET /api/search?q=bs:<feature-keyword>+bs:regression&inbox=lkml
+```
+
+Impact signals to look for:
+- **Backport requests to stable/LTS** → bug affects production users
+- **Multiple independent reporters** → widespread issue, not edge case
+- **Specific workload regressions** (database, network, build) → helps scope the problem
+- **Platform-specific reports** (ARM, Power, x86) → may indicate arch-dependent behavior
+
+### Identify hot paths (repeatedly-fixed code)
+
+When a function or code path accumulates 3+ Fixes: references, it is a "hot path"
+that deserves special attention:
+
+```bash
+# Count how many times each original commit has been "fixed"
+git log --oneline --format='%b' -- path/to/subsystem/ | \
+  grep 'Fixes:' | \
+  sed 's/.*Fixes: \([0-9a-f]*\).*/\1/' | \
+  sort | uniq -c | sort -rn | head -20
+```
+
+Hot paths indicate:
+- **Design fragility**: the original abstraction doesn't fully capture the invariants
+- **Incomplete understanding**: each fix addresses one symptom but not the root cause
+- **Testing gaps**: the code path is not well-covered by selftests or stress tests
+
+When documenting feature evolution, call out hot paths explicitly — they are the
+most valuable part of the analysis for developers maintaining the code.
 
 ## Integration with lore-mirror Skill
 
