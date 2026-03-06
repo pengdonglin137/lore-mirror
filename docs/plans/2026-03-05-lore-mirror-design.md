@@ -508,14 +508,13 @@ MCP Server 让 AI 通过结构化工具直接访问邮件列表，是 Skills 之
   "mcpServers": {
     "lore-mirror": {
       "command": "python3",
-      "args": ["server/mcp_server.py"],
-      "cwd": "/path/to/lore-mirror"
+      "args": ["/path/to/lore-mirror/server/mcp_server.py"]
     }
   }
 }
 ```
 
-`cwd` 必须为 lore-mirror 项目的绝对路径。也可在目标项目的 `.mcp.json` 中添加同样配置。
+`args` 中必须使用 `mcp_server.py` 的绝对路径。也可在目标项目的 `.mcp.json` 中添加同样配置。
 
 **验证：**
 1. 在 Claude Code 中输入 `/mcp`，确认 `lore-mirror` 状态为 connected
