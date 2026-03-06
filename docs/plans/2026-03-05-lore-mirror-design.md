@@ -115,6 +115,72 @@
 - 定时任务: cron
 - 容器化: Docker / Docker Compose（可选）
 
+## 技术选型与理由
+
+每个技术选择背后都有具体的原因，不是"因为流行"而是"因为适合这个场景"。
+
+### REST API — 为什么不用 GraphQL 或 gRPC？
+
+REST (Representational State Transfer) 把服务器数据抽象为"资源"，用 URL 定位、用 HTTP 方法操作：
+
+| HTTP 方法 | URL | 含义 |
+|-----------|-----|------|
+| GET | `/api/inboxes` | 获取所有邮件列表（资源集合） |
+| GET | `/api/inboxes/lkml` | 获取 lkml 列表中的邮件（单个资源） |
+| GET | `/api/search?q=keyword` | 搜索（带查询参数） |
+
+**选择 REST 的理由**:
+- **AI 工具兼容性**: REST 是最通用的接口风格。任何能发 HTTP 请求的工具（curl、Python requests、浏览器、AI agent）都能直接调用，无需特殊客户端库。GraphQL 需要构造查询语句，gRPC 需要 protobuf 客户端，对 AI 集成来说都多了一层障碍。
+- **只读场景**: 邮件归档是纯只读的（只有 GET），不需要 GraphQL 的"按需选字段"能力，也不需要 gRPC 的双向流。
+- **可调试性**: 浏览器地址栏输入 URL 就能看结果，开发和排错极其简单。
+
+### SQLite + FTS5 — 为什么不用 PostgreSQL 或 Elasticsearch？
+
+**选择 SQLite 的理由**:
+- **零配置部署**: 不需要安装数据库服务器，不需要管理连接池、用户权限、端口。一个 `.db` 文件就是整个数据库，`cp` 就能备份。
+- **Per-inbox 隔离**: 每个邮件列表一个独立文件（`db/lkml.db`, `db/linux-mm.db`）。导入、删除、备份都是文件级操作，不同 inbox 完全互不影响。用 PostgreSQL 的话，所有数据在一个实例里，隔离需要靠 schema 或多个实例。
+- **嵌入式 = 低延迟**: SQLite 在同一进程内直接读文件，没有网络往返。对于"打开 inbox 列表"这种高频操作，延迟从 PostgreSQL 的 ~5ms 降到 ~0.1ms。
+- **FTS5 全文搜索**: SQLite 自带的 FTS5 扩展提供了 BM25 排序的全文搜索，无需引入 Elasticsearch。对于邮件归档这种"写少读多"的场景，FTS5 的性能足够（百万级邮件搜索 <1s）。
+- **实际约束**: 开发环境的 PostgreSQL 14 不可访问，Docker registry 也不通。SQLite 是唯一不需要额外基础设施的选择。
+
+**SQLite 的局限** (知道但可接受):
+- 并发写入受限（WAL 模式下读不阻塞，但写是串行的）→ 通过 per-inbox fcntl.flock 锁解决
+- 单个数据库文件很大（lkml ~140GB）→ 文件系统能处理，不是问题
+- 没有内置复制/集群 → 这是单机部署的本地镜像，不需要
+
+### FastAPI — 为什么不用 Flask 或 Django？
+
+**选择 FastAPI 的理由**:
+- **自动生成 API 文档**: FastAPI 内置 Swagger UI（`/docs`），开发时可以直接在浏览器测试每个端点。
+- **类型提示 = 自动验证**: `page: int = Query(1, ge=1)` 同时定义了类型、默认值和验证规则，不需要手写验证逻辑。Flask 需要额外的 marshmallow 或 WTForms。
+- **异步支持**: 虽然当前用同步模式（SQLite 不支持 async），但 FastAPI 的 ASGI 架构允许将来平滑迁移。
+- **轻量**: 比 Django 轻得多。这不是一个需要 ORM、admin panel、认证系统的项目，只需要一个高效的 API 层。
+
+### Vue 3 + Vite — 为什么不用 React 或服务端渲染？
+
+**选择 Vue 3 的理由**:
+- **SPA 适合邮件浏览**: 在 inbox → message → thread 之间频繁跳转，SPA 的客户端路由比整页刷新流畅。
+- **简单直接**: Vue 的模板语法比 React JSX 更接近 HTML，对于这种以文本展示为主的界面，开发效率高。
+- **生产模式一键构建**: `vite build` 生成静态文件，FastAPI 直接 serve。不需要 Node.js 运行时。不需要 SSR。
+- **极简前端**: 整个 SPA 只有 5 个视图 + 1 个组件，不需要 Redux/Vuex 状态管理。Vue 3 的 Composition API + `ref()` 就够了。
+
+### public-inbox Git 仓库 — 为什么不直接抓网页？
+
+lore.kernel.org 基于 [public-inbox](https://public-inbox.org/) 项目，每个邮件列表都有对应的 git 仓库。
+
+**选择 git clone 而非爬虫的理由**:
+- **完整性**: git 仓库包含该列表的全部邮件，不会漏掉。爬网页容易遗漏、被限流、或格式变化。
+- **增量更新**: `git fetch` 只拉取新 commit，带宽和时间极少。爬虫要重新遍历页面才知道有没有新邮件。
+- **原始数据**: 每个 commit 的 `m` 文件就是完整的 RFC 2822 原始邮件，包含所有 headers。网页只展示部分内容。
+- **离线完整性**: 一旦 clone 完成，整个归档可以完全离线使用，不依赖 lore.kernel.org 的可用性。
+
+### Docker — 为什么提供但不强制？
+
+**可选容器化的理由**:
+- 裸机部署更简单（`pip install` + `./start.sh`），适合开发者日常使用
+- Docker 适合服务器/团队部署，提供环境一致性和 cron 集成（sync 容器）
+- 数据卷挂载让裸机和 Docker 之间可以无缝切换，不需要重新下载或导入
+
 ## 目录结构
 ```
 lore-mirror/
