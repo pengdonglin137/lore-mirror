@@ -499,7 +499,23 @@ MCP Server 让 AI 通过结构化工具直接访问邮件列表，是 Skills 之
 - REST API 运行中（`./start.sh` 或 `docker compose up -d web`）
 - Python 依赖已安装：`pip3 install mcp httpx`
 
-**Claude Code 自动发现：** 项目根目录的 `.mcp.json` 已配置好，Claude Code 打开本项目时自动连接 MCP 服务器。
+**在本项目中：** 项目根目录的 `.mcp.json` 已配置好，Claude Code 打开本项目时自动连接。
+
+**在其他项目中使用（如内核源码树）：** 编辑 `~/.claude/settings.json` 添加全局 MCP 配置：
+
+```json
+{
+  "mcpServers": {
+    "lore-mirror": {
+      "command": "python3",
+      "args": ["server/mcp_server.py"],
+      "cwd": "/path/to/lore-mirror"
+    }
+  }
+}
+```
+
+`cwd` 必须为 lore-mirror 项目的绝对路径。也可在目标项目的 `.mcp.json` 中添加同样配置。
 
 **验证：**
 1. 在 Claude Code 中输入 `/mcp`，确认 `lore-mirror` 状态为 connected
