@@ -98,6 +98,15 @@ When updating any of these, also update the others:
 
 The installed skill at `~/.claude/skills/lore-mirror/SKILL.md` is a copy of `docs/skills/lore-mirror/SKILL.md`.
 
+### Pre-commit: Sync skills from ~/.claude/skills
+
+**Before every commit**, check if `~/.claude/skills/kernel-dev/SKILL.md` has diverged from `docs/skills/kernel-dev/SKILL.md`. If so, copy it into the repo and include in the same commit:
+```bash
+diff ~/.claude/skills/kernel-dev/SKILL.md docs/skills/kernel-dev/SKILL.md
+# If different → cp ~/.claude/skills/kernel-dev/SKILL.md docs/skills/kernel-dev/SKILL.md
+```
+Do the same for `lore-mirror/SKILL.md`. Skills may be updated during other conversations and must be synced back to the repo.
+
 ## Conventions
 
 - All scripts run from project root: `cd /vol_8t/lore && python3 scripts/xxx.py`
