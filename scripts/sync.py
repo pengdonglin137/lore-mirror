@@ -28,19 +28,72 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# Shared status file for web UI to read progress
-STATUS_FILE = PROJECT_ROOT / "sync_status.json"
+# Per-inbox status directory for web UI to read progress
+STATUS_DIR = PROJECT_ROOT / "sync_status"
 
 
-def write_status(status: dict):
-    """Write sync status to JSON file for the web UI."""
-    STATUS_FILE.write_text(json.dumps(status, default=str))
+def _status_file(inbox_name: str) -> Path:
+    return STATUS_DIR / f"{inbox_name}.json"
 
 
-def read_status() -> dict:
-    if STATUS_FILE.exists():
-        return json.loads(STATUS_FILE.read_text())
+def _pid_file(inbox_name: str) -> Path:
+    return STATUS_DIR / f"{inbox_name}.pid"
+
+
+def write_status(inbox_name: str, status: dict):
+    """Write per-inbox sync status."""
+    STATUS_DIR.mkdir(parents=True, exist_ok=True)
+    _status_file(inbox_name).write_text(json.dumps(status, default=str))
+
+
+def read_status(inbox_name: str) -> dict:
+    f = _status_file(inbox_name)
+    if f.exists():
+        try:
+            return json.loads(f.read_text())
+        except (json.JSONDecodeError, OSError):
+            return {"running": False}
     return {"running": False}
+
+
+def read_all_status() -> list[dict]:
+    """Read status for all inboxes."""
+    STATUS_DIR.mkdir(parents=True, exist_ok=True)
+    results = []
+    for f in sorted(STATUS_DIR.glob("*.json")):
+        try:
+            results.append(json.loads(f.read_text()))
+        except (json.JSONDecodeError, OSError):
+            pass
+    return results
+
+
+def is_inbox_locked(inbox_name: str) -> tuple[bool, bool]:
+    """
+    Check if an inbox is locked by another sync process.
+    Returns (locked, stale).  locked=True means PID file exists;
+    stale=True means the process is dead.
+    """
+    pf = _pid_file(inbox_name)
+    if not pf.exists():
+        return False, False
+    try:
+        old_pid = int(pf.read_text().strip())
+        os.kill(old_pid, 0)
+        return True, False  # process alive
+    except (ValueError, ProcessLookupError, PermissionError):
+        return True, True  # stale lock
+
+
+def lock_inbox(inbox_name: str):
+    """Write PID file for this inbox."""
+    STATUS_DIR.mkdir(parents=True, exist_ok=True)
+    _pid_file(inbox_name).write_text(str(os.getpid()))
+
+
+def unlock_inbox(inbox_name: str):
+    """Remove PID file for this inbox."""
+    _pid_file(inbox_name).unlink(missing_ok=True)
 
 
 def git_fetch_epoch(repo_path: Path, timeout: int = 3600) -> tuple[bool, int]:
@@ -157,23 +210,54 @@ def sync_inbox(config: dict, inbox_name: str) -> dict:
     return summary
 
 
+def _sync_one_inbox(config: dict, inbox_name: str) -> dict:
+    """Sync one inbox with per-inbox locking and status."""
+    # Check per-inbox lock
+    locked, stale = is_inbox_locked(inbox_name)
+    if locked and not stale:
+        log.error(f"[{inbox_name}] Sync already running. Skipping.")
+        return {"inbox": inbox_name, "errors": ["already running"]}
+    if locked and stale:
+        log.warning(f"[{inbox_name}] Stale lock detected, resetting...")
+        unlock_inbox(inbox_name)
+
+    # Acquire lock
+    lock_inbox(inbox_name)
+
+    status = {
+        "running": True,
+        "inbox": inbox_name,
+        "started_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    write_status(inbox_name, status)
+
+    try:
+        summary = sync_inbox(config, inbox_name)
+        status["running"] = False
+        status["finished_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+        status["summary"] = summary
+        write_status(inbox_name, status)
+        return summary
+    except Exception as e:
+        log.error(f"[{inbox_name}] Sync failed: {e}")
+        summary = {"inbox": inbox_name, "errors": [str(e)]}
+        status["running"] = False
+        status["finished_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+        status["summary"] = summary
+        write_status(inbox_name, status)
+        return summary
+    finally:
+        unlock_inbox(inbox_name)
+
+
 def run_sync(config: dict, inbox_filter: Optional[str] = None):
-    """Run sync for all configured inboxes."""
+    """Run sync for configured inboxes (sequentially)."""
     inboxes = config["inboxes"]
     if inbox_filter:
         inboxes = [ib for ib in inboxes if ib["name"] == inbox_filter]
         if not inboxes:
             log.error(f"Inbox '{inbox_filter}' not found in config")
             sys.exit(1)
-
-    status = {
-        "running": True,
-        "started_at": time.strftime("%Y-%m-%d %H:%M:%S"),
-        "current_inbox": None,
-        "completed": [],
-        "total_inboxes": len(inboxes),
-    }
-    write_status(status)
 
     from import_mail import is_shutdown_requested
 
@@ -183,24 +267,8 @@ def run_sync(config: dict, inbox_filter: Optional[str] = None):
             log.info("Shutdown requested, stopping sync")
             break
 
-        name = inbox_cfg["name"]
-        status["current_inbox"] = name
-        write_status(status)
-
-        try:
-            summary = sync_inbox(config, name)
-            summaries.append(summary)
-            status["completed"].append(name)
-        except Exception as e:
-            log.error(f"[{name}] Sync failed: {e}")
-            summaries.append({"inbox": name, "errors": [str(e)]})
-            status["completed"].append(name)
-
-    status["running"] = False
-    status["finished_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
-    status["current_inbox"] = None
-    status["summaries"] = summaries
-    write_status(status)
+        summary = _sync_one_inbox(config, inbox_cfg["name"])
+        summaries.append(summary)
 
     # Print summary
     log.info("=" * 60)
@@ -214,18 +282,29 @@ def run_sync(config: dict, inbox_filter: Optional[str] = None):
 
 
 def show_status():
-    status = read_status()
-    if status.get("running"):
-        print(f"Sync in progress (started {status.get('started_at', '?')})")
-        print(f"  Current: {status.get('current_inbox', '?')}")
-        print(f"  Completed: {', '.join(status.get('completed', []))}")
-    elif status.get("finished_at"):
-        print(f"Last sync: {status['finished_at']}")
-        for s in status.get("summaries", []):
-            errors = f", errors: {s['errors']}" if s.get("errors") else ""
-            print(f"  {s['inbox']}: {s.get('new_commits', 0)} new commits{errors}")
-    else:
+    statuses = read_all_status()
+    if not statuses:
         print("No sync has been run yet.")
+        return
+
+    running = [s for s in statuses if s.get("running")]
+    finished = [s for s in statuses if not s.get("running") and s.get("finished_at")]
+
+    if running:
+        print("Syncing:")
+        for s in running:
+            print(f"  {s.get('inbox', '?')}: started {s.get('started_at', '?')}")
+
+    if finished:
+        print("Last sync results:")
+        for s in finished:
+            sm = s.get("summary", {})
+            errors = f", errors: {sm['errors']}" if sm.get("errors") else ""
+            print(
+                f"  {sm.get('inbox', s.get('inbox', '?'))}: "
+                f"{sm.get('new_commits', 0)} new commits, "
+                f"finished {s.get('finished_at', '?')}{errors}"
+            )
 
 
 def main():
@@ -241,47 +320,13 @@ def main():
 
     config = load_config(args.config)
 
-    # Prevent concurrent syncs — with stale lock detection
-    status = read_status()
-    if status.get("running"):
-        # Check if the sync process is actually alive via a PID file
-        pid_file = PROJECT_ROOT / "sync.pid"
-        stale = True
-        if pid_file.exists():
-            try:
-                old_pid = int(pid_file.read_text().strip())
-                os.kill(old_pid, 0)  # Check if process still exists
-                stale = False  # Process is alive
-            except (ValueError, ProcessLookupError, PermissionError):
-                stale = True  # PID invalid or process gone
-
-        if not stale:
-            log.error("A sync is already running. Use --status to check progress.")
-            sys.exit(1)
-        else:
-            log.warning("Stale sync lock detected (previous sync was interrupted). Resetting...")
-            status["running"] = False
-            write_status(status)
-
-    # Write PID file for stale lock detection
-    pid_file = PROJECT_ROOT / "sync.pid"
-    pid_file.write_text(str(os.getpid()))
-
     # Register signal handlers for graceful shutdown
     from import_mail import _signal_handler as import_signal_handler
     signal.signal(signal.SIGTERM, import_signal_handler)
     signal.signal(signal.SIGINT, import_signal_handler)
 
-    try:
-        run_sync(config, inbox_filter=args.inbox)
-    finally:
-        # Ensure status is cleaned up on any exit
-        s = read_status()
-        if s.get("running"):
-            s["running"] = False
-            s["finished_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
-            write_status(s)
-        pid_file.unlink(missing_ok=True)
+    # Per-inbox locking is handled inside _sync_one_inbox()
+    run_sync(config, inbox_filter=args.inbox)
 
 
 if __name__ == "__main__":

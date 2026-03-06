@@ -616,15 +616,27 @@ def get_stats():
 
 # ── Sync ─────────────────────────────────────────────
 
-SYNC_STATUS_FILE = PROJECT_ROOT / "sync_status.json"
+SYNC_STATUS_DIR = PROJECT_ROOT / "sync_status"
 
 
 @app.get("/api/sync/status")
 def get_sync_status():
-    """Get current sync status (read-only, sync is triggered via CLI only)."""
-    if SYNC_STATUS_FILE.exists():
-        return json.loads(SYNC_STATUS_FILE.read_text())
-    return {"running": False}
+    """Get current sync status for all inboxes (read-only)."""
+    if not SYNC_STATUS_DIR.exists():
+        return {"running": False, "inboxes": []}
+
+    inboxes = []
+    any_running = False
+    for f in sorted(SYNC_STATUS_DIR.glob("*.json")):
+        try:
+            status = json.loads(f.read_text())
+            inboxes.append(status)
+            if status.get("running"):
+                any_running = True
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    return {"running": any_running, "inboxes": inboxes}
 
 
 # ── Static files (production mode) ──────────────────
