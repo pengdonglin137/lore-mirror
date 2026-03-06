@@ -27,71 +27,116 @@ sync:
 inboxes:
   # ── Currently enabled ──────────────────────────────
   - name: lkml
-    description: "The Linux Kernel Mailing List"
+    description: >-
+      The Linux Kernel Mailing List — the main general-purpose mailing list for Linux kernel development.
+      Covers all subsystems, patch submissions, release announcements, kernel configuration, build issues,
+      and cross-subsystem discussions. If unsure which list to search, start here.
 
   # ── Core subsystems ────────────────────────────────
   # - name: netdev
-  #   description: "Netdev List"
+  #   description: >-
+  #     Linux networking stack development — TCP/IP, sockets, routing, network drivers (ethernet, wifi),
+  #     iptables/nftables, XDP, traffic control (tc), network namespaces, netlink, and protocol implementations.
   - name: linux-mm
-    description: "Linux Memory Management"
+    description: >-
+      Linux Memory Management — page allocator, slab/slub, page cache, swap, OOM killer, memory cgroups,
+      hugetlb/hugepages, THP (transparent huge pages), mmap, mremap, NUMA balancing, page migration,
+      compaction, KSM, userfaultfd, memory hotplug, damon, and vm statistics.
   - name: linux-fsdevel
-    description: "Linux filesystem development"
+    description: >-
+      Linux VFS and filesystem development — virtual filesystem layer, namei/path lookup, inode/dentry cache,
+      mount API, file locking (flock/fcntl), splice/sendfile, io_uring FS ops, iomap, direct I/O, writeback,
+      and generic filesystem infrastructure shared by all filesystems.
   - name: linux-block
-    description: "Linux block layer"
+    description: >-
+      Linux block layer — block I/O scheduler (mq-deadline, bfq, kyber), bio/request processing,
+      blk-mq multi-queue, block device drivers, partitions, loop devices, NBD, block cgroup (blkcg),
+      and I/O accounting. Also covers zoned block devices and block integrity.
   # - name: linux-pm
-  #   description: "Linux Power Management development"
+  #   description: >-
+  #     Linux Power Management — suspend/resume (S3/S4), runtime PM, cpufreq governors,
+  #     cpuidle, thermal management, energy-aware scheduling, DVFS, and power domains.
   # - name: linux-arch
-  #   description: "Generic Linux architectural discussions"
+  #   description: >-
+  #     Generic Linux architectural discussions — cross-architecture topics, syscall ABI,
+  #     uaccess, signal handling, vDSO, and architecture-independent platform code.
   # - name: linux-doc
-  #   description: "Linux Documentation"
+  #   description: >-
+  #     Linux kernel documentation — RST/Sphinx docs, kernel-doc comments, coding style,
+  #     submitting-patches guidelines, and documentation build infrastructure.
   # - name: linux-modules
-  #   description: "Linux Modules"
+  #   description: "Linux kernel module loading, modprobe, depmod, and module signing"
   # - name: linux-kbuild
-  #   description: "Linux kbuild/kconfig development"
+  #   description: >-
+  #     Linux kbuild/kconfig — Makefile infrastructure, Kconfig language, menuconfig,
+  #     compiler flags, cross-compilation, and build system maintenance.
   # - name: linux-hardening
-  #   description: "Linux Hardening"
+  #   description: >-
+  #     Linux kernel hardening — KASLR, stack protector, CFI, shadow call stack,
+  #     FORTIFY_SOURCE, and exploit mitigation techniques.
   # - name: linux-security-module
-  #   description: "Linux Security Modules development"
+  #   description: >-
+  #     Linux Security Modules (LSM) framework — SELinux, AppArmor, Smack, TOMOYO,
+  #     Yama, LoadPin, SafeSetID, and Landlock development.
   # - name: driver-core
-  #   description: "Linux driver-core infrastructure"
+  #   description: >-
+  #     Linux driver model and core infrastructure — struct device, bus/class/driver,
+  #     sysfs, udev/uevent, deferred probing, managed resources (devm), and firmware loading.
   - name: stable
-    description: "Linux kernel -stable discussions"
+    description: >-
+      Linux kernel -stable tree — backported bug fixes and security patches for stable/LTS kernels,
+      stable-rc testing, cherry-pick requests, and stable release discussions.
   # - name: linux-next
-  #   description: "Linux-Next discussions"
+  #   description: >-
+  #     Linux-Next integration tree — pre-merge-window testing, build/boot failures,
+  #     merge conflicts between subsystem trees, and linux-next release status.
   # - name: regressions
-  #   description: "Linux kernel regressions"
+  #   description: >-
+  #     Linux kernel regressions — tracking, reporting and fixing bugs introduced by new changes,
+  #     regression testing, and the "no regressions" rule enforcement.
   - name: linux-patches
-    description: "Archive-only list for patches"
+    description: "Archive-only list for kernel patches — automated patch archive, no discussion"
   - name: mm-commits
-    description: "Linux MM tree latest commits"
+    description: "Linux MM tree latest commits — Andrew Morton's -mm tree commit notifications"
   # - name: soc
-  #   description: "Linux SOC development"
+  #   description: >-
+  #     Linux SoC (System-on-Chip) development — DT bindings, SoC-specific drivers,
+  #     clock, pinctrl, and platform support for ARM/ARM64/RISC-V SoCs.
 
   # ── Virtualization & KVM ───────────────────────────
   # - name: kvm
-  #   description: "Kernel KVM virtualization development"
+  #   description: >-
+  #     KVM hypervisor development — x86/arm64/s390 virtualization, vCPU management,
+  #     nested virtualization, IOMMU/VFIO passthrough, virtio, live migration, and KVM APIs.
   # - name: kvmarm
-  #   description: "Linux KVM/arm64 development list"
+  #   description: "KVM/arm64 — ARM64-specific KVM hypervisor development"
   # - name: kvm-riscv
-  #   description: "KVM-RISCV"
+  #   description: "KVM/RISC-V — RISC-V specific KVM hypervisor development"
   # - name: virtualization
-  #   description: "Linux virtualization list"
+  #   description: >-
+  #     Linux virtualization — virtio drivers, vhost, balloon, vsock, paravirt ops,
+  #     and hypervisor-agnostic virtualization infrastructure.
   # - name: qemu-devel
-  #   description: "QEMU-Devel"
+  #   description: >-
+  #     QEMU development — system emulation, user-mode emulation, device models,
+  #     TCG, block layer, migration, and QEMU build/test infrastructure.
   # - name: qemu-arm
-  #   description: "QEMU-Arm"
+  #   description: "QEMU ARM/AArch64 emulation and device models"
   # - name: qemu-trivial
-  #   description: "QEMU-Trivial"
+  #   description: "QEMU trivial patches — typos, coding style, minor cleanups"
   # - name: linux-hyperv
-  #   description: "Linux-HyperV List"
+  #   description: "Linux Hyper-V guest/host drivers, VMBus, and Hyper-V enlightenments"
   # - name: xen-devel
-  #   description: "Xen-Devel"
+  #   description: "Xen hypervisor development — PV/HVM guests, Xen tools, and Xen security"
   # - name: virtio-comment
-  #   description: "Discussion of the VIRTIO specification"
+  #   description: "VIRTIO specification — virtio device types, transport, and protocol standardization"
 
   # ── Networking ─────────────────────────────────────
   - name: bpf
-    description: "BPF List"
+    description: >-
+      BPF/eBPF development — BPF verifier, JIT compilers, BPF maps, BPF helpers, libbpf,
+      bpftool, XDP (eXpress Data Path), tc-bpf, BPF tracing (kprobe/uprobe/tracepoint),
+      BPF LSM, and BPF CO-RE.
   # - name: mptcp
   #   description: "MPTCP Linux Development"
   # - name: netfilter-devel
@@ -125,7 +170,9 @@ inboxes:
   # - name: linux-btrfs
   #   description: "Linux Btrfs filesystem development"
   - name: linux-ext4
-    description: "Linux EXT4 FS development"
+    description: >-
+      Linux ext4 filesystem — journaling, extent tree, inline data, encryption (fscrypt),
+      verity (fsverity), online resize, fast commit, and e2fsprogs userspace tools.
   # - name: linux-f2fs-devel
   #   description: "Linux f2fs filesystem development"
   # - name: linux-nfs
@@ -133,7 +180,9 @@ inboxes:
   # - name: linux-cifs
   #   description: "Linux CIFS filesystem development"
   - name: linux-erofs
-    description: "Linux EROFS"
+    description: >-
+      Linux EROFS (Enhanced Read-Only File System) — compressed read-only filesystem for containers,
+      Android, and embedded devices. Supports LZ4/LZMA compression, FSDAX, and fscache.
   # - name: linux-unionfs
   #   description: "Linux Overlay Filesystem development"
   # - name: linux-nilfs
@@ -165,13 +214,19 @@ inboxes:
 
   # ── Storage & drivers ──────────────────────────────
   # - name: linux-scsi
-  #   description: "Linux SCSI subsystem development"
+  #   description: >-
+  #     Linux SCSI subsystem — SCSI core, host bus adapters (HBA), UFS, SAS, iSCSI,
+  #     SCSI target framework, and SCSI device drivers.
   # - name: linux-nvme
-  #   description: "Linux NVME"
+  #   description: >-
+  #     Linux NVMe — NVMe host and target drivers, NVMe over Fabrics (NVMe-oF),
+  #     NVMe multipath, NVMe-TCP, NVMe-RDMA, and nvme-cli tools.
   # - name: linux-raid
-  #   description: "Linux RAID subsystem development"
+  #   description: "Linux software RAID (md) — mdadm, RAID levels, bitmap, and journal"
   # - name: dm-devel
-  #   description: "Linux Device Mapper development"
+  #   description: >-
+  #     Linux Device Mapper — dm-crypt (LUKS), dm-thin, dm-cache, dm-integrity,
+  #     dm-multipath, LVM, and DM target development.
   # - name: linux-mtd
   #   description: "Linux MTD"
   # - name: linux-mmc
@@ -187,7 +242,9 @@ inboxes:
   # - name: linux-bcache
   #   description: "Linux bcache driver list"
   # - name: io-uring
-  #   description: "Linux io-uring development"
+  #   description: >-
+  #     Linux io_uring — async I/O framework, submission/completion queues, io_uring_setup,
+  #     registered buffers/files, multishot, linked requests, and liburing userspace library.
 
   # ── GPU & graphics ─────────────────────────────────
   # - name: dri-devel
@@ -329,7 +386,9 @@ inboxes:
 
   # ── Tracing, testing & debugging ───────────────────
   - name: linux-trace-kernel
-    description: "Linux Trace Kernel"
+    description: >-
+      Linux kernel tracing — ftrace, kprobes, uprobes, tracepoints, perf events, trace-cmd,
+      BPF tracing integration, function graph tracer, event triggers, and histogram tracing.
   # - name: linux-perf-users
   #   description: "Linux Perf Users"
   # - name: linux-kselftest
@@ -373,7 +432,9 @@ inboxes:
 
   # ── Scheduling & cgroups ───────────────────────────
   - name: cgroups
-    description: "Linux cgroups development"
+    description: >-
+      Linux cgroups (control groups) — cgroup v1/v2, CPU/memory/IO/PID controllers,
+      resource limits, cgroupfs, systemd integration, and container resource management.
   # - name: sched-ext
   #   description: "Sched_ext development"
 
@@ -397,7 +458,9 @@ inboxes:
 
   # ── Build systems & tooling ────────────────────────
   # - name: rust-for-linux
-  #   description: "Rust for Linux List"
+  #   description: >-
+  #     Rust for Linux — Rust language support in the kernel, Rust abstractions for kernel APIs,
+  #     Rust drivers (e.g. nova-core, binder), and Rust build/toolchain integration.
   # - name: llvm
   #   description: "Building the Linux kernel with Clang and LLVM"
   # - name: cocci
