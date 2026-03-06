@@ -11,6 +11,7 @@ Usage:
 import argparse
 import json
 import logging
+import os
 import subprocess
 import sys
 import time
@@ -103,6 +104,7 @@ def sync_inbox(config: dict, inbox_name: str) -> dict:
     log.info(f"[{inbox_name}] Fetching {len(epoch_dirs)} epochs...")
 
     total_new = 0
+    epochs_with_updates = []
     for repo_path in epoch_dirs:
         epoch = repo_path.name.replace(".git", "")
         success, new_commits = git_fetch_epoch(repo_path)
@@ -110,6 +112,7 @@ def sync_inbox(config: dict, inbox_name: str) -> dict:
             summary["epochs_fetched"] += 1
             total_new += new_commits
             if new_commits > 0:
+                epochs_with_updates.append(int(epoch))
                 log.info(f"  Epoch {epoch}: {new_commits} new commits")
         else:
             summary["errors"].append(f"Fetch failed for epoch {epoch}")
@@ -121,8 +124,8 @@ def sync_inbox(config: dict, inbox_name: str) -> dict:
         log.info(f"[{inbox_name}] Already up to date, skipping import")
         return summary
 
-    # Step 2: incremental import
-    log.info(f"[{inbox_name}] Importing new emails...")
+    # Step 2: incremental import — only epochs that had new commits
+    log.info(f"[{inbox_name}] Importing new emails from {len(epochs_with_updates)} updated epoch(s): {epochs_with_updates}")
 
     # Import using import_mail module
     sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
@@ -133,12 +136,7 @@ def sync_inbox(config: dict, inbox_name: str) -> dict:
     db_dir.mkdir(parents=True, exist_ok=True)
     conn = init_db(db_path)
 
-    epochs = sorted(
-        int(p.name.replace(".git", ""))
-        for p in epoch_dirs
-    )
-
-    for epoch in epochs:
+    for epoch in sorted(epochs_with_updates):
         do_import_epoch(conn, inbox_name, epoch, repos_dir)
 
     # Count imported messages
@@ -228,11 +226,33 @@ def main():
 
     config = load_config(args.config)
 
-    # Prevent concurrent syncs
+    # Prevent concurrent syncs — with stale lock detection
     status = read_status()
     if status.get("running"):
-        log.error("A sync is already running. Use --status to check progress.")
-        sys.exit(1)
+        # Check if the sync process is actually alive via a PID file
+        pid_file = PROJECT_ROOT / "sync.pid"
+        stale = True
+        if pid_file.exists():
+            try:
+                old_pid = int(pid_file.read_text().strip())
+                # Check if process still exists
+                import os
+                os.kill(old_pid, 0)
+                stale = False  # Process is alive
+            except (ValueError, ProcessLookupError, PermissionError):
+                stale = True  # PID invalid or process gone
+
+        if not stale:
+            log.error("A sync is already running. Use --status to check progress.")
+            sys.exit(1)
+        else:
+            log.warning("Stale sync lock detected (previous sync was interrupted). Resetting...")
+            status["running"] = False
+            write_status(status)
+
+    # Write PID file for stale lock detection
+    pid_file = PROJECT_ROOT / "sync.pid"
+    pid_file.write_text(str(os.getpid()))
 
     try:
         run_sync(config, inbox_filter=args.inbox)
@@ -242,6 +262,8 @@ def main():
         s["running"] = False
         s["finished_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
         write_status(s)
+    finally:
+        pid_file.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
