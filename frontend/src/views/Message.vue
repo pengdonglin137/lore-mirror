@@ -1,24 +1,49 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
-import { getMessage } from '../api.js'
+import { getMessage, getThread } from '../api.js'
 
 const props = defineProps(['id'])
 const msg = ref(null)
 const loading = ref(true)
 const error = ref(null)
 const showAllHeaders = ref(false)
+const threadMessages = ref([])
 
 async function load() {
   loading.value = true
   error.value = null
+  threadMessages.value = []
   try {
-    msg.value = await getMessage(props.id)
+    const [msgResult, threadResult] = await Promise.allSettled([
+      getMessage(props.id),
+      getThread(props.id)
+    ])
+    if (msgResult.status === 'rejected') throw new Error(msgResult.reason?.message || 'Failed to load message')
+    msg.value = msgResult.value
+    if (threadResult.status === 'fulfilled' && threadResult.value?.messages?.length > 1) {
+      threadMessages.value = threadResult.value.messages
+    }
   } catch (e) {
     error.value = e.message
   } finally {
     loading.value = false
   }
 }
+
+const currentIndex = computed(() => {
+  if (!msg.value || !threadMessages.value.length) return -1
+  return threadMessages.value.findIndex(m => m.message_id === msg.value.message_id)
+})
+
+const prevMessage = computed(() => {
+  const i = currentIndex.value
+  return i > 0 ? threadMessages.value[i - 1] : null
+})
+
+const nextMessage = computed(() => {
+  const i = currentIndex.value
+  return (i >= 0 && i < threadMessages.value.length - 1) ? threadMessages.value[i + 1] : null
+})
 
 watch(() => props.id, load, { immediate: true })
 
@@ -66,7 +91,7 @@ const hasDiff = computed(() => {
 
 <template v-for="h in headerLines" :key="h.key"><b>{{ h.key }}:</b> <template v-if="h.key === 'In-Reply-To' && h.value"><router-link :to="`/message/${encodeURIComponent(h.value.replace(/[<>]/g, ''))}`">{{ h.value }}</router-link></template><template v-else>{{ h.value }}</template>
 </template>
-<a href="#" @click.prevent="showAllHeaders = !showAllHeaders">[{{ showAllHeaders ? 'hide' : 'show all' }} headers]</a>  <router-link :to="`/thread/${encodeURIComponent(msg.message_id)}`">[view thread]</router-link>  <a :href="`/api/raw?id=${encodeURIComponent(msg.message_id)}`">[raw]</a></pre>
+<a href="#" @click.prevent="showAllHeaders = !showAllHeaders">[{{ showAllHeaders ? 'hide' : 'show all' }} headers]</a>  <router-link :to="`/thread/${encodeURIComponent(msg.message_id)}`">[view thread]</router-link>  <a :href="`/api/raw?id=${encodeURIComponent(msg.message_id)}`">[raw]</a><template v-if="prevMessage || nextMessage">  <router-link v-if="prevMessage" :to="`/message/${encodeURIComponent(prevMessage.message_id)}`" :title="prevMessage.subject">[&larr; prev]</router-link><template v-if="prevMessage && nextMessage">  </template><router-link v-if="nextMessage" :to="`/message/${encodeURIComponent(nextMessage.message_id)}`" :title="nextMessage.subject">[next &rarr;]</router-link></template></pre>
 
       <pre class="msg-body"><template v-for="(line, i) in bodyLines" :key="i"><span :class="isDiffLine(line)">{{ line }}</span>
 </template></pre>
