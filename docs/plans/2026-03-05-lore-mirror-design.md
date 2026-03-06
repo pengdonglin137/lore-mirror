@@ -501,7 +501,7 @@ MCP Server 让 AI 通过结构化工具直接访问邮件列表，是 Skills 之
 
 **在本项目中：** 项目根目录的 `.mcp.json` 已配置好，Claude Code 打开本项目时自动连接。
 
-**在其他项目中使用（如内核源码树）：** 编辑 `~/.claude/settings.json` 添加全局 MCP 配置：
+**在其他项目中使用（如内核源码树）：** 编辑 `~/.claude.json` 添加全局 MCP 配置：
 
 ```json
 {
