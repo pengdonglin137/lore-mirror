@@ -423,6 +423,10 @@ def show_stats(config: dict):
 
 def run_import(config: dict, inbox_filter: Optional[str] = None):
     """Main import logic."""
+    # Import lock functions from sync module (shared per-inbox locks)
+    sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+    from sync import try_lock_inbox, unlock_inbox
+
     repos_dir = Path(config["mirror"]["repos_dir"])
 
     inboxes = config["inboxes"]
@@ -438,29 +442,37 @@ def run_import(config: dict, inbox_filter: Optional[str] = None):
 
         name = inbox_cfg["name"]
 
-        inbox_repo_dir = repos_dir / name / "git"
-        if not inbox_repo_dir.exists():
-            log.warning(f"No repos found for '{name}' at {inbox_repo_dir}, skipping")
+        # Acquire per-inbox lock (same lock as sync.py)
+        if not try_lock_inbox(name):
+            log.error(f"[{name}] Already locked by another sync/import process. Skipping.")
             continue
 
-        db_path = get_db_path(config, name)
-        conn = init_db(db_path)
+        try:
+            inbox_repo_dir = repos_dir / name / "git"
+            if not inbox_repo_dir.exists():
+                log.warning(f"No repos found for '{name}' at {inbox_repo_dir}, skipping")
+                continue
 
-        epochs = sorted(
-            (int(p.name.replace(".git", ""))
-            for p in inbox_repo_dir.iterdir()
-            if p.name.endswith(".git") and (p / "HEAD").exists()),
-            reverse=True,
-        )
+            db_path = get_db_path(config, name)
+            conn = init_db(db_path)
 
-        log.info(f"Importing '{name}': {len(epochs)} epochs -> {db_path}")
+            epochs = sorted(
+                (int(p.name.replace(".git", ""))
+                for p in inbox_repo_dir.iterdir()
+                if p.name.endswith(".git") and (p / "HEAD").exists()),
+                reverse=True,
+            )
 
-        for epoch in epochs:
-            if is_shutdown_requested():
-                break
-            import_epoch(conn, name, epoch, repos_dir)
+            log.info(f"Importing '{name}': {len(epochs)} epochs -> {db_path}")
 
-        conn.close()
+            for epoch in epochs:
+                if is_shutdown_requested():
+                    break
+                import_epoch(conn, name, epoch, repos_dir)
+
+            conn.close()
+        finally:
+            unlock_inbox(name)
 
     if is_shutdown_requested():
         log.info("Import stopped gracefully (progress saved, will resume next run)")
