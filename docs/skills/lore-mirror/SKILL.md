@@ -20,6 +20,12 @@ Activate this skill when the user wants to:
 - Find what a kernel developer has been working on
 - Understand the discussion behind a kernel change
 
+## Access Methods
+
+**MCP (preferred in Claude Code):** If the `lore-mirror` MCP server is connected (check `/mcp`), use the `lore_*` tools directly — they wrap this API with structured parameters and error handling. Tool names: `lore_list_inboxes`, `lore_search_emails`, `lore_get_message`, `lore_get_thread`, `lore_browse_inbox`, `lore_locate_inbox`, `lore_get_raw_email`.
+
+**REST API (fallback):** Use the HTTP endpoints below when MCP is not available.
+
 ## API Base URL
 
 ```

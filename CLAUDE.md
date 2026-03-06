@@ -18,8 +18,10 @@ Local mirror of lore.kernel.org kernel mailing list archives.
 │   ├── database.py          # SQLite schema definition (per-inbox, no shared DB)
 │   ├── sync.py              # Daily sync: git fetch + incremental import (CLI/cron only)
 │   └── healthcheck.py       # Verify & repair git repos and databases
+├── .mcp.json                # MCP server config for Claude Code auto-discovery
 ├── server/
-│   └── app.py               # FastAPI backend (auto-discovers inbox DBs in db/)
+│   ├── app.py               # FastAPI backend (auto-discovers inbox DBs in db/)
+│   └── mcp_server.py        # MCP server (wraps REST API via httpx, stdio transport)
 └── frontend/                # Vue 3 + Vite SPA
     ├── src/views/           # Home, Inbox, Message, Thread, Search
     ├── src/components/      # ThreadNode (recursive)
@@ -37,6 +39,7 @@ Local mirror of lore.kernel.org kernel mailing list archives.
 ## Key Architecture Decisions
 
 - **Per-inbox databases**: Each inbox has its own `db/{name}.db` file. No shared/central database. The backend iterates over all .db files for cross-inbox operations (search, message lookup).
+- **MCP server**: `server/mcp_server.py` wraps the REST API with 7 tools for AI access. Spawned by Claude Code via `.mcp.json` (stdio transport). Requires REST API running on `:8000`. Tool names prefixed with `lore_` to avoid collisions.
 - **Sync is CLI-only**: No web-triggered sync (security). Use `scripts/sync.py` via cron. Frontend only shows read-only sync status from `sync_status/` directory (per-inbox files).
 - **Per-inbox locking**: `fcntl.flock` on `sync_status/{inbox}.lock` prevents concurrent writes to the same inbox DB. Different inboxes can sync in parallel.
 - **Graceful shutdown**: SIGTERM/SIGINT sets a flag; import loop finishes current commit, saves progress, then exits.

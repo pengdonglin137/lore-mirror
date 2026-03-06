@@ -58,6 +58,14 @@
 - `scripts/config_utils.py`: 统一配置加载，支持相对/绝对路径
 - 前端仅显示同步状态（只读）
 
+### 模块 7: MCP Server (AI 工具集成) ✅
+- `server/mcp_server.py`: MCP 协议服务器，通过 httpx 调用本地 REST API
+- 7 个工具: list_inboxes, locate_inbox, search_emails, get_message, get_thread, browse_inbox, get_raw_email
+- stdio 传输: Claude Code 通过 `.mcp.json` 自动发现和启动
+- 依赖 REST API 运行在 :8000
+- 工具名前缀 `lore_` 避免与其他 MCP 服务器冲突
+- `API_BASE` 可通过环境变量 `LORE_API_URL` 配置
+
 ### 模块 6: 容器化部署 ✅
 - `Dockerfile`: 多阶段构建（Node 20 → Python 3.12-slim）
 - `docker-compose.yml`: web + sync 两服务编排
@@ -204,8 +212,10 @@ lore-mirror/
 │   ├── sync.py                 # 同步（fetch + 增量导入、per-inbox 锁）
 │   ├── healthcheck.py          # 完整性检查与修复
 │   └── test_search.py          # 搜索功能测试用例
+├── .mcp.json                   # MCP 服务器自动发现配置（Claude Code）
 ├── server/
-│   └── app.py                  # FastAPI 后端（搜索前缀解析 + SPA 服务）
+│   ├── app.py                  # FastAPI 后端（搜索前缀解析 + SPA 服务）
+│   └── mcp_server.py           # MCP 协议服务器（包装 REST API，stdio 传输）
 ├── frontend/
 │   ├── src/views/              # Vue 页面：Home, Inbox, Message, Thread, Search
 │   ├── src/components/         # 可复用组件：ThreadNode
@@ -273,6 +283,7 @@ lore-mirror/
 | Phase 4: Vue 前端 | ✅ 完成 |
 | Phase 5: 同步 + 健康检查 | ✅ 完成 |
 | Phase 6: 容器化部署 | ✅ 完成 |
+| Phase 7: MCP Server (AI 集成) | ✅ 完成 |
 
 ## 性能优化
 
@@ -490,7 +501,7 @@ python3 scripts/test_api.py --url http://your-host:8000
 python3 scripts/test_api.py -v
 ```
 
-35 个测试用例覆盖所有 API 端点，零外部依赖，失败时 exit 1 可用于 CI。
+40 个测试用例覆盖所有 API 端点，零外部依赖，失败时 exit 1 可用于 CI。
 
 ---
 

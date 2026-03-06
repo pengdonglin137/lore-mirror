@@ -4,6 +4,8 @@ Base URL: `http://localhost:8000` (production) or `http://localhost:3000` (dev, 
 
 All responses are JSON. Dates are ISO 8601 format.
 
+**MCP Alternative:** An MCP server (`server/mcp_server.py`) wraps this REST API with 7 structured tools for direct AI access. Claude Code auto-discovers it via `.mcp.json`. See tool names: `lore_list_inboxes`, `lore_locate_inbox`, `lore_search_emails`, `lore_get_message`, `lore_get_thread`, `lore_browse_inbox`, `lore_get_raw_email`.
+
 ---
 
 ## Overview
