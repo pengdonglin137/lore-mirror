@@ -61,6 +61,10 @@ python3 scripts/sync.py
 # Health check
 python3 scripts/healthcheck.py --repair
 
+# API tests (requires running server)
+python3 scripts/test_api.py
+python3 scripts/test_api.py --url http://remote:8000
+
 # Start web server (bare metal)
 ./start.sh              # dev: frontend :3000 + backend :8000
 ./start.sh --build      # prod: backend :8000 serves built SPA
