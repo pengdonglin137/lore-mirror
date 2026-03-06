@@ -121,7 +121,5 @@ function formatDate(d) {
   padding-top: 6px;
 }
 
-@media (prefers-color-scheme: dark) {
-  .status-bar { border-color: #444; color: #666; }
-}
+:global(html.dark) .status-bar { border-color: #444; color: #666; }
 </style>

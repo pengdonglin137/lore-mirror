@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -14,6 +14,31 @@ function doSearchAll() {
   if (!query.value.trim()) return
   router.push({ path: '/search', query: { q: query.value.trim() } })
 }
+
+// Theme toggle: system → dark → light → system
+const theme = ref(localStorage.getItem('theme') || 'system')
+const themeIcons = { system: '\u25D1', dark: '\u263D', light: '\u2600' }
+
+function applyTheme() {
+  const dark = theme.value === 'dark' ||
+    (theme.value === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  document.documentElement.classList.toggle('dark', dark)
+}
+
+function cycleTheme() {
+  const order = ['system', 'dark', 'light']
+  theme.value = order[(order.indexOf(theme.value) + 1) % 3]
+}
+
+watch(theme, () => {
+  localStorage.setItem('theme', theme.value)
+  applyTheme()
+})
+
+const mql = window.matchMedia('(prefers-color-scheme: dark)')
+function onSystemChange() { if (theme.value === 'system') applyTheme() }
+onMounted(() => { applyTheme(); mql.addEventListener('change', onSystemChange) })
+onUnmounted(() => mql.removeEventListener('change', onSystemChange))
 </script>
 
 <template>
@@ -30,6 +55,7 @@ function doSearchAll() {
         <button class="nav-btn" @click="doLocate">locate inbox</button>
         <button class="nav-btn" @click="doSearchAll">search all inboxes</button>
         <button class="nav-btn help-btn" @click="showHelp = !showHelp" title="Search syntax help">?</button>
+        <button class="nav-btn theme-btn" @click="cycleTheme" :title="`Theme: ${theme}`">{{ themeIcons[theme] }}</button>
       </nav>
       <pre v-if="showHelp" class="search-help">Search prefixes (compatible with lore.kernel.org):
 
@@ -125,7 +151,7 @@ header nav {
   white-space: nowrap;
 }
 
-.help-btn {
+.help-btn, .theme-btn {
   font-weight: bold;
   min-width: 26px;
   text-align: center;
@@ -180,15 +206,13 @@ mark {
   padding: 0 1px;
 }
 
-@media (prefers-color-scheme: dark) {
-  body { background: #1a1a1a; color: #ddd; }
-  a { color: #6cb6ff; }
-  header { background: #252525; border-color: #444; }
-  .logo-link { color: #ddd; }
-  .nav-input, .nav-btn, .pagination button {
-    background: #333; color: #ddd; border-color: #555;
-  }
-  mark { background: #665500; color: #fff; }
-  .search-help { background: #222; border-color: #444; color: #999; }
+html.dark body { background: #1a1a1a; color: #ddd; }
+html.dark a { color: #6cb6ff; }
+html.dark header { background: #252525; border-color: #444; }
+html.dark .logo-link { color: #ddd; }
+html.dark .nav-input, html.dark .nav-btn, html.dark .pagination button {
+  background: #333; color: #ddd; border-color: #555;
 }
+html.dark mark { background: #665500; color: #fff; }
+html.dark .search-help { background: #222; border-color: #444; color: #999; }
 </style>

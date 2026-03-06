@@ -7,12 +7,12 @@ const msg = ref(null)
 const loading = ref(true)
 const error = ref(null)
 const showAllHeaders = ref(false)
-const threadMessages = ref([])
+const rawThreadMessages = ref([])
 
 async function load() {
   loading.value = true
   error.value = null
-  threadMessages.value = []
+  rawThreadMessages.value = []
   try {
     const [msgResult, threadResult] = await Promise.allSettled([
       getMessage(props.id),
@@ -21,7 +21,7 @@ async function load() {
     if (msgResult.status === 'rejected') throw new Error(msgResult.reason?.message || 'Failed to load message')
     msg.value = msgResult.value
     if (threadResult.status === 'fulfilled' && threadResult.value?.messages?.length > 1) {
-      threadMessages.value = threadResult.value.messages
+      rawThreadMessages.value = threadResult.value.messages
     }
   } catch (e) {
     error.value = e.message
@@ -29,6 +29,33 @@ async function load() {
     loading.value = false
   }
 }
+
+// Build reply tree and flatten via DFS for natural reading order
+const threadMessages = computed(() => {
+  const msgs = rawThreadMessages.value
+  if (!msgs.length) return []
+  const byId = new Map(msgs.map(m => [m.message_id, { ...m, children: [] }]))
+  const roots = []
+  for (const m of byId.values()) {
+    if (m.in_reply_to && byId.has(m.in_reply_to)) {
+      byId.get(m.in_reply_to).children.push(m)
+    } else {
+      roots.push(m)
+    }
+  }
+  // Sort siblings by date at each level
+  const sortByDate = (a, b) => (a.date || '').localeCompare(b.date || '')
+  const result = []
+  function dfs(nodes) {
+    nodes.sort(sortByDate)
+    for (const n of nodes) {
+      result.push(n)
+      if (n.children.length) dfs(n.children)
+    }
+  }
+  dfs(roots)
+  return result
+})
 
 const currentIndex = computed(() => {
   if (!msg.value || !threadMessages.value.length) return -1
@@ -132,13 +159,11 @@ const hasDiff = computed(() => {
 .diff-hunk { color: #6f42c1; }
 .diff-header { color: #005cc5; font-weight: bold; }
 
-@media (prefers-color-scheme: dark) {
-  .msg-header { background: #252525; border-color: #444; }
-  .msg-body { border-color: #333; }
-  .msg-attachments { background: #2a2a20; border-color: #444; }
-  .diff-add { color: #56d364; background: #0d1117; }
-  .diff-del { color: #f85149; background: #1a0000; }
-  .diff-hunk { color: #bc8cff; }
-  .diff-header { color: #79c0ff; }
-}
+:global(html.dark) .msg-header { background: #252525; border-color: #444; }
+:global(html.dark) .msg-body { border-color: #333; }
+:global(html.dark) .msg-attachments { background: #2a2a20; border-color: #444; }
+:global(html.dark) .diff-add { color: #56d364; background: #0d1117; }
+:global(html.dark) .diff-del { color: #f85149; background: #1a0000; }
+:global(html.dark) .diff-hunk { color: #bc8cff; }
+:global(html.dark) .diff-header { color: #79c0ff; }
 </style>

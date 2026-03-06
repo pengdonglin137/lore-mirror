@@ -162,10 +162,8 @@ Examples:
   color: #666;
 }
 
-@media (prefers-color-scheme: dark) {
-  .inbox-select { background: #333; color: #ddd; border-color: #555; }
-  .search-help { background: #252525; border-color: #444; color: #999; }
-  .search-result { border-color: #333; }
-  .snippet { color: #999; }
-}
+:global(html.dark) .inbox-select { background: #333; color: #ddd; border-color: #555; }
+:global(html.dark) .search-help { background: #252525; border-color: #444; color: #999; }
+:global(html.dark) .search-result { border-color: #333; }
+:global(html.dark) .snippet { color: #999; }
 </style>
