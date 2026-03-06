@@ -153,9 +153,9 @@ def parse_email_bytes(raw: bytes) -> dict:
 
 
 def get_commits_for_epoch(repo_path: Path) -> list[str]:
-    """Get all commit hashes in chronological order (oldest first)."""
+    """Get all commit hashes in reverse chronological order (newest first)."""
     result = subprocess.run(
-        ["git", "--git-dir", str(repo_path), "rev-list", "--reverse", "HEAD"],
+        ["git", "--git-dir", str(repo_path), "rev-list", "HEAD"],
         capture_output=True,
         text=True,
         timeout=120,
@@ -229,17 +229,19 @@ def get_email_from_commit(repo_path: Path, commit_hash: str) -> Optional[bytes]:
     return None
 
 
-def get_last_imported_commit(conn, epoch: int) -> Optional[str]:
-    """Get the last imported commit hash for an epoch."""
+def get_import_progress(conn, epoch: int) -> tuple[Optional[str], int]:
+    """Get the last imported commit and saved total count for an epoch."""
     row = conn.execute(
-        "SELECT last_commit FROM import_progress WHERE epoch=?",
+        "SELECT last_commit, commit_count FROM import_progress WHERE epoch=?",
         (epoch,),
     ).fetchone()
-    return row["last_commit"] if row else None
+    if row:
+        return row["last_commit"], row["commit_count"] or 0
+    return None, 0
 
 
 def import_epoch(conn, inbox_name: str, epoch: int, repos_dir: Path):
-    """Import emails from a single epoch git repo."""
+    """Import emails from a single epoch git repo (newest first)."""
     repo_path = repos_dir / inbox_name / "git" / f"{epoch}.git"
 
     if not repo_path.exists() or not (repo_path / "HEAD").exists():
@@ -248,29 +250,47 @@ def import_epoch(conn, inbox_name: str, epoch: int, repos_dir: Path):
 
     log.info(f"Processing {inbox_name} epoch {epoch}: {repo_path}")
 
-    all_commits = get_commits_for_epoch(repo_path)
+    all_commits = get_commits_for_epoch(repo_path)  # newest first
     if not all_commits:
         log.info(f"  No commits found")
         return
 
-    last_commit = get_last_imported_commit(conn, epoch)
+    total_now = len(all_commits)
+    last_commit, saved_total = get_import_progress(conn, epoch)
+
     if last_commit:
         try:
-            start_idx = all_commits.index(last_commit) + 1
+            last_idx = all_commits.index(last_commit)
         except ValueError:
             log.warning(f"  Last imported commit {last_commit} not found, starting from beginning")
-            start_idx = 0
-    else:
-        start_idx = 0
+            last_idx = -1
 
-    remaining = all_commits[start_idx:]
+        if last_idx >= 0:
+            # New commits from fetch: appear at the beginning of the list
+            new_count = max(0, total_now - saved_total) if saved_total > 0 else 0
+            new_part = all_commits[:new_count] if new_count > 0 else []
+
+            # Old commits not yet processed (continuing toward older)
+            old_part = all_commits[last_idx + 1:]
+
+            remaining = new_part + old_part
+
+            if new_count > 0 and old_part:
+                log.info(f"  {new_count} new commits from fetch + {len(old_part)} remaining from initial import")
+            elif new_count > 0:
+                log.info(f"  {new_count} new commits from fetch")
+        else:
+            remaining = all_commits
+    else:
+        remaining = all_commits
+
     total = len(remaining)
 
     if total == 0:
-        log.info(f"  Already up to date ({len(all_commits)} commits)")
+        log.info(f"  Already up to date ({total_now} commits)")
         return
 
-    log.info(f"  Importing {total} new commits (of {len(all_commits)} total, starting from #{start_idx})")
+    log.info(f"  Importing {total} commits newest-first (of {total_now} total)")
 
     imported = 0
     skipped = 0
@@ -353,7 +373,7 @@ def import_epoch(conn, inbox_name: str, epoch: int, repos_dir: Path):
                 """INSERT OR REPLACE INTO import_progress
                 (epoch, last_commit, commit_count, updated_at)
                 VALUES (?, ?, ?, datetime('now'))""",
-                (epoch, commit_hash, start_idx + i + 1),
+                (epoch, commit_hash, total_now),
             )
             conn.commit()
 
@@ -373,7 +393,7 @@ def import_epoch(conn, inbox_name: str, epoch: int, repos_dir: Path):
             """INSERT OR REPLACE INTO import_progress
             (epoch, last_commit, commit_count, updated_at)
             VALUES (?, ?, ?, datetime('now'))""",
-            (epoch, last_processed, start_idx + i + 1),
+            (epoch, last_processed, total_now),
         )
         conn.commit()
 
