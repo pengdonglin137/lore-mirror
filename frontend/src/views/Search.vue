@@ -162,8 +162,11 @@ Examples:
   color: #666;
 }
 
-:global(html.dark) .inbox-select { background: #21262d; color: #c9d1d9; border-color: #30363d; }
-:global(html.dark) .search-help { background: #161b22; border-color: #30363d; color: #8b949e; }
-:global(html.dark) .search-result { border-color: #21262d; }
-:global(html.dark) .snippet { color: #8b949e; }
+</style>
+
+<style>
+html.dark .inbox-select { background: #21262d; color: #c9d1d9; border-color: #30363d; }
+html.dark .search-help { background: #161b22; border-color: #30363d; color: #8b949e; }
+html.dark .search-result { border-color: #21262d; }
+html.dark .snippet { color: #8b949e; }
 </style>

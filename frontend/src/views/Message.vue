@@ -170,29 +170,32 @@ const hasDiff = computed(() => {
 .quote { color: #57606a; border-left: 2px solid #d0d7de; padding-left: 6px; display: inline-block; }
 .quote-deep { color: #8b949e; border-left: 2px solid #d0d7de; padding-left: 6px; display: inline-block; }
 
-/* ── Dark theme ── */
-:global(html.dark) .msg-header {
+</style>
+
+<style>
+/* ── Dark theme (unscoped: html.dark is outside component) ── */
+html.dark .msg-header {
   background: #21262d;
   border-color: #383e47;
   border-left: 3px solid #58a6ff;
 }
 
-:global(html.dark) .msg-body {
+html.dark .msg-body {
   background: #161b22;
   border-color: #30363d;
 }
 
-:global(html.dark) .msg-attachments {
+html.dark .msg-attachments {
   background: #1c2128;
   border-color: #30363d;
   border-top-color: #484f58;
 }
 
-:global(html.dark) .diff-add { color: #7ee787; background: #12261e; }
-:global(html.dark) .diff-del { color: #ffa198; background: #2d1619; }
-:global(html.dark) .diff-hunk { color: #d2a8ff; background: #1e1731; }
-:global(html.dark) .diff-header { color: #79c0ff; }
-:global(html.dark) .diff-file { color: #8b949e; }
-:global(html.dark) .quote { color: #8b949e; border-left-color: #484f58; }
-:global(html.dark) .quote-deep { color: #6e7681; border-left-color: #484f58; }
+html.dark .diff-add { color: #7ee787; background: #12261e; }
+html.dark .diff-del { color: #ffa198; background: #2d1619; }
+html.dark .diff-hunk { color: #d2a8ff; background: #1e1731; }
+html.dark .diff-header { color: #79c0ff; }
+html.dark .diff-file { color: #8b949e; }
+html.dark .quote { color: #8b949e; border-left-color: #484f58; }
+html.dark .quote-deep { color: #6e7681; border-left-color: #484f58; }
 </style>
