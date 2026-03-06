@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -15,30 +15,25 @@ function doSearchAll() {
   router.push({ path: '/search', query: { q: query.value.trim() } })
 }
 
-// Theme toggle: system → dark → light → system
-const theme = ref(localStorage.getItem('theme') || 'system')
-const themeIcons = { system: '\u25D1', dark: '\u263D', light: '\u2600' }
+// Theme toggle: light ↔ dark (detects system preference on first visit)
+const stored = localStorage.getItem('theme')
+const isDark = ref(stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches)
 
 function applyTheme() {
-  const dark = theme.value === 'dark' ||
-    (theme.value === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
-  document.documentElement.classList.toggle('dark', dark)
+  document.documentElement.classList.toggle('dark', isDark.value)
+  document.documentElement.style.cssText = isDark.value ? 'background:#0d1117;color-scheme:dark' : ''
 }
 
-function cycleTheme() {
-  const order = ['system', 'dark', 'light']
-  theme.value = order[(order.indexOf(theme.value) + 1) % 3]
+function toggleTheme() {
+  isDark.value = !isDark.value
 }
 
-watch(theme, () => {
-  localStorage.setItem('theme', theme.value)
+watch(isDark, () => {
+  localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
   applyTheme()
 })
 
-const mql = window.matchMedia('(prefers-color-scheme: dark)')
-function onSystemChange() { if (theme.value === 'system') applyTheme() }
-onMounted(() => { applyTheme(); mql.addEventListener('change', onSystemChange) })
-onUnmounted(() => mql.removeEventListener('change', onSystemChange))
+onMounted(() => applyTheme())
 </script>
 
 <template>
@@ -55,7 +50,7 @@ onUnmounted(() => mql.removeEventListener('change', onSystemChange))
         <button class="nav-btn" @click="doLocate">locate inbox</button>
         <button class="nav-btn" @click="doSearchAll">search all inboxes</button>
         <button class="nav-btn help-btn" @click="showHelp = !showHelp" title="Search syntax help">?</button>
-        <button class="nav-btn theme-btn" @click="cycleTheme" :title="`Theme: ${theme}`">{{ themeIcons[theme] }}</button>
+        <button class="nav-btn theme-btn" @click="toggleTheme" :title="isDark ? 'Switch to light' : 'Switch to dark'">{{ isDark ? '\u2600' : '\u263D' }}</button>
       </nav>
       <pre v-if="showHelp" class="search-help">Search prefixes (compatible with lore.kernel.org):
 
@@ -206,13 +201,17 @@ mark {
   padding: 0 1px;
 }
 
-html.dark body { background: #1a1a1a; color: #ddd; }
-html.dark a { color: #6cb6ff; }
-html.dark header { background: #252525; border-color: #444; }
-html.dark .logo-link { color: #ddd; }
+html.dark { color-scheme: dark; }
+html.dark body { background: #0d1117; color: #c9d1d9; }
+html.dark a { color: #58a6ff; }
+html.dark header { background: #161b22; border-color: #30363d; }
+html.dark .logo-link { color: #c9d1d9; }
 html.dark .nav-input, html.dark .nav-btn, html.dark .pagination button {
-  background: #333; color: #ddd; border-color: #555;
+  background: #21262d; color: #c9d1d9; border-color: #30363d;
 }
-html.dark mark { background: #665500; color: #fff; }
-html.dark .search-help { background: #222; border-color: #444; color: #999; }
+html.dark .nav-btn:hover { background: #30363d; }
+html.dark mark { background: #5a4a00; color: #e3b341; }
+html.dark .loading { color: #8b949e; }
+html.dark .error { color: #f85149; }
+html.dark .search-help { background: #161b22; border-color: #30363d; color: #8b949e; }
 </style>

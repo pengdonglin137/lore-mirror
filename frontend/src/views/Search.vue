@@ -162,8 +162,8 @@ Examples:
   color: #666;
 }
 
-:global(html.dark) .inbox-select { background: #333; color: #ddd; border-color: #555; }
-:global(html.dark) .search-help { background: #252525; border-color: #444; color: #999; }
-:global(html.dark) .search-result { border-color: #333; }
-:global(html.dark) .snippet { color: #999; }
+:global(html.dark) .inbox-select { background: #21262d; color: #c9d1d9; border-color: #30363d; }
+:global(html.dark) .search-help { background: #161b22; border-color: #30363d; color: #8b949e; }
+:global(html.dark) .search-result { border-color: #21262d; }
+:global(html.dark) .snippet { color: #8b949e; }
 </style>

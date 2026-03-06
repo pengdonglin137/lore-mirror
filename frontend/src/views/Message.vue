@@ -91,11 +91,14 @@ function formatBody(text) {
   return text
 }
 
-function isDiffLine(line) {
-  if (line.startsWith('+') && !line.startsWith('+++')) return 'diff-add'
-  if (line.startsWith('-') && !line.startsWith('---')) return 'diff-del'
-  if (line.startsWith('@@')) return 'diff-hunk'
+function lineClass(line) {
   if (line.startsWith('diff --git')) return 'diff-header'
+  if (line.startsWith('@@')) return 'diff-hunk'
+  if (line.startsWith('+++') || line.startsWith('---')) return 'diff-file'
+  if (line.startsWith('+')) return 'diff-add'
+  if (line.startsWith('-')) return 'diff-del'
+  if (line.startsWith('> >') || line.startsWith('>> ') || line.startsWith('>>>')) return 'quote-deep'
+  if (line.startsWith('>')) return 'quote'
   return ''
 }
 
@@ -120,7 +123,7 @@ const hasDiff = computed(() => {
 </template>
 <a href="#" @click.prevent="showAllHeaders = !showAllHeaders">[{{ showAllHeaders ? 'hide' : 'show all' }} headers]</a>  <router-link :to="`/thread/${encodeURIComponent(msg.message_id)}`">[view thread]</router-link>  <a :href="`/api/raw?id=${encodeURIComponent(msg.message_id)}`">[raw]</a><template v-if="prevMessage || nextMessage">  <router-link v-if="prevMessage" :to="`/message/${encodeURIComponent(prevMessage.message_id)}`" :title="prevMessage.subject">[&larr; prev]</router-link><template v-if="prevMessage && nextMessage">  </template><router-link v-if="nextMessage" :to="`/message/${encodeURIComponent(nextMessage.message_id)}`" :title="nextMessage.subject">[next &rarr;]</router-link></template></pre>
 
-      <pre class="msg-body"><template v-for="(line, i) in bodyLines" :key="i"><span :class="isDiffLine(line)">{{ line }}</span>
+      <pre class="msg-body"><template v-for="(line, i) in bodyLines" :key="i"><span :class="lineClass(line)">{{ line }}</span>
 </template></pre>
 
       <template v-if="msg.attachments && msg.attachments.length">
@@ -134,36 +137,62 @@ const hasDiff = computed(() => {
 </template>
 
 <style scoped>
+/* ── Light theme ── */
 .msg-header {
-  background: #f6f6f6;
+  background: #f8f9fa;
   padding: 12px;
   border: 1px solid #ddd;
-  margin-bottom: 8px;
+  border-left: 3px solid #00609f;
+  margin-bottom: 0;
+  border-bottom: none;
 }
 
 .msg-body {
   padding: 12px;
-  border: 1px solid #eee;
+  border: 1px solid #e0e0e0;
+  background: #fafafa;
   font-size: 13px;
 }
 
 .msg-attachments {
-  margin-top: 8px;
+  margin-top: 0;
   padding: 8px 12px;
   background: #f9f9f0;
   border: 1px solid #ddd;
+  border-top: 1px dashed #ccc;
 }
 
-.diff-add { color: #22863a; background: #f0fff4; }
-.diff-del { color: #cb2431; background: #ffeef0; }
-.diff-hunk { color: #6f42c1; }
-.diff-header { color: #005cc5; font-weight: bold; }
+.diff-add { color: #1a7f37; background: #dafbe1; }
+.diff-del { color: #cf222e; background: #ffebe9; }
+.diff-hunk { color: #6f42c1; background: #f4f0ff; }
+.diff-header { color: #0550ae; font-weight: bold; }
+.diff-file { color: #656d76; font-weight: bold; }
+.quote { color: #57606a; border-left: 2px solid #d0d7de; padding-left: 6px; display: inline-block; }
+.quote-deep { color: #8b949e; border-left: 2px solid #d0d7de; padding-left: 6px; display: inline-block; }
 
-:global(html.dark) .msg-header { background: #252525; border-color: #444; }
-:global(html.dark) .msg-body { border-color: #333; }
-:global(html.dark) .msg-attachments { background: #2a2a20; border-color: #444; }
-:global(html.dark) .diff-add { color: #56d364; background: #0d1117; }
-:global(html.dark) .diff-del { color: #f85149; background: #1a0000; }
-:global(html.dark) .diff-hunk { color: #bc8cff; }
+/* ── Dark theme ── */
+:global(html.dark) .msg-header {
+  background: #21262d;
+  border-color: #383e47;
+  border-left: 3px solid #58a6ff;
+}
+
+:global(html.dark) .msg-body {
+  background: #161b22;
+  border-color: #30363d;
+}
+
+:global(html.dark) .msg-attachments {
+  background: #1c2128;
+  border-color: #30363d;
+  border-top-color: #484f58;
+}
+
+:global(html.dark) .diff-add { color: #7ee787; background: #12261e; }
+:global(html.dark) .diff-del { color: #ffa198; background: #2d1619; }
+:global(html.dark) .diff-hunk { color: #d2a8ff; background: #1e1731; }
 :global(html.dark) .diff-header { color: #79c0ff; }
+:global(html.dark) .diff-file { color: #8b949e; }
+:global(html.dark) .quote { color: #8b949e; border-left-color: #484f58; }
+:global(html.dark) .quote-deep { color: #6e7681; border-left-color: #484f58; }
 </style>

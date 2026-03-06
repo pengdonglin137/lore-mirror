@@ -67,7 +67,7 @@ export default {
   padding: 1px 4px;
 }
 
-:global(html.dark) .thread-entry { border-color: #444; }
-:global(html.dark) .thread-meta { color: #999; }
-:global(html.dark) .current { background: #4a3f00; }
+:global(html.dark) .thread-entry { border-color: #30363d; }
+:global(html.dark) .thread-meta { color: #8b949e; }
+:global(html.dark) .current { background: #2d2a00; color: #e3b341; }
 </style>
