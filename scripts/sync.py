@@ -9,6 +9,7 @@ Usage:
 """
 
 import argparse
+import fcntl
 import json
 import logging
 import os
@@ -36,8 +37,12 @@ def _status_file(inbox_name: str) -> Path:
     return STATUS_DIR / f"{inbox_name}.json"
 
 
-def _pid_file(inbox_name: str) -> Path:
-    return STATUS_DIR / f"{inbox_name}.pid"
+def _lock_file(inbox_name: str) -> Path:
+    return STATUS_DIR / f"{inbox_name}.lock"
+
+
+# Hold open lock file descriptors so flock stays held for process lifetime
+_lock_fds: dict[str, int] = {}
 
 
 def write_status(inbox_name: str, status: dict):
@@ -68,32 +73,39 @@ def read_all_status() -> list[dict]:
     return results
 
 
-def is_inbox_locked(inbox_name: str) -> tuple[bool, bool]:
+def try_lock_inbox(inbox_name: str) -> bool:
     """
-    Check if an inbox is locked by another sync process.
-    Returns (locked, stale).  locked=True means PID file exists;
-    stale=True means the process is dead.
+    Try to acquire an exclusive lock for an inbox (atomic, no race condition).
+    Returns True if lock acquired, False if another process holds it.
+    Uses fcntl.flock — lock is automatically released when process exits/crashes.
     """
-    pf = _pid_file(inbox_name)
-    if not pf.exists():
-        return False, False
-    try:
-        old_pid = int(pf.read_text().strip())
-        os.kill(old_pid, 0)
-        return True, False  # process alive
-    except (ValueError, ProcessLookupError, PermissionError):
-        return True, True  # stale lock
-
-
-def lock_inbox(inbox_name: str):
-    """Write PID file for this inbox."""
     STATUS_DIR.mkdir(parents=True, exist_ok=True)
-    _pid_file(inbox_name).write_text(str(os.getpid()))
+    lock_path = _lock_file(inbox_name)
+    fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR, 0o644)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        # Write PID for diagnostics (not used for locking)
+        os.ftruncate(fd, 0)
+        os.lseek(fd, 0, os.SEEK_SET)
+        os.write(fd, str(os.getpid()).encode())
+        _lock_fds[inbox_name] = fd
+        return True
+    except OSError:
+        # LOCK_NB causes OSError if already locked
+        os.close(fd)
+        return False
 
 
 def unlock_inbox(inbox_name: str):
-    """Remove PID file for this inbox."""
-    _pid_file(inbox_name).unlink(missing_ok=True)
+    """Release the inbox lock."""
+    fd = _lock_fds.pop(inbox_name, None)
+    if fd is not None:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+            os.close(fd)
+        except OSError:
+            pass
+    _lock_file(inbox_name).unlink(missing_ok=True)
 
 
 def git_fetch_epoch(repo_path: Path, timeout: int = 3600) -> tuple[bool, int]:
@@ -212,17 +224,9 @@ def sync_inbox(config: dict, inbox_name: str) -> dict:
 
 def _sync_one_inbox(config: dict, inbox_name: str) -> dict:
     """Sync one inbox with per-inbox locking and status."""
-    # Check per-inbox lock
-    locked, stale = is_inbox_locked(inbox_name)
-    if locked and not stale:
-        log.error(f"[{inbox_name}] Sync already running. Skipping.")
+    if not try_lock_inbox(inbox_name):
+        log.error(f"[{inbox_name}] Sync already running (locked by another process). Skipping.")
         return {"inbox": inbox_name, "errors": ["already running"]}
-    if locked and stale:
-        log.warning(f"[{inbox_name}] Stale lock detected, resetting...")
-        unlock_inbox(inbox_name)
-
-    # Acquire lock
-    lock_inbox(inbox_name)
 
     status = {
         "running": True,
