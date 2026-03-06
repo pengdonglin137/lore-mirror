@@ -317,7 +317,7 @@ a:stable@vger.kernel.org             emails to/from/cc stable list
 ```
 
 **Notes:**
-- Results are ranked by relevance (BM25) when using text search, or by date when using only filters (d:, f:).
+- Results are ranked by relevance (BM25) when using text/sender search (s:, f:, b:, bs:), or by date when using only filters (d:, t:, c:, a:, tc:).
 - `snippet` contains a text excerpt with `<mark>` tags around matched terms. Empty for filter-only queries.
 - When searching across all inboxes, `inbox_name` indicates which inbox each result comes from.
 - For best performance on large datasets, always specify `inbox` parameter.

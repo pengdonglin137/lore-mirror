@@ -37,14 +37,14 @@
 - 日期排序：过滤异常日期（Y2K、未来时间戳、non-ISO 格式）
 - 性能优化：索引友好查询 + 内存缓存（5 分钟 TTL）+ 30 秒查询超时保护
 - 生产模式: 同时 serve Vue SPA 静态文件
-- `scripts/test_api.py`: 自动化 API 测试（35 个用例，零外部依赖，支持 `--url` 远程测试）
+- `scripts/test_api.py`: 自动化 API 测试（38 个用例，零外部依赖，支持 `--url` 远程测试）
 
 ### 模块 4: Vue 3 前端 (Phase 4) ✅
 - 5 个页面: Home, Inbox, Message, Thread, Search
 - 功能: locate inbox、search all inboxes（带 inbox 选择器和搜索语法帮助）
 - 导航栏搜索语法帮助按钮（`?`）
 - 邮件分页浏览、线程树视图、diff 高亮
-- 左对齐布局，暗色模式
+- 左对齐布局，亮色/暗色主题切换（localStorage 持久化，首次访问跟随系统偏好）
 
 ### 模块 5: 同步与维护 (Phase 5) ✅
 - `scripts/sync.py`: git fetch + 增量导入（仅通过 CLI/cron 触发）
@@ -282,6 +282,9 @@ lore-mirror/
 | Inbox 统计查询 | `MIN/MAX(CASE)` → `ORDER BY LIMIT 1`（索引扫描） | 1.2s → 69ms |
 | 热点端点缓存 | /api/inboxes, /api/stats, COUNT 缓存 5 分钟 | 首次 60ms → 重复 <2ms |
 | 慢查询保护 | sqlite3 progress_handler 30 秒超时 | 避免无限等待 |
+| f: 发件人搜索 | SQL LIKE → FTS5 sender 列（倒排索引） | lkml 全表扫描挂起 → 0.001s |
+| 搜索 COUNT 优化 | COUNT 子查询 LIMIT 10001 封顶 + 纯 FTS 跳过 JOIN | 避免大结果集计数超时 |
+| 跨 inbox 搜索 | 已有足够结果时跳过后续 inbox 的 SELECT | f:torvalds 15s → 0.02s |
 | 同步仅更新 epoch | fetch 后只 import 有新 commit 的 epoch | 9.5h → 1.5min |
 
 ---
