@@ -12,10 +12,25 @@ This is a local mirror of lore.kernel.org. It stores Linux kernel mailing list e
 
 ### Quick Start for AI Agents
 
-1. Call `GET /api/inboxes` to see available mailing lists
-2. Call `GET /api/search?q=your+query` to find relevant emails
+**Important: Always start by discovering available inboxes.** Not all ~200 lore.kernel.org mailing lists may be mirrored locally. Passing an unavailable inbox name to the search API will return no results.
+
+1. **First**, call `GET /api/inboxes` to get the list of available mailing lists with descriptions
+   - Each inbox has a detailed `description` field listing the topics and keywords it covers
+   - Use this to determine which inbox is relevant to your query
+   - If unsure, use `GET /api/locate?q=keyword` to fuzzy-match inbox names and descriptions
+2. Call `GET /api/search?q=your+query&inbox={name}` to search within a specific inbox
+   - Always specify `inbox` parameter for better performance and precision
+   - Omit `inbox` only when you need to search across all available inboxes
 3. Call `GET /api/messages/{message_id}` to read a specific email
 4. Call `GET /api/threads/{message_id}` to see the full discussion thread
+
+**Example workflow:**
+```
+GET /api/inboxes                              → find linux-mm covers "OOM killer, hugepages"
+GET /api/search?q=OOM+reaper&inbox=linux-mm   → find relevant emails
+GET /api/messages/{message_id}                → read the email
+GET /api/threads/{message_id}                 → read the full discussion
+```
 
 ---
 
@@ -343,10 +358,13 @@ Check the status of the background sync process (read-only).
 
 ## Common AI Workflows
 
+**Step 0 (always do this first):** Call `GET /api/inboxes` to learn which mailing lists are available and what topics each one covers. Cache the result — the list rarely changes.
+
 ### Find discussions about a kernel topic
 
 ```
-1. GET /api/search?q=io_uring+splice+zero+copy&inbox=lkml
+0. GET /api/inboxes → find that linux-mm covers "OOM killer, hugepages, mmap..."
+1. GET /api/search?q=OOM+reaper&inbox=linux-mm
 2. Pick a relevant result → GET /api/threads/{message_id}
 3. Read the full thread to understand the discussion
 ```
@@ -354,6 +372,7 @@ Check the status of the background sync process (read-only).
 ### Find patches from a specific developer
 
 ```
+0. GET /api/inboxes → confirm lkml is available
 1. GET /api/search?q=s%3APATCH+f%3Atorvalds+d%3A2026-01-01..&inbox=lkml
    (s:PATCH f:torvalds d:2026-01-01..)
 2. For each patch series, get the cover letter (0/N) thread
@@ -363,8 +382,9 @@ Check the status of the background sync process (read-only).
 ### Find patches for a specific subsystem
 
 ```
-1. GET /api/locate?q=btrfs                → find the right inbox
-2. GET /api/search?q=s%3APATCH+b%3Adefrag+d%3A2026-01-01..&inbox=linux-btrfs
+0. GET /api/locate?q=btrfs → check if linux-btrfs is available
+   (if not available, fall back to searching lkml)
+1. GET /api/search?q=s%3APATCH+b%3Adefrag+d%3A2026-01-01..&inbox=linux-btrfs
    (s:PATCH b:defrag d:2026-01-01..)
 ```
 
