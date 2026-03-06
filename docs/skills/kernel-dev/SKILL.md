@@ -175,7 +175,133 @@ Raw timelines are hard to read. Group commits into **thematic phases**:
 
 The goal is a narrative that explains WHY changes happened, not just WHAT changed.
 
-## Capability 3: Patch Backport (CRITICAL — Read Carefully)
+## Capability 3: Backport Evaluation ("Should we backport?")
+
+Before doing the mechanical work of backporting, evaluate whether a commit
+**should** be backported. This is a separate decision from "can we backport it."
+
+### Evaluation Checklist
+
+Run through these checks in order:
+
+#### 3a: Metadata Signals
+
+```bash
+git log -1 --format='%s%n%b' <commit> | grep -E 'Fixes:|Cc:.*stable|Reported-by:|Tested-by:'
+```
+
+| Signal | Interpretation |
+|--------|---------------|
+| `Fixes:` present + `Cc: stable` | Strong signal: author intended stable backport |
+| `Fixes:` present, no `Cc: stable` | Bug fix, but author had concerns (size? risk?). Evaluate further. |
+| No `Fixes:`, no `Cc: stable` | Feature/improvement. Higher risk. Need strong justification. |
+| `Cc: stable` without `Fixes:` | Unusual but possible. Treat as intentional. |
+
+**When `Cc: stable` is absent on a bug fix**, reason about why:
+- Large diffstat (net deletions can still be "big" in reviewer perception)
+- Depends on recent infrastructure not in stable
+- Author was unsure about side effects
+- Check if follow-up fixes carry `Cc: stable` — if so, upstream implicitly endorses
+  backporting the original
+
+#### 3b: Bug Existence Verification (deeper than Fixes: check)
+
+Don't just check "does the Fixes: target commit exist." Verify the **buggy code path**
+is reachable on the target branch:
+
+```bash
+# 1. Does the buggy function/code exist?
+git show <target-branch>:<file> | grep -n '<buggy-function-or-pattern>'
+
+# 2. What are the trigger paths?
+git show <target-branch>:<file> | grep -n '<callers-of-buggy-function>'
+
+# 3. Are enabling conditions met? (feature flags, config options)
+git show <target-branch>:kernel/sched/features.h | grep '<relevant-feature>'
+```
+
+Example: `reweight_eevdf()` bug is "more prominent with DELAY_DEQUEUE" per the
+commit message. Checking `features.h` shows `DELAY_DEQUEUE` defaults to `true`
+in v6.12, confirming higher trigger probability.
+
+#### 3c: Trigger Probability Assessment
+
+Not all bugs are equal. Assess how likely real users will hit this:
+
+| Factor | Low Probability | High Probability |
+|--------|----------------|------------------|
+| Trigger path | Manual admin action (e.g., `renice`) | Automatic (e.g., cgroup shares on every tick) |
+| Enabling features | Disabled by default / rare config | Enabled by default |
+| Workload | Exotic corner case | Common (containers, multi-tenant) |
+| Accumulation | One-shot error | Cumulative (gets worse over time) |
+
+A bug that triggers on every scheduler tick in container environments is far more
+urgent than one requiring manual `sched_setattr` calls.
+
+#### 3d: Cross-Stable-Branch Audit
+
+Check **all** active stable branches in one pass, not just the target:
+
+```bash
+for tag in v6.12 v6.13 v6.14 v6.15; do
+  latest=$(git tag -l "${tag}.*" | sort -V | tail -1)
+  if [ -n "$latest" ]; then
+    count=$(git log --oneline $tag..$latest --grep='<target-sha-short>' 2>/dev/null | wc -l)
+    echo "$latest: $count"
+  fi
+done
+```
+
+This reveals patterns:
+- Backported to newer stable but not older → may need manual adaptation for older
+- Not in any stable → either too new, or intentionally skipped
+- In target stable already → check if follow-up fixes are also present (see 3e)
+
+#### 3e: Existing Backport Completeness Audit (CRITICAL)
+
+**When a commit is already backported, the analysis is NOT done.** Check whether
+its follow-up fixes are also present:
+
+```bash
+# Step 1: Find the backported commit in stable
+git log --oneline <target-base>..<latest-stable> --grep='<target-sha-short>'
+
+# Step 2: Find ALL follow-up fixes for the target (forward Fixes: chain)
+git log --oneline --grep='<target-sha-short>' HEAD -- <files>
+
+# Step 3: Check if each follow-up is in stable
+for fix_sha in <follow-up-shas>; do
+  short=$(echo $fix_sha | cut -c1-12)
+  in_stable=$(git log --oneline <target-base>..<latest-stable> --grep="$short" | wc -l)
+  echo "$short: in_stable=$in_stable — $(git log -1 --format='%s' $fix_sha)"
+done
+```
+
+**Danger pattern: "backported without follow-up"** — the original commit is in
+stable but its critical fix-of-fix is missing. This means stable users are running
+with a **known bug introduced by the backport itself**. This requires urgent action:
+either backport the follow-up fix or revert the original from stable.
+
+Real example: `79f3f9bedd14` was backported to v6.12.64, but its follow-up
+`b3d99f43c72b` ("Fix zero_vruntime tracking" — fixes entity_key overflow in
+single-task scenario) was NOT in any stable branch as of v6.12.76.
+
+#### 3f: Final Verdict Template
+
+```
+Backport evaluation: <commit-sha> → <target-branch>
+
+Bug exists in target:     YES/NO  (cite specific code path)
+Trigger probability:      LOW/MEDIUM/HIGH  (cite trigger paths + enabling conditions)
+Cc: stable:               YES/NO  (if NO, reason: ...)
+Already in stable:        YES (v6.12.N) / NO
+Follow-up fixes complete: YES / NO — missing: <sha> <subject>
+Dependency chain:         N patches, risk: LOW/MEDIUM/HIGH
+
+Verdict: SHOULD BACKPORT / SHOULD NOT / ALREADY DONE (but needs follow-up)
+```
+
+## Capability 4: Patch Backport Mechanics (CRITICAL — Read Carefully)
 
 Backporting is the highest-risk task. Follow this protocol strictly.
 
@@ -423,7 +549,10 @@ Q: Are there commits that fix the TARGET commit? (forward Fixes: chain)
 └── NO  → Continue
 
 Q: Has this already been backported to the target stable branch?
-├── YES → Check if the existing backport is sufficient. May already be done.
+├── YES → Run Completeness Audit (Capability 3, section 3e):
+│         Check if ALL follow-up fixes (forward Fixes: chain) are also present.
+│         ├── Follow-ups present → Already done. Stop.
+│         └── Follow-ups MISSING → Dangerous! Backport the missing follow-ups urgently.
 └── NO  → Continue
 
 Q: Does the fix cherry-pick cleanly? (Phase 1.5 early probe)
@@ -438,7 +567,7 @@ Q: Does the fix cherry-pick cleanly? (Phase 1.5 early probe)
     └── Struct field changes → Build rename mapping table, adapt manually
 ```
 
-## Capability 4: Kernel Activity Tracking
+## Capability 5: Kernel Activity Tracking
 
 ### Track merged changes
 ```bash
@@ -481,7 +610,7 @@ git log -1 --format='%b' <commit> | grep 'Message-Id:'
 # Use lore-mirror: GET /api/search?q=s:"<commit-subject>"
 ```
 
-## Capability 5: Regression & Impact Analysis
+## Capability 6: Regression & Impact Analysis
 
 ### Track regression cycles
 
