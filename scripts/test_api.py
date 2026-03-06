@@ -253,6 +253,23 @@ def run_tests(base_url):
          validate=lambda d, b, h: None if d["per_page"] == 50 and d["page"] == 1
          else f"Expected per_page=50 page=1")
 
+    # Keyset pagination: get first page, then use next_cursor
+    first_page = test(base_url, "Inbox: first page has next_cursor", "GET",
+         f"/api/inboxes/{inbox_name}?per_page=3",
+         validate=lambda d, b, h: (
+             None if d.get("next_cursor") else "Expected next_cursor in response"
+         ),
+         save_as="first_page")
+
+    if first_page and first_page.get("next_cursor"):
+        cursor = first_page["next_cursor"]
+        test(base_url, "Inbox: keyset pagination (after cursor)", "GET",
+             f"/api/inboxes/{inbox_name}?per_page=3&after={urllib.parse.quote(cursor, safe='')}",
+             validate=lambda d, b, h: (
+                 None if d["messages"] and d["messages"][0]["date"] <= first_page["messages"][-1]["date"]
+                 else "Keyset results should be older than previous page"
+             ))
+
     # ── 5. GET /api/messages/{message_id} ──
     print("\n── 5. GET /api/messages/{message_id} ──")
 

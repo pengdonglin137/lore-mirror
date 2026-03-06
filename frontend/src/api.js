@@ -14,8 +14,10 @@ export function getInboxes() {
   return fetchJSON(`${BASE}/inboxes`)
 }
 
-export function getInbox(name, page = 1, perPage = 50) {
-  return fetchJSON(`${BASE}/inboxes/${name}?page=${page}&per_page=${perPage}`)
+export function getInbox(name, { page = 1, perPage = 50, after = null } = {}) {
+  const params = new URLSearchParams({ page, per_page: perPage })
+  if (after) params.set('after', after)
+  return fetchJSON(`${BASE}/inboxes/${name}?${params}`)
 }
 
 export function getMessage(messageId) {

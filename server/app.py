@@ -173,10 +173,15 @@ def get_inbox(
     name: str,
     page: int = Query(1, ge=1),
     per_page: int = Query(50, ge=1, le=200),
+    after: Optional[str] = None,
 ):
-    """Get messages for an inbox, newest first."""
+    """Get messages for an inbox, newest first.
+
+    Supports keyset pagination via `after` cursor for efficient deep pagination.
+    When `after` is provided, it takes precedence over `page` offset.
+    The cursor format is "date|id" from the previous page's `next_cursor`.
+    """
     conn = get_db(name)
-    offset = (page - 1) * per_page
 
     # Use cached total count (expensive COUNT on millions of rows)
     cache_key = f"inbox_total:{name}"
@@ -185,25 +190,55 @@ def get_inbox(
         total = conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
         cache_set(cache_key, total)
 
-    # Simple ORDER BY date DESC uses idx_messages_date index directly
-    messages = conn.execute(
-        """SELECT id, message_id, subject, sender, date, in_reply_to
-        FROM messages
-        WHERE date <= '2027'
-        ORDER BY date DESC
-        LIMIT ? OFFSET ?""",
-        (per_page, offset),
-    ).fetchall()
+    if after:
+        # Keyset pagination: fetch rows after the cursor position
+        parts = after.split("|", 1)
+        if len(parts) == 2:
+            cursor_date, cursor_id = parts[0], int(parts[1])
+            messages = conn.execute(
+                """SELECT id, message_id, subject, sender, date, in_reply_to
+                FROM messages
+                WHERE date <= '2027'
+                  AND (date < ? OR (date = ? AND id < ?))
+                ORDER BY date DESC, id DESC
+                LIMIT ?""",
+                (cursor_date, cursor_date, cursor_id, per_page),
+            ).fetchall()
+        else:
+            messages = []
+    else:
+        # Traditional OFFSET pagination
+        offset = (page - 1) * per_page
+        messages = conn.execute(
+            """SELECT id, message_id, subject, sender, date, in_reply_to
+            FROM messages
+            WHERE date <= '2027'
+            ORDER BY date DESC, id DESC
+            LIMIT ? OFFSET ?""",
+            (per_page, offset),
+        ).fetchall()
 
     conn.close()
-    return {
+
+    msg_list = [row_to_dict(m) for m in messages]
+
+    # Build next_cursor from the last result
+    next_cursor = None
+    if msg_list and len(msg_list) == per_page:
+        last = msg_list[-1]
+        next_cursor = f"{last['date']}|{last['id']}"
+
+    result = {
         "inbox": {"name": name, "description": INBOXES_CONFIG.get(name, "")},
         "total": total,
         "page": page,
         "per_page": per_page,
         "pages": (total + per_page - 1) // per_page,
-        "messages": [row_to_dict(m) for m in messages],
+        "messages": msg_list,
     }
+    if next_cursor:
+        result["next_cursor"] = next_cursor
+    return result
 
 
 # ── Messages ─────────────────────────────────────────

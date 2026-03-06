@@ -12,11 +12,13 @@ const loading = ref(true)
 const error = ref(null)
 const page = ref(1)
 
-async function loadPage(p) {
+async function load() {
   loading.value = true
   error.value = null
   try {
-    data.value = await getInbox(props.name, p, 50)
+    const p = parseInt(route.query.page) || 1
+    const after = route.query.after || null
+    data.value = await getInbox(props.name, { page: p, after })
     page.value = p
   } catch (e) {
     error.value = e.message
@@ -25,13 +27,18 @@ async function loadPage(p) {
   }
 }
 
-watch(() => [props.name, route.query.page], () => {
-  const p = parseInt(route.query.page) || 1
-  loadPage(p)
-}, { immediate: true })
+watch(() => [props.name, route.query.page, route.query.after], load, { immediate: true })
 
-function goPage(p) {
-  router.push({ path: `/inbox/${props.name}`, query: { page: p } })
+function goNext() {
+  if (data.value?.next_cursor) {
+    router.push({ path: `/inbox/${props.name}`, query: { page: page.value + 1, after: data.value.next_cursor } })
+  }
+}
+
+function goPrev() {
+  if (page.value > 1) {
+    router.push({ path: `/inbox/${props.name}`, query: { page: page.value - 1 } })
+  }
 }
 
 function formatDate(d) {
@@ -56,9 +63,9 @@ function shortenSender(s) {
 {{ data.total }} messages — page {{ data.page }}/{{ data.pages }}
 </pre>
       <div class="pagination">
-        <button :disabled="page <= 1" @click="goPage(page - 1)">&lt; prev</button>
+        <button :disabled="page <= 1" @click="goPrev">&lt; prev</button>
         <span>page {{ page }} / {{ data.pages }}</span>
-        <button :disabled="page >= data.pages" @click="goPage(page + 1)">next &gt;</button>
+        <button :disabled="!data.next_cursor" @click="goNext">next &gt;</button>
       </div>
 
       <pre class="message-list"><template v-for="msg in data.messages" :key="msg.id"
@@ -66,9 +73,9 @@ function shortenSender(s) {
 </template></pre>
 
       <div class="pagination">
-        <button :disabled="page <= 1" @click="goPage(page - 1)">&lt; prev</button>
+        <button :disabled="page <= 1" @click="goPrev">&lt; prev</button>
         <span>page {{ page }} / {{ data.pages }}</span>
-        <button :disabled="page >= data.pages" @click="goPage(page + 1)">next &gt;</button>
+        <button :disabled="!data.next_cursor" @click="goNext">next &gt;</button>
       </div>
     </template>
   </div>

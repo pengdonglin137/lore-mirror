@@ -17,10 +17,10 @@ if [ "$1" = "--build" ]; then
     echo ""
     echo "Starting backend (serves frontend from frontend/dist/)..."
     echo "Access at: http://localhost:8000"
-    python3 -m uvicorn server.app:app --host 0.0.0.0 --port 8000
+    python3 -m uvicorn server.app:app --host 0.0.0.0 --port 8000 --workers 4
 else
     echo "Starting backend on :8000..."
-    nohup python3 -m uvicorn server.app:app --host 0.0.0.0 --port 8000 > server.log 2>&1 &
+    nohup python3 -m uvicorn server.app:app --host 0.0.0.0 --port 8000 --workers 4 > server.log 2>&1 &
     echo "  Backend PID: $! (log: server.log)"
 
     echo "Starting frontend dev server on :3000..."
