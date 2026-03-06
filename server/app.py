@@ -389,13 +389,13 @@ def parse_search_query(raw_query: str) -> tuple[str, list[str], list]:
     # FTS5 column mapping for lore prefixes
     FTS_PREFIX_MAP = {
         "s": "subject",
+        "f": "sender",
         "b": "body_text",
         "bs": None,  # special: subject OR body
     }
 
-    # SQL LIKE/exact search
+    # SQL LIKE/exact search (for fields not in FTS5)
     SQL_PREFIX_MAP = {
-        "f": "m.sender",
         "m": "m.message_id",  # Message-ID exact match
         "t": "m.headers",     # search To in headers JSON
         "c": "m.headers",     # search Cc in headers JSON
@@ -434,17 +434,17 @@ def parse_search_query(raw_query: str) -> tuple[str, list[str], list]:
                     params.append(value + "T23:59:59")
         elif prefix in FTS_PREFIX_MAP:
             col = FTS_PREFIX_MAP[prefix]
+            # Quote multi-token values for phrase matching
+            clean = value.strip('"')
+            quoted = f'"{clean}"' if not clean.isalnum() else clean
             if col:
-                fts_parts.append(f"{col}:{value}")
+                fts_parts.append(f"{col}:{quoted}")
             elif prefix == "bs":
                 # subject OR body
-                fts_parts.append(f"(subject:{value} OR body_text:{value})")
+                fts_parts.append(f"(subject:{quoted} OR body_text:{quoted})")
         elif prefix == "m":
             where_clauses.append("m.message_id = ?")
             params.append(value.strip("<>"))
-        elif prefix == "f":
-            where_clauses.append("m.sender LIKE ?")
-            params.append(f"%{value}%")
         elif prefix == "t":
             where_clauses.append("m.headers LIKE ?")
             params.append(f"%\"To\"%{value}%")
@@ -485,9 +485,10 @@ def search(
     """
     offset = (page - 1) * per_page
 
-    # If query looks like a Message-ID (contains @), try exact lookup first
+    # If query looks like a bare Message-ID (contains @, no space, no search prefix)
     q_stripped = q.strip().strip("<>")
-    if "@" in q_stripped and " " not in q_stripped:
+    _KNOWN_PREFIXES = ("s:", "f:", "b:", "d:", "t:", "c:", "a:", "m:", "bs:", "tc:")
+    if "@" in q_stripped and " " not in q_stripped and not q_stripped.lower().startswith(_KNOWN_PREFIXES):
         inboxes_check = [inbox] if inbox else get_available_inboxes()
         for name in inboxes_check:
             try:
@@ -541,10 +542,19 @@ def search(
         where = " AND ".join(where_clauses)
 
         # Need FTS join only if we have a MATCH clause
+        COUNT_CAP = 10001  # Cap COUNT for performance (avoids full scan)
         if fts_query:
-            count_sql = f"""SELECT COUNT(*) FROM messages_fts
-                JOIN messages m ON m.id = messages_fts.rowid
-                WHERE {where}"""
+            if extra_where:
+                # FTS + SQL filters: need JOIN for WHERE clauses
+                count_sql = f"""SELECT COUNT(*) FROM (
+                    SELECT 1 FROM messages_fts
+                    JOIN messages m ON m.id = messages_fts.rowid
+                    WHERE {where} LIMIT {COUNT_CAP})"""
+            else:
+                # Pure FTS: skip JOIN for counting
+                count_sql = f"""SELECT COUNT(*) FROM (
+                    SELECT 1 FROM messages_fts
+                    WHERE {where} LIMIT {COUNT_CAP})"""
             search_sql = f"""SELECT m.id, m.message_id, m.subject, m.sender, m.date,
                        m.in_reply_to,
                        snippet(messages_fts, 2, '<mark>', '</mark>', '...', 40) as snippet,
@@ -555,8 +565,9 @@ def search(
                 ORDER BY rank
                 LIMIT ?"""
         else:
-            # Pure SQL search (e.g. d: or f: only, no FTS)
-            count_sql = f"SELECT COUNT(*) FROM messages m WHERE {where}"
+            # Pure SQL search (e.g. d: only, no FTS)
+            count_sql = f"""SELECT COUNT(*) FROM (
+                SELECT 1 FROM messages m WHERE {where} LIMIT {COUNT_CAP})"""
             search_sql = f"""SELECT m.id, m.message_id, m.subject, m.sender, m.date,
                        m.in_reply_to, '' as snippet, 0 as rank
                 FROM messages m
@@ -565,15 +576,18 @@ def search(
                 LIMIT ?"""
 
         try:
+            # Skip SELECT if we already have enough results for this page
+            need_rows = len(all_results) < offset + per_page
+
             count = conn.execute(count_sql, params).fetchone()[0]
             total += count
 
-            rows = conn.execute(search_sql, params + [offset + per_page]).fetchall()
-
-            for r in rows:
-                d = row_to_dict(r)
-                d["inbox_name"] = name
-                all_results.append(d)
+            if need_rows:
+                rows = conn.execute(search_sql, params + [offset + per_page]).fetchall()
+                for r in rows:
+                    d = row_to_dict(r)
+                    d["inbox_name"] = name
+                    all_results.append(d)
         except sqlite3.OperationalError as e:
             if "interrupted" in str(e):
                 timed_out = True

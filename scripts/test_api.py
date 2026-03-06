@@ -433,6 +433,27 @@ def run_tests(base_url):
              None if all(m["inbox_name"] == inbox_name for m in d["messages"])
              else "Results from wrong inbox"))
 
+    # f: with email address (should use FTS, not hang on LIKE scan)
+    test(base_url, "Search: f: email address (FTS)", "GET",
+         f"/api/search?q=f:torvalds@linux-foundation.org&per_page=2",
+         timeout=10,
+         validate=lambda d, b, h: v_search(d, b, h))
+
+    # f: with @ should NOT trigger Message-ID auto-detect
+    test(base_url, "Search: f:user@domain not treated as Message-ID", "GET",
+         f"/api/search?q=f:someone@kernel.org&inbox={inbox_name}&per_page=2",
+         timeout=10,
+         validate=lambda d, b, h: (
+             v_search(d, b, h, expect_results=False)))
+
+    # Verify f: results match the sender
+    test(base_url, "Search: f: results have correct sender", "GET",
+         f"/api/search?q=f:torvalds&per_page=5",
+         timeout=10,
+         validate=lambda d, b, h: v_search(d, b, h) or (
+             None if all("torvalds" in m["sender"].lower() for m in d["messages"])
+             else f"Result sender doesn't match: {d['messages'][0]['sender']}"))
+
     # ── 9. GET /api/sync/status ──
     print("\n── 9. GET /api/sync/status ──")
 
