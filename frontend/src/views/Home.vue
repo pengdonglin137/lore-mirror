@@ -28,6 +28,16 @@ onUnmounted(() => stopPolling())
 
 const locateQuery = computed(() => route.query.locate || '')
 
+const syncingInboxes = computed(() =>
+  (syncStatus.value?.inboxes || []).filter(s => s.running)
+)
+
+const lastFinished = computed(() => {
+  const finished = (syncStatus.value?.inboxes || []).filter(s => s.finished_at && !s.running)
+  if (!finished.length) return null
+  return finished.reduce((a, b) => (a.finished_at > b.finished_at ? a : b))
+})
+
 const filteredInboxes = computed(() => {
   if (!locateQuery.value) return allInboxes.value
   const q = locateQuery.value.toLowerCase()
@@ -88,13 +98,14 @@ function formatDate(d) {
 
       <div class="status-bar">
         <span v-if="stats">{{ formatCount(stats.total_messages) }} messages, {{ stats.total_inboxes }} inbox(es), {{ formatSize(stats.database_size_bytes) }}</span>
-        <span v-if="syncStatus?.running">
-          | syncing {{ syncStatus.current_inbox || '...' }}
-          ({{ (syncStatus.completed || []).length }}/{{ syncStatus.total_inboxes }})
-        </span>
-        <span v-else-if="syncStatus?.finished_at">
-          | last sync: {{ syncStatus.finished_at }}
-        </span>
+        <template v-if="syncStatus?.inboxes?.length">
+          <span v-if="syncingInboxes.length">
+            | syncing: {{ syncingInboxes.map(s => s.inbox).join(', ') }}
+          </span>
+          <span v-else-if="lastFinished">
+            | last sync: {{ lastFinished.finished_at }}
+          </span>
+        </template>
       </div>
     </template>
   </div>
