@@ -287,9 +287,19 @@ python3 scripts/sync.py
 # 同步指定 inbox
 python3 scripts/sync.py --inbox lkml
 
-# 查看上次同步状态
+# 并行同步不同 inbox（不同 inbox 可同时运行）
+python3 scripts/sync.py --inbox lkml &
+python3 scripts/sync.py --inbox linux-mm &
+
+# 查看同步状态
 python3 scripts/sync.py --status
+
+# 停止同步
+python3 scripts/sync.py --stop              # 停止所有正在运行的同步
+python3 scripts/sync.py --stop --inbox lkml # 只停止指定 inbox 的同步
 ```
+
+停止操作会发送 SIGTERM 信号，sync 进程会保存当前进度后优雅退出，下次同步会从断点继续。
 
 **设置定时同步（推荐）：**
 
