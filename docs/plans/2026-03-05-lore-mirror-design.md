@@ -379,27 +379,34 @@ crontab -e
 2. 删除 git 仓库: `rm -rf repos/<name>/`
 3. 删除数据库: `rm db/<name>.db`
 
-### 10. 安装 Claude Code Skill（AI 集成）
+### 10. 安装 Claude Code Skills（AI 集成）
 
-Skill 让 Claude Code 自动知道如何调用 lore-mirror API 搜索内核邮件列表。
+项目提供两个 Claude Code Skills：
+
+| Skill | 用途 | 文件 |
+|-------|------|------|
+| **lore-mirror** | 搜索内核邮件列表 API | `docs/skills/lore-mirror/SKILL.md` |
+| **kernel-dev** | 内核开发辅助（代码阅读、特性演进、backport、动态跟踪） | `docs/skills/kernel-dev/SKILL.md` |
 
 ```bash
 # 安装到当前用户的 Claude Code skills 目录
-mkdir -p ~/.claude/skills/lore-mirror
+mkdir -p ~/.claude/skills/lore-mirror ~/.claude/skills/kernel-dev
 cp docs/skills/lore-mirror/SKILL.md ~/.claude/skills/lore-mirror/SKILL.md
+cp docs/skills/kernel-dev/SKILL.md ~/.claude/skills/kernel-dev/SKILL.md
 ```
 
-安装后，当你在 Claude Code 中提到搜索内核邮件、查找 patch、追踪讨论线程等话题时，
-AI 会自动加载此 skill 并使用正确的 API 调用流程：
+**lore-mirror skill**: 自动调用 lore-mirror API 搜索内核邮件列表，包含完整的 API 用法和搜索语法。
 
-1. 先发现可用的邮件列表（`/api/inboxes`）
-2. 根据 inbox 描述选择正确的列表
-3. 使用 lore 兼容搜索语法精确查找
-4. 读取邮件和线程
+**kernel-dev skill**: 辅助内核开发的核心任务：
+- 代码阅读与理解（git blame, git log -L, 函数追踪）
+- 特性演进梳理（跨版本 diff, 时间线构建）
+- **补丁回移 (Backport)**（依赖分析、风险评估、验证流程）
+- 内核动态跟踪（已合入变更 + 进行中的 patch review）
+- 与 lore-mirror 联动：将 git commit 关联到邮件列表讨论
 
-Skill 文件位于 `docs/skills/lore-mirror/SKILL.md`，包含完整的 API 用法和搜索语法参考。
+kernel-dev 的设计文档见 `docs/skills/kernel-dev/DESIGN.md`，后续演进方向在其中记录。
 
-如果 API 基础 URL 不是 `http://localhost:8000`，需要编辑 SKILL.md 中的 Base URL。
+如果 lore-mirror API 基础 URL 不是 `http://localhost:8000`，需要编辑 `lore-mirror/SKILL.md` 中的 Base URL。
 
 ### 11. API 测试
 
