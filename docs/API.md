@@ -4,7 +4,7 @@ Base URL: `http://localhost:8000` (production) or `http://localhost:3000` (dev, 
 
 All responses are JSON. Dates are ISO 8601 format.
 
-**MCP Alternative:** An MCP server (`server/mcp_server.py`) wraps this REST API with 7 structured tools for direct AI access. Claude Code auto-discovers it via `.mcp.json`. See tool names: `lore_list_inboxes`, `lore_locate_inbox`, `lore_search_emails`, `lore_get_message`, `lore_get_thread`, `lore_browse_inbox`, `lore_get_raw_email`.
+**MCP Server:** An MCP server (`server/mcp_server.py`) wraps this REST API with 7 structured tools for direct AI access. Claude Code auto-discovers it via `.mcp.json` (stdio transport). See [MCP Server](#mcp-server) section below for setup and tool details.
 
 ---
 
@@ -425,3 +425,60 @@ GET /api/raw?id={message_id}
 2. Get the thread: GET /api/threads/{message_id}
 3. Read each message in the thread chronologically to follow the review
 ```
+
+---
+
+## MCP Server
+
+MCP (Model Context Protocol) 服务器提供结构化工具，让 AI 直接访问邮件列表数据，无需手写 HTTP 请求。
+
+### 前置条件
+
+- REST API 运行在 `:8000`（MCP server 通过 httpx 调用本地 API）
+- Python 依赖：`pip3 install mcp httpx`
+
+### 自动发现（Claude Code）
+
+项目根目录的 `.mcp.json` 配置：
+
+```json
+{
+  "mcpServers": {
+    "lore-mirror": {
+      "command": "python3",
+      "args": ["server/mcp_server.py"],
+      "cwd": "/path/to/lore-mirror"
+    }
+  }
+}
+```
+
+Claude Code 打开本项目时自动连接。输入 `/mcp` 查看连接状态。
+
+### 环境变量
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `LORE_API_URL` | `http://localhost:8000` | REST API 基础地址 |
+
+### 工具列表
+
+所有工具名以 `lore_` 为前缀，只读、幂等。
+
+| 工具 | 对应 REST API | 说明 |
+|------|---------------|------|
+| `lore_list_inboxes` | `GET /api/inboxes` | 列出所有可用邮件列表（含消息计数和日期范围） |
+| `lore_locate_inbox` | `GET /api/locate` | 按关键词模糊匹配邮件列表名称和描述 |
+| `lore_search_emails` | `GET /api/search` | 搜索邮件，支持 lore 前缀语法（s: f: b: d: 等） |
+| `lore_get_message` | `GET /api/messages/{id}` | 获取单封邮件（解析后内容，不含 raw_email） |
+| `lore_get_thread` | `GET /api/threads/{id}` | 获取完整讨论线程（包含所有回复） |
+| `lore_browse_inbox` | `GET /api/inboxes/{name}` | 浏览邮件列表，按时间倒序，支持 keyset 分页 |
+| `lore_get_raw_email` | `GET /api/raw` | 获取原始 RFC 2822 邮件 |
+
+### 故障排查
+
+| 症状 | 原因 | 解决 |
+|------|------|------|
+| `/mcp` 显示 disconnected | REST API 未运行 | 启动 API：`./start.sh` |
+| 工具返回连接错误 | API 地址不对 | 设置 `LORE_API_URL` 环境变量 |
+| 搜索返回空结果 | inbox 未镜像 | 先调用 `lore_list_inboxes` 确认可用列表 |

@@ -227,9 +227,51 @@ LORE_DB_DIR=/data/lore/db
 | `GET /api/stats` | 全局统计 |
 | `GET /api/sync/status` | 同步状态 |
 
-## AI 集成（Claude Code Skills）
+## AI 集成
 
-提供两个 Claude Code Skills，安装后 AI 自动知道如何使用：
+提供两种 AI 访问方式：MCP（推荐）和 Claude Code Skills。
+
+### 方式一：MCP Server（推荐）
+
+MCP (Model Context Protocol) 服务器让 AI 直接通过结构化工具访问邮件列表数据，无需手写 HTTP 请求。
+
+**前置条件：** REST API 必须运行在 `:8000`（MCP server 通过 httpx 调用本地 API）。
+
+**Claude Code 自动发现：** 项目根目录的 `.mcp.json` 配置了 MCP 服务器，Claude Code 打开本项目时自动连接。在 Claude Code 中输入 `/mcp` 可查看连接状态。
+
+**手动安装（其他 MCP 客户端）：**
+
+```bash
+# 安装 MCP 依赖
+pip3 install mcp httpx
+
+# 配置 MCP 客户端，指向 server/mcp_server.py（stdio 传输）
+# 参考 .mcp.json 中的配置格式
+```
+
+**可用工具（7 个）：**
+
+| 工具 | 说明 |
+|------|------|
+| `lore_list_inboxes` | 列出所有可用的邮件列表 |
+| `lore_locate_inbox` | 按关键词模糊匹配邮件列表 |
+| `lore_search_emails` | 搜索邮件（支持 lore 前缀语法） |
+| `lore_get_message` | 获取单封邮件的完整内容 |
+| `lore_get_thread` | 获取包含指定邮件的完整讨论线程 |
+| `lore_browse_inbox` | 浏览邮件列表（按时间倒序，支持分页） |
+| `lore_get_raw_email` | 获取原始 RFC 2822 邮件 |
+
+**环境变量：** 如果 REST API 不在 `localhost:8000`，设置 `LORE_API_URL`：
+
+```bash
+export LORE_API_URL=http://your-host:8000
+```
+
+**验证连接：** 在 Claude Code 中输入 `/mcp`，确认 `lore-mirror` 状态为 connected。然后尝试调用 `lore_list_inboxes` 工具。
+
+### 方式二：Claude Code Skills
+
+Skills 提供 AI 使用指南，教 AI 如何调用 REST API：
 
 ```bash
 mkdir -p ~/.claude/skills/lore-mirror ~/.claude/skills/kernel-dev
@@ -241,6 +283,8 @@ cp docs/skills/kernel-dev/SKILL.md ~/.claude/skills/kernel-dev/
 |-------|------|
 | **lore-mirror** | 搜索内核邮件列表 API — inbox 发现、搜索语法、邮件/线程读取 |
 | **kernel-dev** | 内核开发辅助 — 代码阅读、特性演进、补丁回移 (backport)、动态跟踪 |
+
+> **MCP vs Skills：** MCP 提供结构化工具调用（参数验证、错误处理），是首选方式。Skills 提供 REST API 使用指南，在 MCP 不可用时作为备选。两者可共存 —— 当 MCP 连接可用时，AI 会自动优先使用 MCP 工具。
 
 ### kernel-dev skill 核心能力
 
@@ -258,7 +302,7 @@ python3 scripts/test_api.py                        # 测试本地
 python3 scripts/test_api.py --url http://host:8000  # 测试远程
 ```
 
-35 个测试用例覆盖所有端点，零外部依赖。
+40 个测试用例覆盖所有端点，零外部依赖。
 
 ## 项目结构
 
@@ -280,8 +324,10 @@ lore-mirror/
 │   ├── healthcheck.py       # 完整性检查与修复
 │   ├── config_utils.py      # 配置加载
 │   └── test_api.py          # API 自动化测试
+├── .mcp.json                # MCP 服务器自动发现配置（Claude Code）
 ├── server/
-│   └── app.py               # FastAPI 后端（缓存 + 查询超时保护）
+│   ├── app.py               # FastAPI 后端（缓存 + 查询超时保护）
+│   └── mcp_server.py        # MCP 服务器（包装 REST API，stdio 传输）
 ├── frontend/                # Vue 3 + Vite SPA
 └── docs/
     ├── API.md               # REST API 文档
