@@ -19,6 +19,23 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, FileResponse
 from fastapi.staticfiles import StaticFiles
 
+# ── In-memory cache ──────────────────────────────────
+_cache: dict[str, tuple[float, any]] = {}
+CACHE_TTL = 300  # 5 minutes
+
+
+def cache_get(key: str):
+    """Get from cache if not expired."""
+    entry = _cache.get(key)
+    if entry and time.monotonic() - entry[0] < CACHE_TTL:
+        return entry[1]
+    return None
+
+
+def cache_set(key: str, value):
+    """Store in cache."""
+    _cache[key] = (time.monotonic(), value)
+
 import sys
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
@@ -83,24 +100,30 @@ def row_to_dict(row: sqlite3.Row) -> dict:
 
 @app.get("/api/inboxes")
 def list_inboxes():
-    """List all inboxes with message counts."""
+    """List all inboxes with message counts (cached 5 min)."""
+    cached = cache_get("inboxes_list")
+    if cached is not None:
+        return cached
+
     results = []
     for name in get_available_inboxes():
         try:
             conn = get_db(name)
-            row = conn.execute("""
-                SELECT COUNT(*) as message_count,
-                       MIN(CASE WHEN date GLOB '[0-9][0-9][0-9][0-9]-*' AND date >= '1990' THEN date END) as earliest,
-                       MAX(CASE WHEN date GLOB '[0-9][0-9][0-9][0-9]-*' AND date <= '2027' THEN date END) as latest
-                FROM messages
-            """).fetchone()
+            # Use fast queries: COUNT via covering index, date range via index scan
+            count = conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
+            earliest = conn.execute(
+                "SELECT date FROM messages WHERE date >= '1990' ORDER BY date ASC LIMIT 1"
+            ).fetchone()
+            latest = conn.execute(
+                "SELECT date FROM messages WHERE date <= '2027' ORDER BY date DESC LIMIT 1"
+            ).fetchone()
             conn.close()
             results.append({
                 "name": name,
                 "description": INBOXES_CONFIG.get(name, ""),
-                "message_count": row["message_count"],
-                "earliest": row["earliest"],
-                "latest": row["latest"],
+                "message_count": count,
+                "earliest": earliest["date"] if earliest else None,
+                "latest": latest["date"] if latest else None,
             })
         except Exception:
             results.append({
@@ -110,6 +133,8 @@ def list_inboxes():
                 "earliest": None,
                 "latest": None,
             })
+
+    cache_set("inboxes_list", results)
     return results
 
 
@@ -150,15 +175,19 @@ def get_inbox(
     conn = get_db(name)
     offset = (page - 1) * per_page
 
-    total = conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
+    # Use cached total count (expensive COUNT on millions of rows)
+    cache_key = f"inbox_total:{name}"
+    total = cache_get(cache_key)
+    if total is None:
+        total = conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
+        cache_set(cache_key, total)
 
+    # Simple ORDER BY date DESC uses idx_messages_date index directly
     messages = conn.execute(
         """SELECT id, message_id, subject, sender, date, in_reply_to
         FROM messages
-        ORDER BY CASE
-                   WHEN date GLOB '[0-9][0-9][0-9][0-9]-*' AND date <= date('now', '+1 day')
-                   THEN date ELSE '' END DESC,
-                 id DESC
+        WHERE date <= '2027'
+        ORDER BY date DESC
         LIMIT ? OFFSET ?""",
         (per_page, offset),
     ).fetchall()
@@ -581,7 +610,11 @@ def search(
 
 @app.get("/api/stats")
 def get_stats():
-    """Get overall statistics."""
+    """Get overall statistics (cached 5 min)."""
+    cached = cache_get("stats")
+    if cached is not None:
+        return cached
+
     total_messages = 0
     total_size = 0
     latest = None
@@ -594,7 +627,7 @@ def get_stats():
 
             row = conn.execute(
                 """SELECT date, subject, sender FROM messages
-                WHERE date GLOB '[0-9][0-9][0-9][0-9]-*' AND date <= '2027'
+                WHERE date <= '2027'
                 ORDER BY date DESC LIMIT 1"""
             ).fetchone()
             if row and (not latest or (row["date"] and row["date"] > latest["date"])):
@@ -606,12 +639,14 @@ def get_stats():
         except Exception:
             continue
 
-    return {
+    result = {
         "total_messages": total_messages,
         "total_inboxes": len(get_available_inboxes()),
         "database_size_bytes": total_size,
         "latest_message": latest,
     }
+    cache_set("stats", result)
+    return result
 
 
 # ── Sync ─────────────────────────────────────────────
