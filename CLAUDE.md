@@ -8,6 +8,8 @@ Local mirror of lore.kernel.org kernel mailing list archives.
 /vol_8t/lore/
 ├── config.yaml              # Inbox list (~200 inboxes, most commented out) + settings
 ├── start.sh                 # Launch script: ./start.sh (dev) or ./start.sh --build (prod)
+├── Dockerfile               # Multi-stage build (Node + Python)
+├── docker-compose.yml       # web + sync services
 ├── repos/                   # Git mirror repos: repos/{inbox}/git/{epoch}.git
 ├── db/                      # Per-inbox SQLite+FTS5 databases: db/{inbox}.db
 ├── scripts/
@@ -35,7 +37,9 @@ Local mirror of lore.kernel.org kernel mailing list archives.
 ## Key Architecture Decisions
 
 - **Per-inbox databases**: Each inbox has its own `db/{name}.db` file. No shared/central database. The backend iterates over all .db files for cross-inbox operations (search, message lookup).
-- **Sync is CLI-only**: No web-triggered sync (security). Use `scripts/sync.py` via cron. Frontend only shows read-only sync status from `sync_status.json`.
+- **Sync is CLI-only**: No web-triggered sync (security). Use `scripts/sync.py` via cron. Frontend only shows read-only sync status from `sync_status/` directory (per-inbox files).
+- **Per-inbox locking**: `fcntl.flock` on `sync_status/{inbox}.lock` prevents concurrent writes to the same inbox DB. Different inboxes can sync in parallel.
+- **Graceful shutdown**: SIGTERM/SIGINT sets a flag; import loop finishes current commit, saves progress, then exits.
 - **Data flow**: `git clone --mirror` → `git show <commit>:m` extracts raw email → Python `email` lib parses → INSERT into SQLite. File `d` in a commit means deletion.
 - **FTS5 triggers**: Search index auto-updated via SQLite triggers on INSERT/UPDATE/DELETE.
 - **Search prefix syntax**: lore-compatible prefixes (s: f: b: d: t: c: a: m: bs: tc:) parsed in `parse_search_query()` in server/app.py, translated to FTS5 column filters + SQL WHERE clauses.
@@ -57,17 +61,22 @@ python3 scripts/sync.py
 # Health check
 python3 scripts/healthcheck.py --repair
 
-# Start web server
+# Start web server (bare metal)
 ./start.sh              # dev: frontend :3000 + backend :8000
 ./start.sh --build      # prod: backend :8000 serves built SPA
+
+# Docker deployment
+docker compose up -d                    # start web + sync
+docker compose run --rm sync python3 scripts/mirror.py --inbox <name>
+docker compose run --rm sync python3 scripts/import_mail.py --inbox <name>
 ```
 
 ## Environment Notes
 
-- User `pengdl` has no sudo access
-- Docker registry unreachable — avoid Docker-based solutions
+- User `pengdl` has no sudo access on dev machine
 - inotify limit is 65536 — Vite uses polling mode (`usePolling: true`)
 - PostgreSQL 14 is installed but inaccessible — using SQLite instead
+- Docker supported: `Dockerfile` (multi-stage) + `docker-compose.yml` (web + sync)
 
 ## Data Scale
 

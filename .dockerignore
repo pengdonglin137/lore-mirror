@@ -1,0 +1,23 @@
+# Data directories (mounted as volumes)
+repos/
+db/
+sync_status/
+
+# Dev/build artifacts
+frontend/node_modules/
+frontend/dist/
+__pycache__/
+*.pyc
+*.log
+nohup.out
+
+# Git
+.git/
+
+# IDE
+.vscode/
+.idea/
+
+# Docs (not needed in image)
+docs/
+ref/

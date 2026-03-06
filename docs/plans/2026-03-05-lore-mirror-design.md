@@ -98,25 +98,29 @@
 - 前端: Vue 3, Vite
 - 邮件解析: Python email 标准库
 - 定时任务: cron
+- 容器化: Docker / Docker Compose（可选）
 
 ## 目录结构
 ```
 lore-mirror/
 ├── config.yaml                 # 配置（inbox 列表、路径、下载参数）
 ├── requirements.txt            # Python 依赖
-├── start.sh                    # 一键启动脚本
+├── start.sh                    # 一键启动脚本（裸机部署）
+├── Dockerfile                  # 多阶段构建（Node→Python）
+├── docker-compose.yml          # web + sync 两服务编排
+├── .dockerignore               # 构建排除规则
 ├── CLAUDE.md                   # AI 助手项目上下文
-├── README.md                   # 部署安装说明
-├── repos/                      # git mirror 仓库（相对路径，可配置）
+├── repos/                      # git mirror 仓库（Docker 卷挂载）
 │   └── {inbox}/git/{N}.git
-├── db/                         # 每 inbox 独立 SQLite 数据库（相对路径，可配置）
+├── db/                         # 每 inbox 独立 SQLite 数据库（Docker 卷挂载）
 │   └── {inbox}.db
+├── sync_status/                # 同步状态（per-inbox .json + .lock 文件）
 ├── scripts/
 │   ├── config_utils.py         # 统一配置加载（相对/绝对路径解析）
 │   ├── mirror.py               # 首次下载 git 仓库
 │   ├── database.py             # 数据库 schema
-│   ├── import_mail.py          # 邮件导入（含日期修复）
-│   ├── sync.py                 # 同步（fetch + 增量导入）
+│   ├── import_mail.py          # 邮件导入（含日期修复、优雅退出）
+│   ├── sync.py                 # 同步（fetch + 增量导入、per-inbox 锁）
 │   ├── healthcheck.py          # 完整性检查与修复
 │   └── test_search.py          # 搜索功能测试用例
 ├── server/
@@ -132,6 +136,46 @@ lore-mirror/
 │   └── plans/                  # 设计文档
 └── ref/                        # 参考网页（lore 原站数据）
 ```
+
+## 部署架构
+
+### 裸机部署
+```
+┌──────────────────────────────────┐
+│         ./start.sh --build       │
+│  ┌────────────┐                  │
+│  │  FastAPI    │ :8000           │
+│  │  + Vue SPA  │────────────┐    │
+│  └────────────┘             │    │
+│                       ┌─────┴──┐ │
+│  cron → sync.py ────→ │ SQLite │ │
+│                       │ repos/ │ │
+│                       └────────┘ │
+└──────────────────────────────────┘
+```
+
+### 容器化部署
+```
+┌─ docker compose ─────────────────────────────┐
+│                                               │
+│  ┌─ web ──────────┐   ┌─ sync ─────────────┐ │
+│  │ FastAPI + SPA   │   │ cron → sync.py     │ │
+│  │ :8000           │   │ (首次启动立即同步) │ │
+│  └────┬────────────┘   └──────┬─────────────┘ │
+│       │                       │               │
+│  ─────┴───────────────────────┴─────────      │
+│  │  volumes: repos/ db/ sync_status/  │       │
+│  ──────────────────────────────────────       │
+└───────────────────────────────────────────────┘
+```
+
+**容器设计要点**:
+- **两个服务**: `web`（API + SPA）和 `sync`（定时同步 cron daemon）
+- **共享卷**: `repos/` `db/` `sync_status/` 在两个容器间共享
+- **多阶段构建**: Node 20 构建前端 → Python 3.12 运行后端（镜像体积最小化）
+- **数据安全**: SQLite per-inbox 锁（fcntl.flock）防止 web 和 sync 并行写同一 DB
+- **环境变量**: `LORE_PORT` `LORE_SYNC_SCHEDULE` `LORE_REPOS_DIR` `LORE_DB_DIR` 可自定义
+- **优雅退出**: `docker compose stop` 发送 SIGTERM，sync 容器保存进度后退出
 
 ## 数据规模 (lkml)
 - 19 个 epoch, ~593 万封邮件
@@ -255,7 +299,7 @@ crontab -e
 0 */6 * * * cd /vol_8t/lore && python3 scripts/sync.py >> sync.log 2>&1
 ```
 
-同步状态会实时写入 `sync_status.json`，前端首页可查看。
+同步状态会实时写入 `sync_status/` 目录（每 inbox 独立状态文件），前端首页可查看。
 
 ### 7. 健康检查与修复
 
@@ -298,3 +342,98 @@ crontab -e
 1. 在 `config.yaml` 中注释掉该 inbox
 2. 删除 git 仓库: `rm -rf repos/<name>/`
 3. 删除数据库: `rm db/<name>.db`
+
+---
+
+## Docker 部署
+
+### 快速开始
+
+```bash
+# 1. 编辑 config.yaml，选择要镜像的 inbox
+
+# 2. 首次下载 git 仓库
+docker compose run --rm sync python3 scripts/mirror.py --inbox lkml
+
+# 3. 首次导入邮件
+docker compose run --rm sync python3 scripts/import_mail.py --inbox lkml
+
+# 4. 启动服务（web + 定时同步）
+docker compose up -d
+```
+
+访问 http://localhost:8000
+
+### 常用命令
+
+```bash
+# 启动/停止
+docker compose up -d           # 启动 web + sync
+docker compose up -d web       # 仅启动 web（不自动同步）
+docker compose down            # 停止所有服务
+
+# 查看日志
+docker compose logs -f web     # web 服务日志
+docker compose logs -f sync    # sync 服务日志
+
+# 手动操作
+docker compose exec sync python3 scripts/sync.py --status
+docker compose exec sync python3 scripts/sync.py --inbox lkml
+docker compose exec sync python3 scripts/mirror.py --inbox netdev
+docker compose exec sync python3 scripts/import_mail.py --inbox netdev
+docker compose exec sync python3 scripts/healthcheck.py --repair
+
+# 重新构建（代码更新后）
+docker compose build
+docker compose up -d
+```
+
+### 自定义配置
+
+通过环境变量或 `.env` 文件自定义：
+
+```bash
+# .env 文件（放在项目根目录）
+LORE_PORT=9000                     # Web 端口（默认 8000）
+LORE_SYNC_SCHEDULE=0 */2 * * *    # 同步频率（默认每 6 小时）
+LORE_REPOS_DIR=/data/lore/repos   # 自定义数据目录
+LORE_DB_DIR=/data/lore/db
+```
+
+或直接在命令行设置：
+
+```bash
+LORE_PORT=9000 docker compose up -d
+```
+
+### 数据持久化
+
+Docker 卷映射（默认使用项目内相对路径）：
+
+| 容器路径 | 宿主机默认路径 | 环境变量 | 说明 |
+|----------|---------------|----------|------|
+| `/app/repos` | `./repos` | `LORE_REPOS_DIR` | Git 仓库（大，lkml ~20GB） |
+| `/app/db` | `./db` | `LORE_DB_DIR` | SQLite 数据库（大，lkml ~140GB） |
+| `/app/sync_status` | `./sync_status` | `LORE_SYNC_STATUS_DIR` | 同步状态文件 |
+| `/app/config.yaml` | `./config.yaml` | — | 只读挂载 |
+
+**磁盘空间建议**: lkml 单个 inbox 需要约 160GB（repos + db）。建议将数据卷指向大容量磁盘。
+
+### 从裸机迁移到 Docker
+
+如果已有裸机部署的 `repos/` 和 `db/` 数据，直接启动容器即可复用：
+
+```bash
+# 停止裸机服务
+pkill -f 'uvicorn server.app'
+
+# 启动 Docker（自动使用现有 repos/ 和 db/）
+docker compose up -d
+```
+
+### 注意事项
+
+- **SQLite 并发**: web 和 sync 容器共享数据库文件，通过 fcntl.flock 保证同一 inbox 不会被并行写入
+- **sync 容器启动行为**: 首次启动会立即执行一次全量同步，之后按 cron 定时执行
+- **优雅停止**: `docker compose stop` 发送 SIGTERM，sync 进程会保存当前进度再退出
+- **不同 inbox 可并行同步**: 可运行多个 `docker compose exec sync python3 scripts/sync.py --inbox <name>` 并行同步不同 inbox

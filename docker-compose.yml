@@ -1,0 +1,47 @@
+# lore-mirror Docker Compose
+#
+# Usage:
+#   docker compose up -d              # start web + sync
+#   docker compose up -d web          # web server only
+#   docker compose logs -f sync       # watch sync progress
+#   docker compose exec sync python3 scripts/sync.py --status
+#
+# First-time setup:
+#   docker compose run --rm sync python3 scripts/mirror.py --inbox lkml
+#   docker compose run --rm sync python3 scripts/import_mail.py --inbox lkml
+
+services:
+  web:
+    build: .
+    ports:
+      - "${LORE_PORT:-8000}:8000"
+    volumes:
+      - ${LORE_REPOS_DIR:-./repos}:/app/repos
+      - ${LORE_DB_DIR:-./db}:/app/db
+      - ${LORE_SYNC_STATUS_DIR:-./sync_status}:/app/sync_status
+      - ./config.yaml:/app/config.yaml:ro
+    restart: unless-stopped
+
+  sync:
+    build: .
+    entrypoint: ["bash", "-c"]
+    command:
+      - |
+        echo "lore-mirror sync service"
+        echo "Schedule: $${LORE_SYNC_SCHEDULE:-0 */6 * * *}"
+        # Write crontab
+        echo "$${LORE_SYNC_SCHEDULE:-0 */6 * * *} cd /app && python3 scripts/sync.py >> /var/log/sync.log 2>&1" > /etc/cron.d/lore-sync
+        chmod 0644 /etc/cron.d/lore-sync
+        crontab /etc/cron.d/lore-sync
+        # Run initial sync on startup
+        cd /app && python3 scripts/sync.py 2>&1 | tee /var/log/sync.log
+        # Then start cron in foreground
+        cron -f
+    volumes:
+      - ${LORE_REPOS_DIR:-./repos}:/app/repos
+      - ${LORE_DB_DIR:-./db}:/app/db
+      - ${LORE_SYNC_STATUS_DIR:-./sync_status}:/app/sync_status
+      - ./config.yaml:/app/config.yaml:ro
+    environment:
+      - LORE_SYNC_SCHEDULE=${LORE_SYNC_SCHEDULE:-0 */6 * * *}
+    restart: unless-stopped
