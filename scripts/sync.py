@@ -12,6 +12,7 @@ import argparse
 import json
 import logging
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -103,9 +104,14 @@ def sync_inbox(config: dict, inbox_name: str) -> dict:
 
     log.info(f"[{inbox_name}] Fetching {len(epoch_dirs)} epochs...")
 
+    from import_mail import is_shutdown_requested
+
     total_new = 0
     epochs_with_updates = []
     for repo_path in epoch_dirs:
+        if is_shutdown_requested():
+            log.info(f"[{inbox_name}] Shutdown requested, stopping fetch")
+            break
         epoch = repo_path.name.replace(".git", "")
         success, new_commits = git_fetch_epoch(repo_path)
         if success:
@@ -136,7 +142,10 @@ def sync_inbox(config: dict, inbox_name: str) -> dict:
     db_dir.mkdir(parents=True, exist_ok=True)
     conn = init_db(db_path)
 
-    for epoch in sorted(epochs_with_updates):
+    for epoch in sorted(epochs_with_updates, reverse=True):
+        if is_shutdown_requested():
+            log.info(f"[{inbox_name}] Shutdown requested, stopping import")
+            break
         do_import_epoch(conn, inbox_name, epoch, repos_dir)
 
     # Count imported messages
@@ -166,8 +175,14 @@ def run_sync(config: dict, inbox_filter: Optional[str] = None):
     }
     write_status(status)
 
+    from import_mail import is_shutdown_requested
+
     summaries = []
     for inbox_cfg in inboxes:
+        if is_shutdown_requested():
+            log.info("Shutdown requested, stopping sync")
+            break
+
         name = inbox_cfg["name"]
         status["current_inbox"] = name
         write_status(status)
@@ -235,9 +250,7 @@ def main():
         if pid_file.exists():
             try:
                 old_pid = int(pid_file.read_text().strip())
-                # Check if process still exists
-                import os
-                os.kill(old_pid, 0)
+                os.kill(old_pid, 0)  # Check if process still exists
                 stale = False  # Process is alive
             except (ValueError, ProcessLookupError, PermissionError):
                 stale = True  # PID invalid or process gone
@@ -254,15 +267,20 @@ def main():
     pid_file = PROJECT_ROOT / "sync.pid"
     pid_file.write_text(str(os.getpid()))
 
+    # Register signal handlers for graceful shutdown
+    from import_mail import _signal_handler as import_signal_handler
+    signal.signal(signal.SIGTERM, import_signal_handler)
+    signal.signal(signal.SIGINT, import_signal_handler)
+
     try:
         run_sync(config, inbox_filter=args.inbox)
-    except KeyboardInterrupt:
-        log.info("Sync interrupted")
-        s = read_status()
-        s["running"] = False
-        s["finished_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
-        write_status(s)
     finally:
+        # Ensure status is cleaned up on any exit
+        s = read_status()
+        if s.get("running"):
+            s["running"] = False
+            s["finished_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+            write_status(s)
         pid_file.unlink(missing_ok=True)
 
 

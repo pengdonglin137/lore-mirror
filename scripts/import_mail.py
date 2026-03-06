@@ -16,6 +16,7 @@ import email.policy
 import email.utils
 import json
 import logging
+import signal
 import subprocess
 import sys
 import time
@@ -34,6 +35,25 @@ log = logging.getLogger(__name__)
 
 # Batch size for commits between DB transactions
 BATCH_SIZE = 500
+
+# ── Graceful shutdown ────────────────────────────────
+_shutdown_requested = False
+
+
+def request_shutdown():
+    """Request graceful shutdown. Safe to call from signal handlers."""
+    global _shutdown_requested
+    _shutdown_requested = True
+
+
+def is_shutdown_requested() -> bool:
+    return _shutdown_requested
+
+
+def _signal_handler(signum, frame):
+    signame = signal.Signals(signum).name
+    log.info(f"Received {signame}, shutting down gracefully (finishing current batch)...")
+    request_shutdown()
 
 
 def get_db_path(config: dict, inbox_name: str) -> Path:
@@ -257,7 +277,15 @@ def import_epoch(conn, inbox_name: str, epoch: int, repos_dir: Path):
     errors = 0
     batch_start = time.time()
 
+    interrupted = False
+
     for i, commit_hash in enumerate(remaining):
+        # Check for graceful shutdown between commits
+        if is_shutdown_requested():
+            log.info(f"  Shutdown requested, saving progress at commit {i}/{total}...")
+            interrupted = True
+            break
+
         try:
             raw = get_email_from_commit(repo_path, commit_hash)
             if raw is None:
@@ -338,19 +366,28 @@ def import_epoch(conn, inbox_name: str, epoch: int, repos_dir: Path):
             )
             batch_start = time.time()
 
-    # Final commit
-    if remaining:
+    # Save progress: use last processed commit (not remaining[-1] if interrupted)
+    last_processed = remaining[i] if remaining else None
+    if last_processed:
         conn.execute(
             """INSERT OR REPLACE INTO import_progress
             (epoch, last_commit, commit_count, updated_at)
             VALUES (?, ?, ?, datetime('now'))""",
-            (epoch, remaining[-1], start_idx + len(remaining)),
+            (epoch, last_processed, start_idx + i + 1),
         )
         conn.commit()
 
-    log.info(
-        f"  Done: imported {imported}, skipped {skipped}, errors {errors}"
-    )
+    if interrupted:
+        log.info(
+            f"  Interrupted: imported {imported}, skipped {skipped}, errors {errors} "
+            f"({i}/{total} processed, will resume from here)"
+        )
+    else:
+        log.info(
+            f"  Done: imported {imported}, skipped {skipped}, errors {errors}"
+        )
+
+    return not interrupted
 
 
 def show_stats(config: dict):
@@ -396,6 +433,9 @@ def run_import(config: dict, inbox_filter: Optional[str] = None):
             sys.exit(1)
 
     for inbox_cfg in inboxes:
+        if is_shutdown_requested():
+            break
+
         name = inbox_cfg["name"]
 
         inbox_repo_dir = repos_dir / name / "git"
@@ -407,19 +447,25 @@ def run_import(config: dict, inbox_filter: Optional[str] = None):
         conn = init_db(db_path)
 
         epochs = sorted(
-            int(p.name.replace(".git", ""))
+            (int(p.name.replace(".git", ""))
             for p in inbox_repo_dir.iterdir()
-            if p.name.endswith(".git") and (p / "HEAD").exists()
+            if p.name.endswith(".git") and (p / "HEAD").exists()),
+            reverse=True,
         )
 
         log.info(f"Importing '{name}': {len(epochs)} epochs -> {db_path}")
 
         for epoch in epochs:
+            if is_shutdown_requested():
+                break
             import_epoch(conn, name, epoch, repos_dir)
 
         conn.close()
 
-    log.info("Import complete")
+    if is_shutdown_requested():
+        log.info("Import stopped gracefully (progress saved, will resume next run)")
+    else:
+        log.info("Import complete")
 
 
 def main():
@@ -434,6 +480,8 @@ def main():
     if args.stats:
         show_stats(config)
     else:
+        signal.signal(signal.SIGTERM, _signal_handler)
+        signal.signal(signal.SIGINT, _signal_handler)
         run_import(config, inbox_filter=args.inbox)
 
 
