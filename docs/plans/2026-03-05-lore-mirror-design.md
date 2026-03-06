@@ -35,19 +35,34 @@
 - 搜索: lore 兼容前缀语法 (s: f: b: d: t: c: a: m: bs: tc:)，Message-ID 自动检测
 - 跨 inbox 搜索：遍历所有 inbox 数据库
 - 日期排序：过滤异常日期（Y2K、未来时间戳、non-ISO 格式）
+- 性能优化：索引友好查询 + 内存缓存（5 分钟 TTL）+ 30 秒查询超时保护
 - 生产模式: 同时 serve Vue SPA 静态文件
+- `scripts/test_api.py`: 自动化 API 测试（35 个用例，零外部依赖，支持 `--url` 远程测试）
 
 ### 模块 4: Vue 3 前端 (Phase 4) ✅
 - 5 个页面: Home, Inbox, Message, Thread, Search
 - 功能: locate inbox、search all inboxes（带 inbox 选择器和搜索语法帮助）
+- 导航栏搜索语法帮助按钮（`?`）
 - 邮件分页浏览、线程树视图、diff 高亮
 - 左对齐布局，暗色模式
 
 ### 模块 5: 同步与维护 (Phase 5) ✅
 - `scripts/sync.py`: git fetch + 增量导入（仅通过 CLI/cron 触发）
+  - 仅导入有更新的 epoch（避免全 epoch 扫描）
+  - 按从新到旧的顺序导入（最新邮件优先可用）
+  - per-inbox 锁（fcntl.flock）：不同 inbox 可并行同步，同一 inbox 互斥
+  - 优雅退出：SIGTERM/SIGINT 保存进度后退出
+  - `--stop` 停止正在运行的同步/导入进程
+- `scripts/import_mail.py`: 邮件导入，共享 per-inbox 锁
 - `scripts/healthcheck.py`: git 仓库和数据库完整性检查与修复
 - `scripts/config_utils.py`: 统一配置加载，支持相对/绝对路径
 - 前端仅显示同步状态（只读）
+
+### 模块 6: 容器化部署 ✅
+- `Dockerfile`: 多阶段构建（Node 20 → Python 3.12-slim）
+- `docker-compose.yml`: web + sync 两服务编排
+- 共享卷: repos/ db/ sync_status/
+- 环境变量自定义: `LORE_PORT`, `LORE_SYNC_SCHEDULE`, `LORE_REPOS_DIR`, `LORE_DB_DIR`
 
 ## 数据库设计 (SQLite3，每 inbox 独立)
 
@@ -191,6 +206,17 @@ lore-mirror/
 | Phase 3: FastAPI 后端 | ✅ 完成 |
 | Phase 4: Vue 前端 | ✅ 完成 |
 | Phase 5: 同步 + 健康检查 | ✅ 完成 |
+| Phase 6: 容器化部署 | ✅ 完成 |
+
+## 性能优化
+
+| 优化项 | 措施 | 效果 |
+|--------|------|------|
+| Inbox 列表排序 | `ORDER BY CASE` → `ORDER BY date DESC`（索引扫描） | 30s(500) → 60ms |
+| Inbox 统计查询 | `MIN/MAX(CASE)` → `ORDER BY LIMIT 1`（索引扫描） | 1.2s → 69ms |
+| 热点端点缓存 | /api/inboxes, /api/stats, COUNT 缓存 5 分钟 | 首次 60ms → 重复 <2ms |
+| 慢查询保护 | sqlite3 progress_handler 30 秒超时 | 避免无限等待 |
+| 同步仅更新 epoch | fetch 后只 import 有新 commit 的 epoch | 9.5h → 1.5min |
 
 ---
 
