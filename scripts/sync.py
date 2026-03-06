@@ -311,15 +311,94 @@ def show_status():
             )
 
 
+def stop_sync(inbox_filter: Optional[str] = None):
+    """Stop running sync processes by sending SIGTERM."""
+    STATUS_DIR.mkdir(parents=True, exist_ok=True)
+    lock_files = sorted(STATUS_DIR.glob("*.lock"))
+
+    if not lock_files:
+        print("No sync processes are running.")
+        return
+
+    stopped = 0
+    for lf in lock_files:
+        inbox_name = lf.stem
+        if inbox_filter and inbox_name != inbox_filter:
+            continue
+
+        try:
+            pid = int(lf.read_text().strip())
+        except (ValueError, OSError):
+            continue
+
+        # Check if process is alive
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            print(f"  {inbox_name}: stale lock (PID {pid} not found), cleaning up")
+            lf.unlink(missing_ok=True)
+            # Clean up status
+            status = read_status(inbox_name)
+            if status.get("running"):
+                status["running"] = False
+                status["finished_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+                write_status(inbox_name, status)
+            continue
+        except PermissionError:
+            print(f"  {inbox_name}: PID {pid} — no permission to signal")
+            continue
+
+        print(f"  {inbox_name}: sending SIGTERM to PID {pid}...")
+        os.kill(pid, signal.SIGTERM)
+        stopped += 1
+
+    if inbox_filter and stopped == 0:
+        print(f"No sync running for '{inbox_filter}'.")
+        return
+
+    if stopped == 0:
+        print("No sync processes are running.")
+        return
+
+    # Wait for processes to exit gracefully
+    print(f"Waiting for {stopped} process(es) to finish...")
+    deadline = time.time() + 30
+    while time.time() < deadline:
+        still_running = 0
+        for lf in lock_files:
+            inbox_name = lf.stem
+            if inbox_filter and inbox_name != inbox_filter:
+                continue
+            if not lf.exists():
+                continue
+            try:
+                pid = int(lf.read_text().strip())
+                os.kill(pid, 0)
+                still_running += 1
+            except (ProcessLookupError, ValueError, OSError):
+                pass
+        if still_running == 0:
+            break
+        time.sleep(0.5)
+
+    print("Done.")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Sync lore mirror (fetch + import)")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--inbox", type=str, default=None)
     parser.add_argument("--status", action="store_true")
+    parser.add_argument("--stop", action="store_true",
+                        help="Stop running sync (all or --inbox specific)")
     args = parser.parse_args()
 
     if args.status:
         show_status()
+        return
+
+    if args.stop:
+        stop_sync(inbox_filter=args.inbox)
         return
 
     config = load_config(args.config)
