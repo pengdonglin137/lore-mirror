@@ -134,6 +134,9 @@ def list_inboxes():
                 "latest": None,
             })
 
+    # Sort by latest message date descending (most active first), then by name
+    results.sort(key=lambda x: (x.get("latest") or "", x.get("name", "")), reverse=True)
+
     cache_set("inboxes_list", results)
     return results
 
