@@ -88,6 +88,16 @@ docker compose run --rm sync python3 scripts/import_mail.py --inbox <name>
 - Import speed: ~80 commits/s
 - Full lkml import: ~20 hours
 
+## Keeping Docs in Sync
+
+When updating any of these, also update the others:
+- **API changes** (`server/app.py`) → update `docs/API.md` + `docs/skills/lore-mirror/SKILL.md`
+- **Search syntax changes** → update `docs/API.md` + `docs/skills/lore-mirror/SKILL.md` + frontend help (`App.vue`, `Search.vue`)
+- **New features/commands** → update `docs/plans/2026-03-05-lore-mirror-design.md` (usage section)
+- **Inbox descriptions** (`config.yaml`) → descriptions are served via API, skill references them
+
+The installed skill at `~/.claude/skills/lore-mirror/SKILL.md` is a copy of `docs/skills/lore-mirror/SKILL.md`.
+
 ## Conventions
 
 - All scripts run from project root: `cd /vol_8t/lore && python3 scripts/xxx.py`

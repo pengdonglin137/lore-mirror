@@ -379,6 +379,43 @@ crontab -e
 2. 删除 git 仓库: `rm -rf repos/<name>/`
 3. 删除数据库: `rm db/<name>.db`
 
+### 10. 安装 Claude Code Skill（AI 集成）
+
+Skill 让 Claude Code 自动知道如何调用 lore-mirror API 搜索内核邮件列表。
+
+```bash
+# 安装到当前用户的 Claude Code skills 目录
+mkdir -p ~/.claude/skills/lore-mirror
+cp docs/skills/lore-mirror/SKILL.md ~/.claude/skills/lore-mirror/SKILL.md
+```
+
+安装后，当你在 Claude Code 中提到搜索内核邮件、查找 patch、追踪讨论线程等话题时，
+AI 会自动加载此 skill 并使用正确的 API 调用流程：
+
+1. 先发现可用的邮件列表（`/api/inboxes`）
+2. 根据 inbox 描述选择正确的列表
+3. 使用 lore 兼容搜索语法精确查找
+4. 读取邮件和线程
+
+Skill 文件位于 `docs/skills/lore-mirror/SKILL.md`，包含完整的 API 用法和搜索语法参考。
+
+如果 API 基础 URL 不是 `http://localhost:8000`，需要编辑 SKILL.md 中的 Base URL。
+
+### 11. API 测试
+
+```bash
+# 测试本地服务
+python3 scripts/test_api.py
+
+# 测试远程/Docker 部署
+python3 scripts/test_api.py --url http://your-host:8000
+
+# 详细模式
+python3 scripts/test_api.py -v
+```
+
+35 个测试用例覆盖所有 API 端点，零外部依赖，失败时 exit 1 可用于 CI。
+
 ---
 
 ## Docker 部署
