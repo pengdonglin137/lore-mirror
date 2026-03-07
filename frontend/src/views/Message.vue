@@ -17,6 +17,7 @@ async function load() {
   loading.value = true
   error.value = null
   rawThreadMessages.value = []
+  expandedQuotes.value = new Set()
   try {
     const [msgResult, threadResult] = await Promise.allSettled([
       getMessage(props.id),
@@ -121,6 +122,31 @@ const bodyLines = computed(() => {
   return msg.value.body_text.split('\n')
 })
 
+// Group consecutive quote lines (>...) into collapsible blocks
+const bodySegments = computed(() => {
+  const lines = bodyLines.value
+  const segments = []
+  let i = 0
+  while (i < lines.length) {
+    if (lines[i].startsWith('>')) {
+      const start = i
+      while (i < lines.length && lines[i].startsWith('>')) i++
+      segments.push({ type: 'quote', lines: lines.slice(start, i), id: start })
+    } else {
+      segments.push({ type: 'line', line: lines[i], id: i })
+      i++
+    }
+  }
+  return segments
+})
+
+const expandedQuotes = ref(new Set())
+
+function toggleQuote(id) {
+  if (expandedQuotes.value.has(id)) expandedQuotes.value.delete(id)
+  else expandedQuotes.value.add(id)
+}
+
 const hasDiff = computed(() => {
   return bodyLines.value.some(l => l.startsWith('diff --git') || l.startsWith('---') || l.startsWith('@@'))
 })
@@ -151,8 +177,11 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </template>
 <a href="#" @click.prevent="showAllHeaders = !showAllHeaders">[{{ showAllHeaders ? 'hide' : 'show all' }} headers]</a>  <router-link :to="`/thread/${encodeURIComponent(msg.message_id)}`">[view thread]</router-link>  <a :href="`/api/raw?id=${encodeURIComponent(msg.message_id)}`">[raw]</a><template v-if="prevMessage || nextMessage">  <router-link v-if="prevMessage" :to="`/message/${encodeURIComponent(prevMessage.message_id)}`" :title="prevMessage.subject">[&larr; prev]</router-link><template v-if="prevMessage && nextMessage">  </template><router-link v-if="nextMessage" :to="`/message/${encodeURIComponent(nextMessage.message_id)}`" :title="nextMessage.subject">[next &rarr;]</router-link></template></pre>
 
-      <pre class="msg-body"><template v-for="(line, i) in bodyLines" :key="i"><span :class="lineClass(line)" v-html="linkifyLine(line)"></span>
-</template></pre>
+      <pre class="msg-body"><template v-for="seg in bodySegments" :key="seg.id"><template v-if="seg.type === 'line'"><span :class="lineClass(seg.line)" v-html="linkifyLine(seg.line)"></span>
+</template><template v-else-if="seg.lines.length < 4 || expandedQuotes.has(seg.id)"><template v-for="(line, j) in seg.lines" :key="seg.id + '-' + j"><span :class="lineClass(line)" v-html="linkifyLine(line)"></span>
+</template></template><template v-else><span class="quote-collapsed" @click="toggleQuote(seg.id)"><span :class="lineClass(seg.lines[0])" v-html="linkifyLine(seg.lines[0])"></span>
+<span class="quote-toggle">[{{ seg.lines.length - 1 }} more quoted lines — click to expand]</span>
+</span></template></template></pre>
 
       <template v-if="msg.attachments && msg.attachments.length">
         <pre class="msg-attachments">
@@ -198,6 +227,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 .quote { color: #57606a; border-left: 2px solid #d0d7de; padding-left: 6px; display: inline-block; }
 .quote-deep { color: #8b949e; border-left: 2px solid #d0d7de; padding-left: 6px; display: inline-block; }
 .trailer { color: #57606a; }
+.quote-collapsed { cursor: pointer; }
+.quote-toggle { color: #888; font-size: 12px; font-style: italic; }
+.quote-toggle:hover { color: #00609f; text-decoration: underline; }
 
 </style>
 
@@ -228,4 +260,6 @@ html.dark .diff-file { color: #8b949e; }
 html.dark .quote { color: #8b949e; border-left-color: #484f58; }
 html.dark .quote-deep { color: #6e7681; border-left-color: #484f58; }
 html.dark .trailer { color: #8b949e; }
+html.dark .quote-toggle { color: #6e7681; }
+html.dark .quote-toggle:hover { color: #58a6ff; }
 </style>

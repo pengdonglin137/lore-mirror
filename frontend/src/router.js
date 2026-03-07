@@ -18,4 +18,5 @@ const routes = [
 export default createRouter({
   history: createWebHistory(),
   routes,
+  scrollBehavior() { return { top: 0 } },
 })

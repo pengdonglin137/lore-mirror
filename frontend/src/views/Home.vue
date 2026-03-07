@@ -92,9 +92,8 @@ function formatDate(d) {
 </pre>
       <pre><template v-if="filteredInboxes.length === 0">  No matching inboxes found.
 </template><template v-for="inbox in filteredInboxes" :key="inbox.name">
-* <router-link :to="`/inbox/${inbox.name}`">{{ inbox.name }}</router-link>
-  {{ inbox.description }}
-  {{ formatCount(inbox.message_count) }} messages ({{ formatDate(inbox.earliest) }} ~ {{ formatDate(inbox.latest) }})
+<router-link :to="`/inbox/${inbox.name}`">{{ inbox.name.padEnd(24) }}</router-link> {{ formatCount(inbox.message_count).toString().padStart(7) }} msgs  {{ formatDate(inbox.earliest) }} ~ {{ formatDate(inbox.latest) }}
+  <span class="inbox-desc">{{ inbox.description }}</span>
 </template></pre>
 
       <div class="status-bar">
@@ -113,6 +112,8 @@ function formatDate(d) {
 </template>
 
 <style scoped>
+.inbox-desc { color: #666; }
+
 .status-bar {
   font-family: monospace;
   font-size: 12px;
@@ -126,4 +127,5 @@ function formatDate(d) {
 
 <style>
 html.dark .status-bar { border-color: #30363d; color: #6e7681; }
+html.dark .inbox-desc { color: #8b949e; }
 </style>
