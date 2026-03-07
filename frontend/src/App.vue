@@ -4,8 +4,14 @@ import { useRouter } from 'vue-router'
 import SearchHelp from './components/SearchHelp.vue'
 
 const router = useRouter()
-const query = ref('')
+const route = router.currentRoute
+const query = ref(route.value.query.q || route.value.query.locate || '')
 const showHelp = ref(false)
+
+// Keep nav bar input in sync with URL query
+watch(() => route.value.query, (q) => {
+  query.value = q.q || q.locate || ''
+})
 const showKeys = ref(false)
 
 function doLocate() {
