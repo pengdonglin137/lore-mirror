@@ -32,10 +32,17 @@ const displayText = computed(() => {
 
 const searchAddr = computed(() => parsed.value.email || parsed.value.name)
 
-function doSearch(prefix) {
+function doSearch(query) {
   showMenu.value = false
-  router.push({ path: '/search', query: { q: `${prefix}:${searchAddr.value}` } })
+  router.push({ path: '/search', query: { q: query } })
 }
+
+const qFrom = computed(() => `f:${searchAddr.value}`)
+const qAny = computed(() => `a:${searchAddr.value}`)
+const qTo = computed(() => `t:${searchAddr.value}`)
+const qCc = computed(() => `c:${searchAddr.value}`)
+const qOriginal = computed(() => `f:${searchAddr.value} NOT s:Re:`)
+const qReplies = computed(() => `f:${searchAddr.value} s:Re:`)
 
 function onClick(e) {
   e.preventDefault()
@@ -57,10 +64,13 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside, true))
   <span class="addr-wrap" ref="menuEl">
     <a href="#" class="addr-link" @click="onClick">{{ displayText }}</a>
     <span v-if="showMenu" class="addr-menu">
-      <a href="#" @click.prevent="doSearch('f')">f: from this sender</a>
-      <a href="#" @click.prevent="doSearch('a')">a: any address field</a>
-      <a v-if="context === 'header'" href="#" @click.prevent="doSearch('t')">t: in To</a>
-      <a v-if="context === 'header'" href="#" @click.prevent="doSearch('c')">c: in Cc</a>
+      <a href="#" @click.prevent="doSearch(qFrom)">f: from this sender</a>
+      <a href="#" @click.prevent="doSearch(qOriginal)">f: original emails only (not replies)</a>
+      <a href="#" @click.prevent="doSearch(qReplies)">f: replies only</a>
+      <span class="addr-sep"></span>
+      <a href="#" @click.prevent="doSearch(qAny)">a: any address field</a>
+      <a v-if="context === 'header'" href="#" @click.prevent="doSearch(qTo)">t: in To</a>
+      <a v-if="context === 'header'" href="#" @click.prevent="doSearch(qCc)">c: in Cc</a>
     </span>
   </span>
 </template>
@@ -102,6 +112,12 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside, true))
   background: #f0f0f0;
   text-decoration: none;
 }
+.addr-sep {
+  display: block;
+  height: 1px;
+  background: #e0e0e0;
+  margin: 3px 0;
+}
 </style>
 
 <style>
@@ -110,4 +126,5 @@ html.dark .addr-link:hover { border-bottom-color: #58a6ff; }
 html.dark .addr-menu { background: #21262d; border-color: #30363d; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
 html.dark .addr-menu a { color: #c9d1d9; }
 html.dark .addr-menu a:hover { background: #30363d; }
+html.dark .addr-sep { background: #30363d; }
 </style>
