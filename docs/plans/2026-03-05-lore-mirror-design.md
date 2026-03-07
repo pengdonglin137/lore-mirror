@@ -50,7 +50,7 @@
   - 可折叠引用块（4+ 行连续引用自动折叠，点击展开）
   - 邮件正文 URL 自动转为可点击链接（XSS 安全）
   - References 头各 Message-ID 可独立点击
-  - 地址快捷过滤菜单：点击 From/To/Cc 中的地址弹出菜单，可按 f:/a:/t:/c: 搜索，支持区分原始邮件和回复
+  - 地址快捷过滤菜单：点击 From/To/Cc 中的地址弹出菜单，可按 f:/a:/t:/c: 搜索，支持区分原始邮件和回复（Inbox 列表和 Message 页均可用）
   - 邮件页面 `[patch]` 下载单个 patch、`[series mbox]` 下载整个 patch series（b4-like: 版本检测、cover letter 排除、trailer 注入）
   - 邮件页面 `[raw]` 下载原始邮件（.eml），`[lore]` 链接直达 lore.kernel.org 原始页面
   - 增强分页：首页/末页、±10 跳转、页码输入框
