@@ -214,6 +214,16 @@ main {
   cursor: default;
 }
 
+.page-input {
+  font-family: monospace;
+  font-size: 13px;
+  width: 4em;
+  text-align: center;
+  padding: 2px 4px;
+  border: 1px solid #999;
+  background: #fff;
+}
+
 .loading {
   color: #666;
   padding: 20px 0;
@@ -234,7 +244,7 @@ html.dark body { background: #0d1117; color: #c9d1d9; }
 html.dark a { color: #58a6ff; }
 html.dark header { background: #161b22; border-color: #30363d; }
 html.dark .logo-link { color: #c9d1d9; }
-html.dark .nav-input, html.dark .nav-btn, html.dark .pagination button {
+html.dark .nav-input, html.dark .nav-btn, html.dark .pagination button, html.dark .page-input {
   background: #21262d; color: #c9d1d9; border-color: #30363d;
 }
 html.dark .nav-btn:hover { background: #30363d; }

@@ -48,7 +48,18 @@ watch(() => [route.query.q, route.query.page, route.query.inbox], doSearch, { im
 watch(() => route.query.inbox, (val) => { selectedInbox.value = val || '' })
 
 function goPage(p) {
+  p = Math.max(1, Math.min(p, data.value?.pages || 1))
   router.push({ path: '/search', query: { ...route.query, page: p } })
+}
+
+const pageInput = ref('')
+
+function onPageInput() {
+  const p = parseInt(pageInput.value)
+  if (p && p >= 1 && p <= (data.value?.pages || 1)) {
+    goPage(p)
+  }
+  pageInput.value = ''
 }
 
 function onInboxChange() {
@@ -83,9 +94,13 @@ function onInboxChange() {
       <pre>Search: "{{ data.query }}"<template v-if="route.query.inbox"> in {{ route.query.inbox }}</template> — {{ data.total }} results (page {{ data.page }}/{{ data.pages }})
 </pre>
       <div class="pagination" v-if="data.pages > 1">
+        <button :disabled="data.page <= 1" @click="goPage(1)" title="first page">|&lt;</button>
         <button :disabled="data.page <= 1" @click="goPage(data.page - 1)">&lt; prev</button>
-        <span>page {{ data.page }} / {{ data.pages }}</span>
+        <button v-if="data.pages > 10" :disabled="data.page <= 10" @click="goPage(data.page - 10)">-10</button>
+        <span>page <input class="page-input" :placeholder="data.page" v-model="pageInput" @keyup.enter="onPageInput" :size="String(data.pages).length + 1" title="type page number and press Enter"> / {{ data.pages }}</span>
+        <button v-if="data.pages > 10" :disabled="data.page + 10 > data.pages" @click="goPage(data.page + 10)">+10</button>
         <button :disabled="data.page >= data.pages" @click="goPage(data.page + 1)">next &gt;</button>
+        <button :disabled="data.page >= data.pages" @click="goPage(data.pages)" title="last page">&gt;|</button>
       </div>
 
       <div v-for="msg in data.messages" :key="msg.id" class="search-result">
@@ -96,9 +111,13 @@ function onInboxChange() {
       </div>
 
       <div class="pagination" v-if="data.pages > 1">
+        <button :disabled="data.page <= 1" @click="goPage(1)" title="first page">|&lt;</button>
         <button :disabled="data.page <= 1" @click="goPage(data.page - 1)">&lt; prev</button>
-        <span>page {{ data.page }} / {{ data.pages }}</span>
+        <button v-if="data.pages > 10" :disabled="data.page <= 10" @click="goPage(data.page - 10)">-10</button>
+        <span>page <input class="page-input" :placeholder="data.page" v-model="pageInput" @keyup.enter="onPageInput" :size="String(data.pages).length + 1" title="type page number and press Enter"> / {{ data.pages }}</span>
+        <button v-if="data.pages > 10" :disabled="data.page + 10 > data.pages" @click="goPage(data.page + 10)">+10</button>
         <button :disabled="data.page >= data.pages" @click="goPage(data.page + 1)">next &gt;</button>
+        <button :disabled="data.page >= data.pages" @click="goPage(data.pages)" title="last page">&gt;|</button>
       </div>
     </template>
   </div>

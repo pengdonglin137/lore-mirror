@@ -20,8 +20,9 @@ async function load() {
   try {
     const p = parseInt(route.query.page) || 1
     const after = route.query.after || null
-    data.value = await getInbox(props.name, { page: p, after })
-    page.value = p
+    const isLast = route.query.last === '1'
+    data.value = await getInbox(props.name, { page: p, after, last: isLast })
+    page.value = data.value.page  // server may adjust page number for last=1
     document.title = `${props.name} — lore-mirror`
   } catch (e) {
     error.value = e.message
@@ -30,18 +31,30 @@ async function load() {
   }
 }
 
-watch(() => [props.name, route.query.page, route.query.after], load, { immediate: true })
+watch(() => [props.name, route.query.page, route.query.after, route.query.last], load, { immediate: true })
 
-function goNext() {
-  if (data.value?.next_cursor) {
-    router.push({ path: `/inbox/${props.name}`, query: { page: page.value + 1, after: data.value.next_cursor } })
+function goPage(p, opts = {}) {
+  const maxPage = data.value?.pages || 1
+  p = Math.max(1, Math.min(p, maxPage))
+  if (p === page.value && !opts.last) return
+  // Use keyset cursor only for +1 (next page), otherwise fall back to offset
+  if (p === page.value + 1 && data.value?.next_cursor) {
+    router.push({ path: `/inbox/${props.name}`, query: { page: p, after: data.value.next_cursor } })
+  } else if (opts.last) {
+    router.push({ path: `/inbox/${props.name}`, query: { last: '1' } })
+  } else {
+    router.push({ path: `/inbox/${props.name}`, query: { page: p } })
   }
 }
 
-function goPrev() {
-  if (page.value > 1) {
-    router.push({ path: `/inbox/${props.name}`, query: { page: page.value - 1 } })
+const pageInput = ref('')
+
+function onPageInput(e) {
+  const p = parseInt(pageInput.value)
+  if (p && p >= 1 && p <= (data.value?.pages || 1)) {
+    goPage(p)
   }
+  pageInput.value = ''
 }
 
 
@@ -57,9 +70,13 @@ function goPrev() {
 {{ data.total }} messages — page {{ data.page }}/{{ data.pages }}
 </pre>
       <div class="pagination">
-        <button :disabled="page <= 1" @click="goPrev">&lt; prev</button>
-        <span>page {{ page }} / {{ data.pages }}</span>
-        <button :disabled="!data.next_cursor" @click="goNext">next &gt;</button>
+        <button :disabled="page <= 1" @click="goPage(1)" title="first page">|&lt;</button>
+        <button :disabled="page <= 1" @click="goPage(page - 1)">&lt; prev</button>
+        <button v-if="data.pages > 10" :disabled="page <= 10" @click="goPage(page - 10)">-10</button>
+        <span>page <input class="page-input" :placeholder="page" v-model="pageInput" @keyup.enter="onPageInput" :size="String(data.pages).length + 1" title="type page number and press Enter"> / {{ data.pages }}</span>
+        <button v-if="data.pages > 10" :disabled="page + 10 > data.pages" @click="goPage(page + 10)">+10</button>
+        <button :disabled="page >= data.pages" @click="goPage(page + 1)">next &gt;</button>
+        <button :disabled="page >= data.pages" @click="goPage(data.pages, { last: true })" title="last page">&gt;|</button>
       </div>
 
       <pre class="message-list"><template v-for="msg in data.messages" :key="msg.id"
@@ -67,9 +84,13 @@ function goPrev() {
 </template></pre>
 
       <div class="pagination">
-        <button :disabled="page <= 1" @click="goPrev">&lt; prev</button>
-        <span>page {{ page }} / {{ data.pages }}</span>
-        <button :disabled="!data.next_cursor" @click="goNext">next &gt;</button>
+        <button :disabled="page <= 1" @click="goPage(1)" title="first page">|&lt;</button>
+        <button :disabled="page <= 1" @click="goPage(page - 1)">&lt; prev</button>
+        <button v-if="data.pages > 10" :disabled="page <= 10" @click="goPage(page - 10)">-10</button>
+        <span>page <input class="page-input" :placeholder="page" v-model="pageInput" @keyup.enter="onPageInput" :size="String(data.pages).length + 1" title="type page number and press Enter"> / {{ data.pages }}</span>
+        <button v-if="data.pages > 10" :disabled="page + 10 > data.pages" @click="goPage(page + 10)">+10</button>
+        <button :disabled="page >= data.pages" @click="goPage(page + 1)">next &gt;</button>
+        <button :disabled="page >= data.pages" @click="goPage(data.pages, { last: true })" title="last page">&gt;|</button>
       </div>
     </template>
   </div>

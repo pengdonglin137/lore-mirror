@@ -14,9 +14,10 @@ export function getInboxes() {
   return fetchJSON(`${BASE}/inboxes`)
 }
 
-export function getInbox(name, { page = 1, perPage = 50, after = null } = {}) {
+export function getInbox(name, { page = 1, perPage = 50, after = null, last = false } = {}) {
   const params = new URLSearchParams({ page, per_page: perPage })
   if (after) params.set('after', after)
+  if (last) params.set('last', '1')
   return fetchJSON(`${BASE}/inboxes/${name}?${params}`)
 }
 

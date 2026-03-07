@@ -175,12 +175,14 @@ def get_inbox(
     page: int = Query(1, ge=1),
     per_page: int = Query(50, ge=1, le=200),
     after: Optional[str] = None,
+    last: int = Query(0),
 ):
     """Get messages for an inbox, newest first.
 
     Supports keyset pagination via `after` cursor for efficient deep pagination.
     When `after` is provided, it takes precedence over `page` offset.
     The cursor format is "date|id" from the previous page's `next_cursor`.
+    With `last=1`, efficiently returns the last page (oldest messages) without OFFSET.
     """
     conn = get_db(name)
 
@@ -191,7 +193,23 @@ def get_inbox(
         total = conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
         cache_set(cache_key, total)
 
-    if after:
+    pages = (total + per_page - 1) // per_page
+
+    if last:
+        # Last page optimization: fetch oldest N messages ASC, then reverse.
+        # Avoids catastrophic OFFSET on large inboxes (lkml: ~6M rows).
+        page = pages
+        last_page_size = total - (pages - 1) * per_page
+        messages = conn.execute(
+            """SELECT id, message_id, subject, sender, date, in_reply_to
+            FROM messages
+            WHERE date >= '1990'
+            ORDER BY date ASC, id ASC
+            LIMIT ?""",
+            (last_page_size,),
+        ).fetchall()
+        messages = list(reversed(messages))
+    elif after:
         # Keyset pagination: fetch rows after the cursor position
         parts = after.split("|", 1)
         if len(parts) == 2:
@@ -226,15 +244,15 @@ def get_inbox(
     # Build next_cursor from the last result
     next_cursor = None
     if msg_list and len(msg_list) == per_page:
-        last = msg_list[-1]
-        next_cursor = f"{last['date']}|{last['id']}"
+        last_msg = msg_list[-1]
+        next_cursor = f"{last_msg['date']}|{last_msg['id']}"
 
     result = {
         "inbox": {"name": name, "description": INBOXES_CONFIG.get(name, "")},
         "total": total,
         "page": page,
         "per_page": per_page,
-        "pages": (total + per_page - 1) // per_page,
+        "pages": pages,
         "messages": msg_list,
     }
     if next_cursor:
