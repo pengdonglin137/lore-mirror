@@ -121,20 +121,29 @@ Returns all messages in the thread, sorted by date (oldest first).
 Use `in_reply_to` to reconstruct the tree structure.
 The `root` field is the Message-ID of the thread root.
 
-### Step 5 (optional): Get Raw Email
+### Step 5 (optional): Get Patch Series Metadata / Download
+
+```
+GET /api/series?id={message_id}
+```
+
+Returns JSON with version, patch list, cover letter, and collected review trailers.
+Add `&download=1` to download mboxrd with trailers injected (ready for `git am`).
+
+### Step 6 (optional): Get Raw Email
 
 ```
 GET /api/raw?id={message_id}
 ```
 
-Returns the original RFC 2822 email. Useful for parsing headers or forwarding.
+Returns the original RFC 2822 email as `.eml` file. Add `&download=1` for `.patch` download.
 
 ## Tips
 
-- **Pagination**: All list endpoints support `page` and `per_page` (max 200). Default: page=1, per_page=50.
+- **Pagination**: All list endpoints support `page` and `per_page` (max 200). Default: page=1, per_page=50. Use `last=1` on inbox endpoint for efficient last-page access.
 - **Performance**: Specify `inbox` parameter in search queries — cross-inbox search is slower.
-- **Large inboxes**: lkml has millions of emails. Use `d:` date prefix to narrow results.
-- **Patch series**: Search for `s:"PATCH v3 0/"` to find cover letters, then get the thread.
+- **Large inboxes**: lkml has millions of emails. Use `d:` date prefix to narrow results. Deep pagination is fast in both directions (reverse scan optimization).
+- **Patch series**: Use `/api/series?id=` to get b4-like metadata (version detection, trailer collection). Search for `s:"PATCH v3 0/"` to find cover letters.
 - **Message-ID shortcut**: If you have a Message-ID, paste it directly in the search query (no prefix needed).
 
 ## Error Handling

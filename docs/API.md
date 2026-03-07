@@ -112,6 +112,14 @@ Browse messages in a specific inbox, newest first, with pagination.
 | name | yes (path) | | Inbox name (e.g. `lkml`) |
 | page | no | 1 | Page number (1-based) |
 | per_page | no | 50 | Results per page (1-200) |
+| after | no | | Keyset cursor from previous page's `next_cursor` (overrides page offset) |
+| last | no | 0 | Set to 1 to efficiently fetch the last page (uses reverse index scan, avoids large OFFSET) |
+
+**Pagination modes:**
+- **Offset** (default): `?page=N` — simple but slow for large page numbers
+- **Keyset** (recommended for sequential): `?page=N&after=CURSOR` — uses `next_cursor` from previous response, efficient for any depth
+- **Last page**: `?last=1` — fetches the last page via reverse index scan, instant even on million-row inboxes
+- **Reverse scan optimization**: Pages in the second half are automatically served via reverse index scan, so pages near the end are just as fast as pages near the beginning
 
 **Example:** `GET /api/inboxes/lkml?page=1&per_page=20`
 
@@ -192,11 +200,43 @@ Get full details of a single email. Searches across all inboxes automatically.
 Download the original raw email (RFC 2822 format). Useful for AI parsing or forwarding.
 
 **Parameters:**
-| Name | Required | Description |
-|------|----------|-------------|
-| id | yes (query) | Message-ID |
+| Name | Required | Default | Description |
+|------|----------|---------|-------------|
+| id | yes (query) | | Message-ID |
+| download | no | 0 | Set to 1 to download as `.patch` file (attachment disposition). Default returns `.eml` file. |
 
-**Response:** Raw email bytes with `Content-Type: message/rfc822`
+**Response:** Raw email bytes with `Content-Type: message/rfc822` and a subject-based filename.
+
+---
+
+### GET /api/series?id={message_id}
+
+Get patch series metadata (JSON) or download as mbox with review trailers injected. Implements b4-like intelligence: version detection, cover letter exclusion, and trailer collection from review replies.
+
+**Parameters:**
+| Name | Required | Default | Description |
+|------|----------|---------|-------------|
+| id | yes (query) | | Any Message-ID in the patch thread |
+| download | no | 0 | Set to 1 to download mboxrd file instead of JSON metadata |
+
+**JSON response** (default, `download=0`):
+```json
+{
+  "version": 2,
+  "total": 3,
+  "cover_letter": { "message_id": "...", "subject": "...", "sender": "..." },
+  "patches": [
+    { "number": 1, "message_id": "...", "subject": "...", "trailers": ["Reviewed-by: A <a@b>"] }
+  ],
+  "total_trailers": 5,
+  "download_url": "/api/series?id=...&download=1"
+}
+```
+
+**Download response** (`download=1`): mboxrd file with:
+- Only the latest version patches (e.g. v2 patches if thread contains v1 and v2)
+- Cover letter (0/N) excluded
+- Review trailers (Reviewed-by, Acked-by, etc.) from reply emails injected into each patch before the `---` separator
 
 ---
 
@@ -404,11 +444,23 @@ GET /api/search?q=b%3A%22use+after+free%22+d%3A2026-02-01..2026-03-01&inbox=lkml
 (b:"use after free" d:2026-02-01..2026-03-01)
 ```
 
+### Download a patch series with trailers
+
+```
+1. Find a patch: GET /api/search?q=s%3APATCH+f%3Aauthor&inbox=netdev
+2. Get series metadata: GET /api/series?id={message_id}
+   → JSON with version, patch count, collected review trailers
+3. Download mbox: GET /api/series?id={message_id}&download=1
+   → mboxrd with trailers injected, ready for git am
+```
+
 ### Get raw email for processing
 
 ```
 GET /api/raw?id={message_id}
-→ Returns RFC 2822 raw email, suitable for email parsers or LLM context
+→ Returns RFC 2822 raw email as .eml file with subject-based filename
+GET /api/raw?id={message_id}&download=1
+→ Returns as .patch file (attachment disposition)
 ```
 
 ### Discover which mailing list to search

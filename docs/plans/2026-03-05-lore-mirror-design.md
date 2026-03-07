@@ -31,7 +31,7 @@
 
 ### 模块 3: FastAPI 后端 (Phase 3) ✅
 - `server/app.py`: REST API
-- 端点: /api/inboxes, /api/locate, /api/inboxes/{name}, /api/messages/{id}, /api/raw, /api/threads/{id}, /api/search, /api/stats, /api/sync/status
+- 端点: /api/inboxes, /api/locate, /api/inboxes/{name}, /api/messages/{id}, /api/raw, /api/series, /api/threads/{id}, /api/search, /api/stats, /api/sync/status
 - 搜索: lore 兼容前缀语法 (s: f: b: d: t: c: a: m: bs: tc:)，Message-ID 自动检测
 - 跨 inbox 搜索：遍历所有 inbox 数据库
 - 日期排序：过滤异常日期（Y2K、未来时间戳、non-ISO 格式）
@@ -51,7 +51,9 @@
   - 邮件正文 URL 自动转为可点击链接（XSS 安全）
   - References 头各 Message-ID 可独立点击
   - 地址快捷过滤菜单：点击 From/To/Cc 中的地址弹出菜单，可按 f:/a:/t:/c: 搜索，支持区分原始邮件和回复
-  - 邮件页面 `[lore]` 链接直达 lore.kernel.org 原始页面
+  - 邮件页面 `[patch]` 下载单个 patch、`[series mbox]` 下载整个 patch series（b4-like: 版本检测、cover letter 排除、trailer 注入）
+  - 邮件页面 `[raw]` 下载原始邮件（.eml），`[lore]` 链接直达 lore.kernel.org 原始页面
+  - 增强分页：首页/末页、±10 跳转、页码输入框
   - Inbox 页面 `[search this inbox]` 快捷链接
   - Thread 页面面包屑显示 inbox 名称链接
   - 搜索结果中 inbox 名称可点击
@@ -317,6 +319,8 @@ lore-mirror/
 | 搜索 COUNT 优化 | COUNT 子查询 LIMIT 10001 封顶 + 纯 FTS 跳过 JOIN | 避免大结果集计数超时 |
 | 跨 inbox 搜索 | 已有足够结果时跳过后续 inbox 的 SELECT | f:torvalds 15s → 0.02s |
 | 同步仅更新 epoch | fetch 后只 import 有新 commit 的 epoch | 9.5h → 1.5min |
+| Last page 优化 | `last=1` 参数用 `ORDER BY ASC LIMIT N` + 反转 | lkml 30s 超时 → 0.12s |
+| 深度分页双向扫描 | 靠近末尾的页用 ASC + 小 OFFSET + 反转 | 任意页 < 0.2s |
 
 ---
 
