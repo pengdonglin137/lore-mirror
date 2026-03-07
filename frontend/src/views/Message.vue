@@ -12,6 +12,7 @@ const loading = ref(true)
 const error = ref(null)
 const showAllHeaders = ref(false)
 const rawThreadMessages = ref([])
+const expandedQuotes = ref(new Set())
 
 async function load() {
   loading.value = true
@@ -139,8 +140,6 @@ const bodySegments = computed(() => {
   }
   return segments
 })
-
-const expandedQuotes = ref(new Set())
 
 function toggleQuote(id) {
   if (expandedQuotes.value.has(id)) expandedQuotes.value.delete(id)
