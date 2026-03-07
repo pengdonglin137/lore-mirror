@@ -47,7 +47,7 @@ def _handle_error(e: Exception) -> str:
             return f"Error: Invalid parameters. {e.response.text}"
         return f"Error: API returned status {status}."
     if isinstance(e, httpx.ConnectError):
-        return "Error: Cannot connect to lore-mirror API. Is the server running on port 8000?"
+        return f"Error: Cannot connect to lore-mirror API at {API_BASE}. Is the server running?"
     if isinstance(e, httpx.TimeoutException):
         return "Error: Request timed out. Try a narrower search."
     return f"Error: {type(e).__name__}: {e}"
