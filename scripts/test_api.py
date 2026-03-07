@@ -13,6 +13,7 @@ Usage:
 
 import argparse
 import json
+import re
 import sys
 import time
 import urllib.request
@@ -46,7 +47,8 @@ def request(base_url, method, path, timeout=35):
 
 def test(base_url, name, method, path, *,
          expect_status=200, expect_keys=None, expect_type=None,
-         expect_content_type=None, validate=None, save_as=None, timeout=35):
+         expect_content_type=None, expect_binary=False,
+         validate=None, save_as=None, timeout=35):
     """Run a single test case. Returns parsed data or None."""
     global PASS, FAIL, WARN
 
@@ -76,8 +78,8 @@ def test(base_url, name, method, path, *,
         # Parse JSON if needed
         data = None
         if expect_type or expect_keys or validate or save_as:
-            if expect_content_type and "rfc822" in (expect_content_type or ""):
-                data = body  # raw email
+            if expect_binary or (expect_content_type and "rfc822" in (expect_content_type or "")):
+                data = body  # raw bytes
             else:
                 try:
                     data = json.loads(body)
@@ -302,8 +304,29 @@ def run_tests(base_url):
              f"/api/raw?id={urllib.parse.quote(msg_id, safe='')}",
              expect_content_type="message/rfc822",
              validate=lambda d, b, h: None if len(b) > 100 else "Raw email too short")
+
+        test(base_url, "Raw: .eml filename (inline view)", "GET",
+             f"/api/raw?id={urllib.parse.quote(msg_id, safe='')}",
+             expect_content_type="message/rfc822",
+             validate=lambda d, b, h: (
+                 lambda cd: (
+                     "Missing Content-Disposition header" if not cd
+                     else None if ".eml" in cd
+                     else f"Expected .eml extension in Content-Disposition, got: {cd}"
+                 )
+             )(h.get("content-disposition") or h.get("Content-Disposition", "")))
+
+        test(base_url, "Raw: .patch filename (download=1)", "GET",
+             f"/api/raw?id={urllib.parse.quote(msg_id, safe='')}&download=1",
+             expect_content_type="message/rfc822",
+             validate=lambda d, b, h: (
+                 lambda cd: None if "attachment" in cd and ".patch" in cd
+                     else f"Expected attachment .patch, got: {cd}"
+             )(h.get("content-disposition") or h.get("Content-Disposition", "")))
     else:
         skip("Get raw email", "no message_id")
+        skip("Raw: .eml filename", "no message_id")
+        skip("Raw: .patch filename", "no message_id")
 
     test(base_url, "Raw: nonexistent (404)", "GET",
          "/api/raw?id=nonexistent%40nope.invalid", expect_status=404)
@@ -471,8 +494,88 @@ def run_tests(base_url):
              None if all("torvalds" in m["sender"].lower() for m in d["messages"])
              else f"Result sender doesn't match: {d['messages'][0]['sender']}"))
 
-    # ── 9. GET /api/sync/status ──
-    print("\n── 9. GET /api/sync/status ──")
+    # ── 9. GET /api/inboxes/{name}?last=1 ──
+    print(f"\n── 9. GET /api/inboxes/{{name}}?last=1 (last-page optimization) ──")
+
+    inbox_detail = SAVED.get("inbox_detail", {})
+    total_pages = inbox_detail.get("pages", 0)
+
+    last_page = test(base_url, "Inbox: last=1 returns last page", "GET",
+         f"/api/inboxes/{inbox_name}?last=1",
+         validate=lambda d, b, h: (
+             next((f"Missing key '{k}'" for k in ["page", "pages", "messages"] if k not in d), None)
+             or (None if d["page"] == d["pages"] else f"Expected page==pages, got {d['page']} vs {d['pages']}")
+             or (None if d["messages"] else "Expected non-empty messages on last page")
+         ))
+
+    if last_page and last_page.get("pages", 0) > 1:
+        prev_page = last_page["pages"] - 1
+        test(base_url, f"Inbox: page near end (reverse scan, page {prev_page})", "GET",
+             f"/api/inboxes/{inbox_name}?page={prev_page}",
+             timeout=10,
+             validate=lambda d, b, h: (
+                 None if d["messages"] else "Expected messages on second-to-last page"
+             ))
+    else:
+        skip("Inbox: page near end (reverse scan)", "inbox has only 1 page")
+
+    # ── 10. GET /api/series ──
+    print("\n── 10. GET /api/series ──")
+
+    # Find a patch message_id from search
+    patch_search = test(base_url, "Series: find a patch via search", "GET",
+         f"/api/search?q=s:PATCH&inbox={inbox_name}&per_page=10",
+         validate=lambda d, b, h: v_search(d, b, h))
+
+    patch_msg_id = None
+    if patch_search:
+        for m in patch_search.get("messages", []):
+            subj = m.get("subject", "")
+            if re.search(r'\[PATCH[^\]]*\d+/\d+\]', subj, re.IGNORECASE) and not subj.startswith("Re:"):
+                patch_msg_id = m["message_id"]
+                break
+
+    if patch_msg_id:
+        test(base_url, "Series: JSON metadata mode", "GET",
+             f"/api/series?id={urllib.parse.quote(patch_msg_id, safe='')}",
+             expect_keys=["version", "total", "cover_letter", "patches", "total_trailers", "download_url"],
+             validate=lambda d, b, h: (
+                 (None if isinstance(d["version"], int) and d["version"] >= 1
+                     else f"version should be int >= 1, got {d['version']}")
+                 or (None if isinstance(d["patches"], list)
+                     else "patches should be a list")
+                 or (None if d["total"] == len(d["patches"])
+                     else f"total {d['total']} != len(patches) {len(d['patches'])}")
+                 or (None if all("number" in p and "message_id" in p and "trailers" in p
+                                 for p in d["patches"])
+                     else "patch entry missing required keys")
+                 or (None if d["download_url"].endswith("&download=1")
+                     else "download_url should end with &download=1")
+             ))
+
+        def _check_mbox(d, b, h):
+            ct = h.get("content-type") or h.get("Content-Type", "")
+            cd = h.get("content-disposition") or h.get("Content-Disposition", "")
+            if "mbox" not in ct and "octet" not in ct:
+                return f"Expected mbox content-type, got {ct}"
+            if "attachment" not in cd or ".mbox" not in cd:
+                return f"Expected .mbox attachment, got {cd}"
+            if b"From mboxrd@z" not in b:
+                return "WARN: mbox content missing From mboxrd header"
+            return None
+        test(base_url, "Series: mbox download mode", "GET",
+             f"/api/series?id={urllib.parse.quote(patch_msg_id, safe='')}&download=1",
+             expect_binary=True,
+             validate=_check_mbox)
+    else:
+        skip("Series: JSON metadata", "no patch message_id found")
+        skip("Series: mbox download", "no patch message_id found")
+
+    test(base_url, "Series: nonexistent (404)", "GET",
+         "/api/series?id=nonexistent%40nope.invalid", expect_status=404)
+
+    # ── 11. GET /api/sync/status ──
+    print("\n── 11. GET /api/sync/status ──")
 
     test(base_url, "Sync status", "GET", "/api/sync/status",
          expect_keys=["running"],
