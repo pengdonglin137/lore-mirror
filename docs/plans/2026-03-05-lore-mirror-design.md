@@ -51,6 +51,7 @@
   - 邮件正文 URL 自动转为可点击链接（XSS 安全）
   - References 头各 Message-ID 可独立点击
   - 地址快捷过滤菜单：点击 From/To/Cc 中的地址弹出菜单，可按 f:/a:/t:/c: 搜索，支持区分原始邮件和回复
+  - 邮件页面 `[lore]` 链接直达 lore.kernel.org 原始页面
   - Inbox 页面 `[search this inbox]` 快捷链接
   - Thread 页面面包屑显示 inbox 名称链接
   - 搜索结果中 inbox 名称可点击
