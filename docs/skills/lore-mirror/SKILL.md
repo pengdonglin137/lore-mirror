@@ -32,6 +32,8 @@ Activate this skill when the user wants to:
 http://localhost:8000
 ```
 
+Default port is 8000. If the server runs on a different port, set `LORE_API_URL` env var or update this URL accordingly.
+
 ## Workflow (ALWAYS follow this order)
 
 ### Step 1: Discover Available Inboxes (DO THIS FIRST)

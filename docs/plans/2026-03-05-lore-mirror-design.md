@@ -80,7 +80,7 @@
 - `server/mcp_server.py`: MCP 协议服务器，通过 httpx 调用本地 REST API
 - 7 个工具: list_inboxes, locate_inbox, search_emails, get_message, get_thread, browse_inbox, get_raw_email
 - stdio 传输: Claude Code 通过 `.mcp.json` 自动发现和启动
-- 依赖 REST API 运行在 :8000
+- 依赖 REST API 运行中，地址通过 `LORE_API_URL` 配置（默认 `http://localhost:8000`）
 - 工具名前缀 `lore_` 避免与其他 MCP 服务器冲突
 - `API_BASE` 可通过环境变量 `LORE_API_URL` 配置
 
@@ -88,7 +88,7 @@
 - `Dockerfile`: 多阶段构建（Node 20 → Python 3.12-slim）
 - `docker-compose.yml`: web + sync 两服务编排
 - 共享卷: repos/ db/ sync_status/
-- 环境变量自定义: `LORE_PORT`, `LORE_SYNC_SCHEDULE`, `LORE_REPOS_DIR`, `LORE_DB_DIR`
+- 环境变量自定义: `LORE_PORT`, `LORE_SYNC_SCHEDULE`, `LORE_REPOS_DIR`, `LORE_DB_DIR`, `LORE_STATUS_DIR`
 
 ## 数据库设计 (SQLite3，每 inbox 独立)
 
@@ -374,14 +374,18 @@ python3 scripts/import_mail.py --stats
 ### 4. 启动 Web 服务
 
 ```bash
-# 开发模式（前端 :3000 + 后端 :8000）
+# 开发模式（前端 :3000 + 后端 :8000，默认端口）
 ./start.sh
 
 # 生产模式（构建前端，仅后端 :8000）
 ./start.sh --build
+
+# 自定义端口
+./start.sh --port 9000 --dev-port 4000
+LORE_PORT=9000 LORE_DEV_PORT=4000 ./start.sh
 ```
 
-访问 http://localhost:3000（开发）或 http://localhost:8000（生产）。
+访问 http://localhost:3000（开发）或 http://localhost:8000（生产，默认端口）。
 
 ### 5. 搜索
 
@@ -510,7 +514,7 @@ cp docs/skills/kernel-dev/SKILL.md ~/.claude/skills/kernel-dev/SKILL.md
 
 kernel-dev 的设计文档见 `docs/skills/kernel-dev/DESIGN.md`，后续演进方向在其中记录。
 
-如果 lore-mirror API 基础 URL 不是 `http://localhost:8000`，需要编辑 `lore-mirror/SKILL.md` 中的 Base URL。
+如果 lore-mirror API 基础 URL 不是 `http://localhost:8000`，通过 `LORE_API_URL` 环境变量配置（MCP 工具）或更新 `lore-mirror/SKILL.md` 中的 Base URL（REST 直接调用）。
 
 ### 11. MCP Server 设置（AI 工具直接调用）
 
@@ -535,16 +539,17 @@ MCP Server 让 AI 通过结构化工具直接访问邮件列表，是 Skills 之
 }
 ```
 
-`args` 中必须使用 `mcp_server.py` 的绝对路径。也可在目标项目的 `.mcp.json` 中添加同样配置。
+`args` 中必须使用 `mcp_server.py` 的绝对路径。如果 API 不在默认端口，加 `env` 字段：
+
+```json
+      "env": { "LORE_API_URL": "http://localhost:9000" }
+```
+
+也可在目标项目的 `.mcp.json` 中添加同样配置。
 
 **验证：**
 1. 在 Claude Code 中输入 `/mcp`，确认 `lore-mirror` 状态为 connected
 2. 调用 `lore_list_inboxes` 工具测试
-
-**如果 API 不在 localhost:8000：**
-```bash
-export LORE_API_URL=http://your-host:8000
-```
 
 7 个工具: `lore_list_inboxes`, `lore_locate_inbox`, `lore_search_emails`, `lore_get_message`, `lore_get_thread`, `lore_browse_inbox`, `lore_get_raw_email`
 
