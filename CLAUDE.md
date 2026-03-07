@@ -7,7 +7,7 @@ Local mirror of lore.kernel.org kernel mailing list archives.
 ```
 /vol_8t/lore/
 ├── config.yaml              # Inbox list (~200 inboxes, most commented out) + settings
-├── start.sh                 # Launch script: ./start.sh (dev) or ./start.sh --build (prod)
+├── start.sh                 # Launch script: ./start.sh (dev) or ./start.sh --build (prod); --port/--dev-port flags
 ├── Dockerfile               # Multi-stage build (Node + Python)
 ├── docker-compose.yml       # web + sync services
 ├── repos/                   # Git mirror repos: repos/{inbox}/git/{epoch}.git
@@ -40,7 +40,7 @@ Local mirror of lore.kernel.org kernel mailing list archives.
 ## Key Architecture Decisions
 
 - **Per-inbox databases**: Each inbox has its own `db/{name}.db` file. No shared/central database. The backend iterates over all .db files for cross-inbox operations (search, message lookup).
-- **MCP server**: `server/mcp_server.py` wraps the REST API with 7 tools for AI access. Spawned by Claude Code via `.mcp.json` (stdio transport). Requires REST API running on `:8000`. Tool names prefixed with `lore_` to avoid collisions.
+- **MCP server**: `server/mcp_server.py` wraps the REST API with 7 tools for AI access. Spawned by Claude Code via `.mcp.json` (stdio transport). API URL configured via `LORE_API_URL` env var (default `http://localhost:8000`). Tool names prefixed with `lore_` to avoid collisions.
 - **Sync is CLI-only**: No web-triggered sync (security). Use `scripts/sync.py` via cron. Frontend only shows read-only sync status from `sync_status/` directory (per-inbox files).
 - **Per-inbox locking**: `fcntl.flock` on `sync_status/{inbox}.lock` prevents concurrent writes to the same inbox DB. Different inboxes can sync in parallel.
 - **Graceful shutdown**: SIGTERM/SIGINT sets a flag; import loop finishes current commit, saves progress, then exits.
@@ -49,6 +49,9 @@ Local mirror of lore.kernel.org kernel mailing list archives.
 - **Search prefix syntax**: lore-compatible prefixes (s: f: b: d: t: c: a: m: bs: tc:) parsed in `parse_search_query()` in server/app.py, translated to FTS5 column filters + SQL WHERE clauses.
 - **Date handling**: `fix_date()` in import_mail.py corrects Y2K bugs (01xx→20xx), rejects future/pre-1990 dates, falls back to git committer date. Backend ORDER BY also filters anomalous dates.
 - **Portable paths**: config.yaml uses relative paths by default, resolved via `scripts/config_utils.py`.
+- **Configurable ports**: API port via `LORE_PORT` / `--port`, dev server port via `LORE_DEV_PORT` / `--dev-port`. MCP server uses `LORE_API_URL` (default `http://localhost:8000`). Vite proxy target also reads `LORE_PORT`.
+- **Pagination optimization**: Deep pagination uses reverse index scan when page is in the second half (avoids large OFFSET). `last=1` fetches last page via `ORDER BY ASC LIMIT` + reverse, O(1) regardless of table size.
+- **Patch series endpoint**: `/api/series` returns b4-like JSON metadata (version detection, cover letter, collected trailers) or mboxrd download with trailers injected before `---` separator.
 
 ## Common Commands
 
@@ -70,8 +73,10 @@ python3 scripts/test_api.py
 python3 scripts/test_api.py --url http://remote:8000
 
 # Start web server (bare metal)
-./start.sh              # dev: frontend :3000 + backend :8000
-./start.sh --build      # prod: backend :8000 serves built SPA
+./start.sh                          # dev: frontend :3000 + backend :8000
+./start.sh --build                  # prod: backend :8000 serves built SPA
+./start.sh --port 9000              # custom API port (also: LORE_PORT=9000)
+./start.sh --dev-port 4000          # custom dev server port (also: LORE_DEV_PORT=4000)
 
 # Docker deployment
 docker compose up -d                    # start web + sync
