@@ -114,18 +114,27 @@ def parse_email_bytes(raw: bytes) -> dict:
                 payload = part.get_payload(decode=True)
                 if payload:
                     charset = part.get_content_charset() or "utf-8"
-                    body_text = payload.decode(charset, errors="replace")
+                    try:
+                        body_text = payload.decode(charset, errors="replace")
+                    except (LookupError, UnicodeDecodeError):
+                        body_text = payload.decode("utf-8", errors="replace")
             elif content_type == "text/html" and not body_html:
                 payload = part.get_payload(decode=True)
                 if payload:
                     charset = part.get_content_charset() or "utf-8"
-                    body_html = payload.decode(charset, errors="replace")
+                    try:
+                        body_html = payload.decode(charset, errors="replace")
+                    except (LookupError, UnicodeDecodeError):
+                        body_html = payload.decode("utf-8", errors="replace")
     else:
         content_type = msg.get_content_type()
         payload = msg.get_payload(decode=True)
         if payload:
             charset = msg.get_content_charset() or "utf-8"
-            decoded = payload.decode(charset, errors="replace")
+            try:
+                decoded = payload.decode(charset, errors="replace")
+            except (LookupError, UnicodeDecodeError):
+                decoded = payload.decode("utf-8", errors="replace")
             if content_type == "text/html":
                 body_html = decoded
             else:
