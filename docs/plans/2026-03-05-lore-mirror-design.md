@@ -40,11 +40,26 @@
 - `scripts/test_api.py`: 自动化 API 测试（38 个用例，零外部依赖，支持 `--url` 远程测试）
 
 ### 模块 4: Vue 3 前端 (Phase 4) ✅
-- 5 个页面: Home, Inbox, Message, Thread, Search
-- 功能: locate inbox、search all inboxes（带 inbox 选择器和搜索语法帮助）
-- 导航栏搜索语法帮助按钮（`?`）
-- 邮件分页浏览、线程树视图、diff 高亮
-- 左对齐布局，亮色/暗色主题切换（localStorage 持久化，首次访问跟随系统偏好）
+- 6 个页面: Home, Inbox, Message, Thread, Search, NotFound(404)
+- 4 个组件: ThreadNode, SearchHelp, AddressLink, (App.vue 布局)
+- 功能:
+  - locate inbox、search all inboxes（带 inbox 选择器和搜索语法帮助）
+  - 导航栏搜索输入与 URL 双向同步，搜索帮助按钮（`?`）
+  - 邮件分页浏览、线程树视图
+  - diff 高亮（+/-/@@/diff --git）、引用行着色、内核 trailer 高亮（Signed-off-by 等）
+  - 可折叠引用块（4+ 行连续引用自动折叠，点击展开）
+  - 邮件正文 URL 自动转为可点击链接（XSS 安全）
+  - References 头各 Message-ID 可独立点击
+  - 地址快捷过滤菜单：点击 From/To/Cc 中的地址弹出菜单，可按 f:/a:/t:/c: 搜索，支持区分原始邮件和回复
+  - Inbox 页面 `[search this inbox]` 快捷链接
+  - Thread 页面面包屑显示 inbox 名称链接
+  - 搜索结果中 inbox 名称可点击
+  - 动态页面标题（document.title 随页面变化）
+  - 键盘快捷键：j/k 线程导航、t 查看线程、/ 或 s 聚焦搜索、? 快捷键帮助
+  - 导航时自动滚动到顶部
+- 左对齐 monospace 布局，亮色/暗色主题切换（localStorage 持久化，首次跟随系统偏好）
+- 响应式导航栏（flex-wrap 适配窄屏）
+- 共享工具函数: `utils.js`（formatDate、shortenSender、linkifyLine）
 
 ### 模块 5: 同步与维护 (Phase 5) ✅
 - `scripts/sync.py`: git fetch + 增量导入（仅通过 CLI/cron 触发）
@@ -217,10 +232,11 @@ lore-mirror/
 │   ├── app.py                  # FastAPI 后端（搜索前缀解析 + SPA 服务）
 │   └── mcp_server.py           # MCP 协议服务器（包装 REST API，stdio 传输）
 ├── frontend/
-│   ├── src/views/              # Vue 页面：Home, Inbox, Message, Thread, Search
-│   ├── src/components/         # 可复用组件：ThreadNode
+│   ├── src/views/              # Vue 页面：Home, Inbox, Message, Thread, Search, NotFound
+│   ├── src/components/         # 可复用组件：ThreadNode, SearchHelp, AddressLink
+│   ├── src/utils.js            # 共享工具函数（formatDate, shortenSender, linkifyLine）
 │   ├── src/api.js              # API 客户端
-│   ├── src/router.js           # 路由配置
+│   ├── src/router.js           # 路由配置（含 404 catch-all + scrollBehavior）
 │   └── dist/                   # 生产构建产物
 ├── docs/
 │   ├── API.md                  # REST API + MCP 文档

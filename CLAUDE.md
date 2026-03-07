@@ -23,10 +23,11 @@ Local mirror of lore.kernel.org kernel mailing list archives.
 │   ├── app.py               # FastAPI backend (auto-discovers inbox DBs in db/)
 │   └── mcp_server.py        # MCP server (wraps REST API via httpx, stdio transport)
 └── frontend/                # Vue 3 + Vite SPA
-    ├── src/views/           # Home, Inbox, Message, Thread, Search
-    ├── src/components/      # ThreadNode (recursive)
+    ├── src/views/           # Home, Inbox, Message, Thread, Search, NotFound
+    ├── src/components/      # ThreadNode, SearchHelp, AddressLink
+    ├── src/utils.js         # Shared helpers (formatDate, shortenSender, linkifyLine)
     ├── src/api.js           # API client
-    └── src/router.js        # Vue Router config
+    └── src/router.js        # Vue Router config (404 catch-all, scrollBehavior)
 ```
 
 ## Tech Stack
