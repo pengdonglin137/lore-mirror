@@ -2,7 +2,7 @@
 """
 MCP server for lore-mirror — exposes kernel mailing list search tools.
 
-Wraps the local REST API (FastAPI on :8000) via httpx.
+Wraps the local REST API via httpx. API URL configured via LORE_API_URL env var (default: http://localhost:8000).
 Spawned by Claude Code via .mcp.json using stdio transport.
 """
 
