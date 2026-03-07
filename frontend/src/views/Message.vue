@@ -102,6 +102,8 @@ function formatBody(text) {
   return text
 }
 
+const trailerRe = /^(Signed-off-by|Reviewed-by|Acked-by|Tested-by|Reported-by|Suggested-by|Co-developed-by|Fixes|Cc|Link|Closes):/
+
 function lineClass(line) {
   if (line.startsWith('diff --git')) return 'diff-header'
   if (line.startsWith('@@')) return 'diff-hunk'
@@ -110,6 +112,7 @@ function lineClass(line) {
   if (line.startsWith('-')) return 'diff-del'
   if (line.startsWith('> >') || line.startsWith('>> ') || line.startsWith('>>>')) return 'quote-deep'
   if (line.startsWith('>')) return 'quote'
+  if (trailerRe.test(line)) return 'trailer'
   return ''
 }
 
@@ -194,6 +197,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 .diff-file { color: #656d76; font-weight: bold; }
 .quote { color: #57606a; border-left: 2px solid #d0d7de; padding-left: 6px; display: inline-block; }
 .quote-deep { color: #8b949e; border-left: 2px solid #d0d7de; padding-left: 6px; display: inline-block; }
+.trailer { color: #57606a; }
 
 </style>
 
@@ -223,4 +227,5 @@ html.dark .diff-header { color: #79c0ff; }
 html.dark .diff-file { color: #8b949e; }
 html.dark .quote { color: #8b949e; border-left-color: #484f58; }
 html.dark .quote-deep { color: #6e7681; border-left-color: #484f58; }
+html.dark .trailer { color: #8b949e; }
 </style>

@@ -129,6 +129,7 @@ header nav {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
 .logo-link {
@@ -144,6 +145,9 @@ header nav {
   padding: 2px 6px;
   border: 1px solid #999;
   width: 200px;
+  min-width: 120px;
+  flex: 1;
+  max-width: 400px;
 }
 
 .nav-btn {
