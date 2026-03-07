@@ -300,7 +300,7 @@ def get_message_raw(id: str = Query(..., alias="id"), download: int = Query(0)):
             if download:
                 ext, disposition = ".patch", "attachment"
             else:
-                ext, disposition = ".eml", "inline"
+                ext, disposition = ".eml", "attachment"
             headers = {
                 "Content-Type": "message/rfc822",
                 "Content-Disposition": f'{disposition}; filename="{safe}{ext}"',
