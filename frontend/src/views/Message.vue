@@ -172,6 +172,18 @@ const hasDiff = computed(() => {
   return bodyLines.value.some(l => l.startsWith('diff --git') || l.startsWith('---') || l.startsWith('@@'))
 })
 
+const isPatch = computed(() => {
+  if (!msg.value?.subject) return false
+  const subj = msg.value.subject
+  return /\[PATCH/i.test(subj) && !/^\s*Re:/i.test(subj) && hasDiff.value
+})
+
+const seriesTotal = computed(() => {
+  if (!msg.value?.subject) return 0
+  const m = msg.value.subject.match(/\[PATCH(?:\s+\S+)*\s+\d+\/(\d+)\]/i)
+  return m ? parseInt(m[1], 10) : 0
+})
+
 function onKeydown(e) {
   if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return
   if (e.key === 'j' || e.key === 'J') {
@@ -196,7 +208,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
 <template v-for="h in headerLines" :key="h.key"><b>{{ h.key }}:</b> <template v-if="h.key === 'In-Reply-To' && h.value"><router-link :to="`/message/${encodeURIComponent(h.value.replace(/[<>]/g, ''))}`">{{ h.value }}</router-link></template><template v-else-if="h.ids && h.ids.length"><template v-for="(id, idx) in h.ids" :key="id"><template v-if="idx"> </template>&lt;<router-link :to="`/message/${encodeURIComponent(id)}`">{{ id }}</router-link>&gt;</template></template><template v-else-if="h.addrs && h.addrs.length"><template v-for="(addr, idx) in h.addrs" :key="idx"><template v-if="idx">, </template><AddressLink :address="addr" context="header" /></template></template><template v-else>{{ h.value }}</template>
 </template>
-<a href="#" @click.prevent="showAllHeaders = !showAllHeaders">[{{ showAllHeaders ? 'hide' : 'show all' }} headers]</a>  <router-link :to="`/thread/${encodeURIComponent(msg.message_id)}`">[view thread]</router-link>  <a :href="`/api/raw?id=${encodeURIComponent(msg.message_id)}`">[raw]</a>  <a :href="`https://lore.kernel.org/${msg.inbox_name}/${msg.message_id}/`" target="_blank" rel="noopener">[lore]</a><template v-if="prevMessage || nextMessage">  <router-link v-if="prevMessage" :to="`/message/${encodeURIComponent(prevMessage.message_id)}`" :title="prevMessage.subject">[&larr; prev]</router-link><template v-if="prevMessage && nextMessage">  </template><router-link v-if="nextMessage" :to="`/message/${encodeURIComponent(nextMessage.message_id)}`" :title="nextMessage.subject">[next &rarr;]</router-link></template></pre>
+<a href="#" @click.prevent="showAllHeaders = !showAllHeaders">[{{ showAllHeaders ? 'hide' : 'show all' }} headers]</a>  <router-link :to="`/thread/${encodeURIComponent(msg.message_id)}`">[view thread]</router-link>  <a :href="`/api/raw?id=${encodeURIComponent(msg.message_id)}`">[raw]</a>  <a :href="`https://lore.kernel.org/${msg.inbox_name}/${msg.message_id}/`" target="_blank" rel="noopener">[lore]</a><template v-if="isPatch">  <a :href="`/api/raw?id=${encodeURIComponent(msg.message_id)}&download=1`">[patch]</a><template v-if="seriesTotal > 1">  <a :href="`/api/series?id=${encodeURIComponent(msg.message_id)}&download=1`">[series mbox]</a></template></template><template v-if="prevMessage || nextMessage">  <router-link v-if="prevMessage" :to="`/message/${encodeURIComponent(prevMessage.message_id)}`" :title="prevMessage.subject">[&larr; prev]</router-link><template v-if="prevMessage && nextMessage">  </template><router-link v-if="nextMessage" :to="`/message/${encodeURIComponent(nextMessage.message_id)}`" :title="nextMessage.subject">[next &rarr;]</router-link></template></pre>
 
       <pre class="msg-body"><template v-for="seg in bodySegments" :key="seg.id"><template v-if="seg.type === 'line'"><span :class="lineClass(seg.line)" v-html="linkifyLine(seg.line)"></span>
 </template><template v-else-if="seg.lines.length < 4 || expandedQuotes.has(seg.id)"><template v-for="(line, j) in seg.lines" :key="seg.id + '-' + j"><span :class="lineClass(line)" v-html="linkifyLine(line)"></span>

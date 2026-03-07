@@ -9,6 +9,7 @@ Usage:
 """
 
 import json
+import re
 import sqlite3
 import time
 from pathlib import Path
@@ -281,8 +282,8 @@ def get_message(message_id: str):
 
 
 @app.get("/api/raw")
-def get_message_raw(id: str = Query(..., alias="id")):
-    """Get raw email content. Searches all inbox databases."""
+def get_message_raw(id: str = Query(..., alias="id"), download: int = Query(0)):
+    """Get raw email content. With download=1, returns as .patch attachment."""
     for name in get_available_inboxes():
         try:
             conn = get_db(name)
@@ -290,22 +291,32 @@ def get_message_raw(id: str = Query(..., alias="id")):
             continue
 
         row = conn.execute(
-            "SELECT raw_email FROM messages WHERE message_id=?", (id,)
+            "SELECT raw_email, subject FROM messages WHERE message_id=?", (id,)
         ).fetchone()
         conn.close()
 
         if row and row["raw_email"]:
-            return Response(content=row["raw_email"], media_type="message/rfc822")
+            headers = {"Content-Type": "message/rfc822"}
+            if download:
+                safe = _sanitize_filename(row["subject"] or "patch")
+                headers["Content-Disposition"] = f'attachment; filename="{safe}.patch"'
+            return Response(content=row["raw_email"], headers=headers)
 
     raise HTTPException(404, "Message not found")
 
 
-# ── Threads ──────────────────────────────────────────
+def _sanitize_filename(subject: str) -> str:
+    """Turn an email subject into a safe filename."""
+    # Remove [PATCH ...] prefix for cleaner filenames
+    name = re.sub(r'^\[.*?\]\s*', '', subject)
+    # Replace unsafe chars
+    name = re.sub(r'[^\w\s\-.]', '', name).strip()
+    name = re.sub(r'\s+', '-', name)
+    return name[:80] or "patch"
 
-@app.get("/api/threads/{message_id:path}")
-def get_thread(message_id: str):
-    """Get the full thread for a message."""
-    # Find which inbox has this message
+
+def _find_thread_messages(message_id: str):
+    """Find all message_ids in a thread. Returns (conn, inbox_name, thread_ids) or raises 404."""
     target_conn = None
     target_inbox = None
 
@@ -314,12 +325,9 @@ def get_thread(message_id: str):
             conn = get_db(name)
         except HTTPException:
             continue
-
         row = conn.execute(
-            "SELECT message_id FROM messages WHERE message_id=?",
-            (message_id,),
+            "SELECT message_id FROM messages WHERE message_id=?", (message_id,),
         ).fetchone()
-
         if row:
             target_conn = conn
             target_inbox = name
@@ -331,13 +339,11 @@ def get_thread(message_id: str):
 
     conn = target_conn
 
-    # Find the starting message
+    # Walk up to root
     start = conn.execute(
-        "SELECT id, message_id, in_reply_to FROM messages WHERE message_id=?",
+        "SELECT message_id, in_reply_to FROM messages WHERE message_id=?",
         (message_id,),
     ).fetchone()
-
-    # Walk up to find the root
     root_msg_id = start["message_id"]
     visited = {root_msg_id}
     current_reply_to = start["in_reply_to"]
@@ -355,27 +361,299 @@ def get_thread(message_id: str):
             root_msg_id = current_reply_to
             break
 
-    # BFS to find all thread messages
+    # BFS to collect all thread message_ids
     thread_ids = set()
     queue = [root_msg_id]
-
     while queue:
         current = queue.pop(0)
         if current in thread_ids:
             continue
         thread_ids.add(current)
-
         replies = conn.execute(
-            "SELECT message_id FROM messages WHERE in_reply_to=?",
-            (current,),
+            "SELECT message_id FROM messages WHERE in_reply_to=?", (current,),
         ).fetchall()
         for r in replies:
             if r["message_id"] not in thread_ids:
                 queue.append(r["message_id"])
 
+    return conn, target_inbox, thread_ids
+
+
+_PATCH_NUM_RE = re.compile(r'\[PATCH(?:\s+\S+)*\s+(\d+)/(\d+)\]', re.IGNORECASE)
+
+# Version-aware patch subject regex: [PATCH v2 3/5], [PATCH net-next v3 0/2], [PATCH 1/1]
+# Version (vN) can appear anywhere between PATCH and N/M
+_PATCH_VERSION_RE = re.compile(
+    r'\[PATCH\b([^\]]*?)\s+(\d+)/(\d+)\]', re.IGNORECASE
+)
+_VERSION_NUM_RE = re.compile(r'\bv(\d+)\b', re.IGNORECASE)
+
+_TRAILER_RE = re.compile(
+    r'^(Reviewed-by|Acked-by|Tested-by|Reported-by|Suggested-by|Co-developed-by):\s+.+$',
+    re.MULTILINE,
+)
+
+# Trailers that already exist in patch emails (for dedup and insertion point)
+_EXISTING_TRAILER_RE = re.compile(
+    r'^(Signed-off-by|Reviewed-by|Acked-by|Tested-by|Reported-by|Suggested-by|Co-developed-by|Cc|Link|Closes|Fixes):\s+.+$',
+    re.MULTILINE,
+)
+
+
+def _parse_patch_subject(subject: str) -> tuple[int, int, int] | None:
+    """Parse [PATCH vN M/T] from subject. Returns (version, number, total) or None."""
+    if not subject:
+        return None
+    m = _PATCH_VERSION_RE.search(subject)
+    if not m:
+        return None
+    tags = m.group(1)  # everything between PATCH and N/M
+    number = int(m.group(2))
+    total = int(m.group(3))
+    # Extract version from tags (e.g. "net-next v3" → 3)
+    vm = _VERSION_NUM_RE.search(tags) if tags else None
+    version = int(vm.group(1)) if vm else 1
+    return (version, number, total)
+
+
+def _extract_trailers(body_text: str) -> list[str]:
+    """Extract review trailers (Reviewed-by, Acked-by, etc.) from email body."""
+    if not body_text:
+        return []
+    return [m.group(0) for m in _TRAILER_RE.finditer(body_text)]
+
+
+def _find_patch_ancestor(message_id: str, msg_map: dict) -> str | None:
+    """Walk in_reply_to chain to find which patch a reply is about."""
+    visited = set()
+    current = message_id
+    while current and current not in visited:
+        visited.add(current)
+        msg = msg_map.get(current)
+        if not msg:
+            return None
+        parent_id = msg.get("in_reply_to")
+        if not parent_id:
+            return None
+        parent = msg_map.get(parent_id)
+        if not parent:
+            return None
+        # If parent is a patch (not a reply), return it
+        parent_subj = parent.get("subject") or ""
+        if "[PATCH" in parent_subj.upper() and not re.match(r'^\s*Re:', parent_subj, re.IGNORECASE):
+            return parent_id
+        current = parent_id
+    return None
+
+
+def _inject_trailers(raw_email: str, trailers: list[str]) -> str:
+    """Insert trailer lines before the --- separator in raw email.
+
+    Finds the commit message's --- separator and inserts new trailers
+    after any existing trailers (Signed-off-by, etc.) but before ---.
+    """
+    if not trailers:
+        return raw_email
+
+    # Find the \n---\n separator (diffstat marker)
+    separator_idx = raw_email.find("\n---\n")
+    if separator_idx == -1:
+        return raw_email
+
+    # Look backwards from --- to find the last existing trailer line
+    before_sep = raw_email[:separator_idx]
+    lines = before_sep.split("\n")
+
+    # Find the last trailer line index
+    last_trailer_idx = -1
+    for i in range(len(lines) - 1, -1, -1):
+        if _EXISTING_TRAILER_RE.match(lines[i]):
+            last_trailer_idx = i
+            break
+
+    trailer_block = "\n".join(trailers)
+
+    if last_trailer_idx >= 0:
+        # Insert after the last existing trailer
+        insert_point = "\n".join(lines[:last_trailer_idx + 1])
+        rest = "\n".join(lines[last_trailer_idx + 1:])
+        return insert_point + "\n" + trailer_block + "\n" + rest + raw_email[separator_idx:]
+    else:
+        # No existing trailers found, insert just before ---
+        return before_sep + "\n" + trailer_block + raw_email[separator_idx:]
+
+
+def _raw_to_str(raw) -> str:
+    """Convert raw_email (bytes/memoryview/str) to str."""
+    if isinstance(raw, memoryview):
+        raw = bytes(raw)
+    if isinstance(raw, bytes):
+        raw = raw.decode("utf-8", errors="replace")
+    return raw
+
+
+def _build_mboxrd(patches: list[tuple[int, dict]], trailers_by_mid: dict[str, list[str]] | None = None) -> str:
+    """Build mboxrd content from sorted patch list, optionally injecting trailers."""
+    parts = []
+    for _, row in patches:
+        raw = _raw_to_str(row["raw_email"])
+        # Inject trailers if available
+        if trailers_by_mid:
+            mid = row["message_id"]
+            t = trailers_by_mid.get(mid, [])
+            if t:
+                raw = _inject_trailers(raw, t)
+        # Escape From_ lines in body (mboxrd convention)
+        escaped_lines = []
+        for line in raw.split("\n"):
+            if line.startswith("From "):
+                escaped_lines.append(">" + line)
+            else:
+                escaped_lines.append(line)
+        parts.append("From mboxrd@z Thu Jan  1 00:00:00 1970\n" + "\n".join(escaped_lines) + "\n")
+    return "\n".join(parts)
+
+
+@app.get("/api/series")
+def get_series(id: str = Query(..., alias="id"), download: int = Query(0)):
+    """Get patch series metadata (JSON) or download as mbox with trailers injected.
+
+    Without download=1: returns JSON with version, patches, cover letter, trailers.
+    With download=1: returns mboxrd file with review trailers injected into patches.
+    """
+    conn, inbox_name, thread_ids = _find_thread_messages(id)
+
     if not thread_ids:
         conn.close()
-        return {"root": root_msg_id, "total": 0, "inbox": target_inbox, "messages": []}
+        raise HTTPException(404, "No thread messages found")
+
+    # Fetch all thread messages with body and raw_email
+    placeholders = ",".join("?" for _ in thread_ids)
+    rows = conn.execute(
+        f"""SELECT message_id, subject, sender, date, in_reply_to, body_text, raw_email
+        FROM messages WHERE message_id IN ({placeholders})""",
+        list(thread_ids),
+    ).fetchall()
+    conn.close()
+
+    # Build message map for reply-chain walking
+    msg_map = {}
+    for row in rows:
+        msg_map[row["message_id"]] = dict(row)
+
+    # Classify messages
+    patches = []       # (version, number, total, row_dict)
+    covers = []        # cover letters (0/N)
+    replies = []       # Re: messages (potential trailer sources)
+
+    for row in rows:
+        subj = row["subject"] or ""
+        row_dict = dict(row)
+
+        if re.match(r'^\s*Re:', subj, re.IGNORECASE):
+            replies.append(row_dict)
+            continue
+
+        parsed = _parse_patch_subject(subj)
+        if parsed:
+            version, number, total = parsed
+            if number == 0:
+                covers.append(row_dict)
+            else:
+                patches.append((version, number, total, row_dict))
+            continue
+
+        # Check for [PATCH] without N/M (single patch)
+        if "[PATCH" in subj.upper() and row["raw_email"]:
+            # Try to extract version
+            vm = re.search(r'\[PATCH\s+v(\d+)', subj, re.IGNORECASE)
+            version = int(vm.group(1)) if vm else 1
+            patches.append((version, 1, 1, row_dict))
+
+    if not patches:
+        raise HTTPException(404, "No patches found in thread")
+
+    # Select latest version only
+    max_version = max(p[0] for p in patches)
+    patches = [(v, n, t, r) for v, n, t, r in patches if v == max_version]
+    covers = [c for c in covers if _parse_patch_subject(c.get("subject", ""))
+              and _parse_patch_subject(c["subject"])[0] == max_version]
+
+    # Sort patches by number
+    patches.sort(key=lambda x: x[1])
+
+    # Collect trailers from replies
+    trailers_by_mid: dict[str, list[str]] = {}
+    for reply in replies:
+        body = reply.get("body_text") or ""
+        found = _extract_trailers(body)
+        if not found:
+            continue
+        # Find which patch this reply is about
+        target = _find_patch_ancestor(reply["message_id"], msg_map)
+        if not target:
+            continue
+        if target not in trailers_by_mid:
+            trailers_by_mid[target] = []
+        for t in found:
+            if t not in trailers_by_mid[target]:
+                trailers_by_mid[target].append(t)
+
+    if download:
+        # Build mboxrd with trailers injected (exclude cover letters)
+        mbox_patches = [(n, r) for _, n, _, r in patches if r.get("raw_email")]
+        mbox_content = _build_mboxrd(mbox_patches, trailers_by_mid)
+
+        series_subject = patches[0][3].get("subject") or "series"
+        safe = _sanitize_filename(series_subject)
+        return Response(
+            content=mbox_content.encode("utf-8"),
+            media_type="application/mbox",
+            headers={"Content-Disposition": f'attachment; filename="{safe}.mbox"'},
+        )
+
+    # JSON metadata mode
+    cover_info = None
+    if covers:
+        c = covers[0]
+        cover_info = {
+            "message_id": c["message_id"],
+            "subject": c["subject"],
+            "sender": c["sender"],
+        }
+
+    patches_info = []
+    for _, number, _, row_dict in patches:
+        mid = row_dict["message_id"]
+        patches_info.append({
+            "number": number,
+            "message_id": mid,
+            "subject": row_dict["subject"],
+            "trailers": trailers_by_mid.get(mid, []),
+        })
+
+    total_trailers = sum(len(t) for t in trailers_by_mid.values())
+
+    return {
+        "version": max_version,
+        "total": len(patches),
+        "cover_letter": cover_info,
+        "patches": patches_info,
+        "total_trailers": total_trailers,
+        "download_url": f"/api/series?id={id}&download=1",
+    }
+
+
+# ── Threads ──────────────────────────────────────────
+
+@app.get("/api/threads/{message_id:path}")
+def get_thread(message_id: str):
+    """Get the full thread for a message."""
+    conn, target_inbox, thread_ids = _find_thread_messages(message_id)
+
+    if not thread_ids:
+        conn.close()
+        return {"root": message_id, "total": 0, "inbox": target_inbox, "messages": []}
 
     placeholders = ",".join("?" for _ in thread_ids)
     messages = conn.execute(
@@ -385,6 +663,13 @@ def get_thread(message_id: str):
         ORDER BY date ASC""",
         list(thread_ids),
     ).fetchall()
+
+    # Determine root (message with no in_reply_to in the set, or earliest)
+    root_msg_id = message_id
+    for m in messages:
+        if not m["in_reply_to"] or m["in_reply_to"] not in thread_ids:
+            root_msg_id = m["message_id"]
+            break
 
     conn.close()
     return {
@@ -396,8 +681,6 @@ def get_thread(message_id: str):
 
 
 # ── Search ───────────────────────────────────────────
-
-import re
 
 
 def parse_search_query(raw_query: str) -> tuple[str, list[str], list]:
