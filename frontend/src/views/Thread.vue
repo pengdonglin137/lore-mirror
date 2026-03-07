@@ -13,6 +13,8 @@ async function load() {
   error.value = null
   try {
     data.value = await getThread(props.id)
+    const root = data.value?.messages?.[0]
+    document.title = `${root?.subject || 'thread'} — lore-mirror`
   } catch (e) {
     error.value = e.message
   } finally {

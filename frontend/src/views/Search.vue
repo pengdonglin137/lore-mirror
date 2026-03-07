@@ -33,6 +33,7 @@ async function doSearch() {
       inbox: route.query.inbox,
       page,
     })
+    document.title = `search: ${q} — lore-mirror`
   } catch (e) {
     error.value = e.message
   } finally {

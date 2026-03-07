@@ -46,6 +46,7 @@ onMounted(() => applyTheme())
           v-model="query"
           type="text"
           class="nav-input"
+          placeholder="s:PATCH f:torvalds ..."
           @keyup.enter="doSearchAll"
         />
         <button class="nav-btn" @click="doLocate">locate inbox</button>

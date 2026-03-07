@@ -1,3 +1,7 @@
+<script setup>
+document.title = '404 — lore-mirror'
+</script>
+
 <template>
   <pre>
 404 — page not found

@@ -21,6 +21,7 @@ async function load() {
     const after = route.query.after || null
     data.value = await getInbox(props.name, { page: p, after })
     page.value = p
+    document.title = `${props.name} — lore-mirror`
   } catch (e) {
     error.value = e.message
   } finally {

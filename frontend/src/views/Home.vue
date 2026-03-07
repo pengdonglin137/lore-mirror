@@ -11,6 +11,7 @@ const syncStatus = ref(null)
 let pollTimer = null
 
 onMounted(async () => {
+  document.title = 'lore-mirror'
   try {
     const [inboxData, statsData, syncData] = await Promise.all([
       getInboxes(), getStats(), getSyncStatus(),

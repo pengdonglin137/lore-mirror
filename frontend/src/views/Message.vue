@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
 import { getMessage, getThread } from '../api.js'
+import { linkifyLine } from '../utils.js'
 
 const props = defineProps(['id'])
 const msg = ref(null)
@@ -20,6 +21,7 @@ async function load() {
     ])
     if (msgResult.status === 'rejected') throw new Error(msgResult.reason?.message || 'Failed to load message')
     msg.value = msgResult.value
+    document.title = `${msg.value.subject || 'message'} — lore-mirror`
     if (threadResult.status === 'fulfilled' && threadResult.value?.messages?.length > 1) {
       rawThreadMessages.value = threadResult.value.messages
     }
@@ -123,7 +125,7 @@ const hasDiff = computed(() => {
 </template>
 <a href="#" @click.prevent="showAllHeaders = !showAllHeaders">[{{ showAllHeaders ? 'hide' : 'show all' }} headers]</a>  <router-link :to="`/thread/${encodeURIComponent(msg.message_id)}`">[view thread]</router-link>  <a :href="`/api/raw?id=${encodeURIComponent(msg.message_id)}`">[raw]</a><template v-if="prevMessage || nextMessage">  <router-link v-if="prevMessage" :to="`/message/${encodeURIComponent(prevMessage.message_id)}`" :title="prevMessage.subject">[&larr; prev]</router-link><template v-if="prevMessage && nextMessage">  </template><router-link v-if="nextMessage" :to="`/message/${encodeURIComponent(nextMessage.message_id)}`" :title="nextMessage.subject">[next &rarr;]</router-link></template></pre>
 
-      <pre class="msg-body"><template v-for="(line, i) in bodyLines" :key="i"><span :class="lineClass(line)">{{ line }}</span>
+      <pre class="msg-body"><template v-for="(line, i) in bodyLines" :key="i"><span :class="lineClass(line)" v-html="linkifyLine(line)"></span>
 </template></pre>
 
       <template v-if="msg.attachments && msg.attachments.length">
