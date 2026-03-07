@@ -1,7 +1,10 @@
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { getMessage, getThread } from '../api.js'
+import { useRouter } from 'vue-router'
 import { linkifyLine } from '../utils.js'
+
+const router = useRouter()
 
 const props = defineProps(['id'])
 const msg = ref(null)
@@ -78,13 +81,19 @@ watch(() => props.id, load, { immediate: true })
 
 const importantHeaders = ['From', 'To', 'Cc', 'Date', 'Subject', 'Message-ID', 'In-Reply-To', 'References']
 
+function parseMessageIds(raw) {
+  if (!raw) return []
+  return [...raw.matchAll(/<([^>]+)>/g)].map(m => m[1])
+}
+
 const headerLines = computed(() => {
   if (!msg.value?.headers) return []
   const h = msg.value.headers
   const keys = showAllHeaders.value ? Object.keys(h) : importantHeaders.filter(k => h[k])
   return keys.map(k => {
     const val = Array.isArray(h[k]) ? h[k].join(', ') : h[k]
-    return { key: k, value: val }
+    const ids = k === 'References' ? parseMessageIds(val) : null
+    return { key: k, value: val, ids }
   })
 })
 
@@ -112,6 +121,20 @@ const bodyLines = computed(() => {
 const hasDiff = computed(() => {
   return bodyLines.value.some(l => l.startsWith('diff --git') || l.startsWith('---') || l.startsWith('@@'))
 })
+
+function onKeydown(e) {
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return
+  if (e.key === 'j' || e.key === 'J') {
+    if (nextMessage.value) router.push(`/message/${encodeURIComponent(nextMessage.value.message_id)}`)
+  } else if (e.key === 'k' || e.key === 'K') {
+    if (prevMessage.value) router.push(`/message/${encodeURIComponent(prevMessage.value.message_id)}`)
+  } else if (e.key === 't') {
+    if (msg.value) router.push(`/thread/${encodeURIComponent(msg.value.message_id)}`)
+  }
+}
+
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
@@ -121,7 +144,7 @@ const hasDiff = computed(() => {
     <template v-else-if="msg">
       <pre class="msg-header"><router-link to="/">lore-mirror</router-link> / <router-link :to="`/inbox/${msg.inbox_name}`">{{ msg.inbox_name }}</router-link>
 
-<template v-for="h in headerLines" :key="h.key"><b>{{ h.key }}:</b> <template v-if="h.key === 'In-Reply-To' && h.value"><router-link :to="`/message/${encodeURIComponent(h.value.replace(/[<>]/g, ''))}`">{{ h.value }}</router-link></template><template v-else>{{ h.value }}</template>
+<template v-for="h in headerLines" :key="h.key"><b>{{ h.key }}:</b> <template v-if="h.key === 'In-Reply-To' && h.value"><router-link :to="`/message/${encodeURIComponent(h.value.replace(/[<>]/g, ''))}`">{{ h.value }}</router-link></template><template v-else-if="h.ids && h.ids.length"><template v-for="(id, idx) in h.ids" :key="id"><template v-if="idx"> </template>&lt;<router-link :to="`/message/${encodeURIComponent(id)}`">{{ id }}</router-link>&gt;</template></template><template v-else>{{ h.value }}</template>
 </template>
 <a href="#" @click.prevent="showAllHeaders = !showAllHeaders">[{{ showAllHeaders ? 'hide' : 'show all' }} headers]</a>  <router-link :to="`/thread/${encodeURIComponent(msg.message_id)}`">[view thread]</router-link>  <a :href="`/api/raw?id=${encodeURIComponent(msg.message_id)}`">[raw]</a><template v-if="prevMessage || nextMessage">  <router-link v-if="prevMessage" :to="`/message/${encodeURIComponent(prevMessage.message_id)}`" :title="prevMessage.subject">[&larr; prev]</router-link><template v-if="prevMessage && nextMessage">  </template><router-link v-if="nextMessage" :to="`/message/${encodeURIComponent(nextMessage.message_id)}`" :title="nextMessage.subject">[next &rarr;]</router-link></template></pre>
 

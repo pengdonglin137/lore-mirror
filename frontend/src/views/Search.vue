@@ -86,7 +86,7 @@ function onInboxChange() {
 
       <div v-for="msg in data.messages" :key="msg.id" class="search-result">
         <pre><router-link :to="`/message/${encodeURIComponent(msg.message_id)}`">{{ msg.subject }}</router-link>
-{{ formatDate(msg.date) }}  {{ shortenSender(msg.sender) }}  [{{ msg.inbox_name }}]
+{{ formatDate(msg.date) }}  {{ shortenSender(msg.sender) }}  [<router-link :to="`/inbox/${msg.inbox_name}`">{{ msg.inbox_name }}</router-link>]
 <span v-if="msg.snippet" v-html="msg.snippet" class="snippet"></span>
 </pre>
       </div>

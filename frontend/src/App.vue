@@ -1,11 +1,12 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import SearchHelp from './components/SearchHelp.vue'
 
 const router = useRouter()
 const query = ref('')
 const showHelp = ref(false)
+const showKeys = ref(false)
 
 function doLocate() {
   router.push({ path: '/', query: query.value.trim() ? { locate: query.value.trim() } : {} })
@@ -34,7 +35,22 @@ watch(isDark, () => {
   applyTheme()
 })
 
-onMounted(() => applyTheme())
+function onGlobalKey(e) {
+  if (e.key === 'Escape') {
+    showKeys.value = false
+    document.activeElement?.blur()
+    return
+  }
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return
+  if (e.key === '?') showKeys.value = !showKeys.value
+  else if (e.key === '/' || e.key === 's') {
+    e.preventDefault()
+    document.querySelector('.nav-input')?.focus()
+  }
+}
+
+onMounted(() => { applyTheme(); window.addEventListener('keydown', onGlobalKey) })
+onUnmounted(() => window.removeEventListener('keydown', onGlobalKey))
 </script>
 
 <template>
@@ -59,6 +75,19 @@ onMounted(() => applyTheme())
     <main>
       <router-view />
     </main>
+    <div v-if="showKeys" class="keys-overlay" @click="showKeys = false">
+      <pre class="keys-box" @click.stop>Keyboard shortcuts
+
+  ?           toggle this help
+  /  s        focus search input
+  Esc         blur search input
+
+Message view:
+  j           next message in thread
+  k           previous message in thread
+  t           view thread
+</pre>
+    </div>
   </div>
 </template>
 
@@ -195,4 +224,15 @@ html.dark mark { background: #5a4a00; color: #e3b341; }
 html.dark .loading { color: #8b949e; }
 html.dark .error { color: #f85149; }
 html.dark .search-help { background: #161b22; border-color: #30363d; color: #8b949e; }
+
+.keys-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+}
+.keys-box {
+  background: #fff; border: 1px solid #ccc; padding: 16px 24px;
+  font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+html.dark .keys-overlay { background: rgba(0,0,0,0.6); }
+html.dark .keys-box { background: #161b22; border-color: #30363d; color: #c9d1d9; }
 </style>
