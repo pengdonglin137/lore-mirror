@@ -226,16 +226,31 @@ def get_inbox(
         else:
             messages = []
     else:
-        # Traditional OFFSET pagination
-        offset = (page - 1) * per_page
-        messages = conn.execute(
-            """SELECT id, message_id, subject, sender, date, in_reply_to
-            FROM messages
-            WHERE date <= '2027'
-            ORDER BY date DESC, id DESC
-            LIMIT ? OFFSET ?""",
-            (per_page, offset),
-        ).fetchall()
+        # Traditional OFFSET pagination — but use reverse scan when closer to the end.
+        # For page 88558/88559, offset_from_start=4427850 but offset_from_end=50.
+        offset_from_start = (page - 1) * per_page
+        offset_from_end = total - page * per_page
+
+        if offset_from_end >= 0 and offset_from_end < offset_from_start:
+            # Closer to end: use ASC + small offset, then reverse
+            messages = conn.execute(
+                """SELECT id, message_id, subject, sender, date, in_reply_to
+                FROM messages
+                WHERE date >= '1990'
+                ORDER BY date ASC, id ASC
+                LIMIT ? OFFSET ?""",
+                (per_page, offset_from_end),
+            ).fetchall()
+            messages = list(reversed(messages))
+        else:
+            messages = conn.execute(
+                """SELECT id, message_id, subject, sender, date, in_reply_to
+                FROM messages
+                WHERE date <= '2027'
+                ORDER BY date DESC, id DESC
+                LIMIT ? OFFSET ?""",
+                (per_page, offset_from_start),
+            ).fetchall()
 
     conn.close()
 
