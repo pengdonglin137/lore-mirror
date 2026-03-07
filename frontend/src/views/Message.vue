@@ -3,6 +3,9 @@ import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { getMessage, getThread } from '../api.js'
 import { useRouter } from 'vue-router'
 import { linkifyLine } from '../utils.js'
+import AddressLink from '../components/AddressLink.vue'
+
+const addressHeaders = new Set(['From', 'To', 'Cc', 'Reply-To', 'Sender'])
 
 const router = useRouter()
 
@@ -83,6 +86,23 @@ watch(() => props.id, load, { immediate: true })
 
 const importantHeaders = ['From', 'To', 'Cc', 'Date', 'Subject', 'Message-ID', 'In-Reply-To', 'References']
 
+function splitAddresses(raw) {
+  if (!raw) return []
+  // Split on commas not inside angle brackets
+  const addrs = []
+  let depth = 0, start = 0
+  for (let i = 0; i < raw.length; i++) {
+    if (raw[i] === '<') depth++
+    else if (raw[i] === '>') depth--
+    else if (raw[i] === ',' && depth === 0) {
+      addrs.push(raw.slice(start, i).trim())
+      start = i + 1
+    }
+  }
+  addrs.push(raw.slice(start).trim())
+  return addrs.filter(a => a)
+}
+
 function parseMessageIds(raw) {
   if (!raw) return []
   return [...raw.matchAll(/<([^>]+)>/g)].map(m => m[1])
@@ -95,7 +115,9 @@ const headerLines = computed(() => {
   return keys.map(k => {
     const val = Array.isArray(h[k]) ? h[k].join(', ') : h[k]
     const ids = k === 'References' ? parseMessageIds(val) : null
-    return { key: k, value: val, ids }
+    // Split address headers into individual addresses
+    const addrs = addressHeaders.has(k) ? splitAddresses(val) : null
+    return { key: k, value: val, ids, addrs }
   })
 })
 
@@ -172,7 +194,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
     <template v-else-if="msg">
       <pre class="msg-header"><router-link to="/">lore-mirror</router-link> / <router-link :to="`/inbox/${msg.inbox_name}`">{{ msg.inbox_name }}</router-link>
 
-<template v-for="h in headerLines" :key="h.key"><b>{{ h.key }}:</b> <template v-if="h.key === 'In-Reply-To' && h.value"><router-link :to="`/message/${encodeURIComponent(h.value.replace(/[<>]/g, ''))}`">{{ h.value }}</router-link></template><template v-else-if="h.ids && h.ids.length"><template v-for="(id, idx) in h.ids" :key="id"><template v-if="idx"> </template>&lt;<router-link :to="`/message/${encodeURIComponent(id)}`">{{ id }}</router-link>&gt;</template></template><template v-else>{{ h.value }}</template>
+<template v-for="h in headerLines" :key="h.key"><b>{{ h.key }}:</b> <template v-if="h.key === 'In-Reply-To' && h.value"><router-link :to="`/message/${encodeURIComponent(h.value.replace(/[<>]/g, ''))}`">{{ h.value }}</router-link></template><template v-else-if="h.ids && h.ids.length"><template v-for="(id, idx) in h.ids" :key="id"><template v-if="idx"> </template>&lt;<router-link :to="`/message/${encodeURIComponent(id)}`">{{ id }}</router-link>&gt;</template></template><template v-else-if="h.addrs && h.addrs.length"><template v-for="(addr, idx) in h.addrs" :key="idx"><template v-if="idx">, </template><AddressLink :address="addr" context="header" /></template></template><template v-else>{{ h.value }}</template>
 </template>
 <a href="#" @click.prevent="showAllHeaders = !showAllHeaders">[{{ showAllHeaders ? 'hide' : 'show all' }} headers]</a>  <router-link :to="`/thread/${encodeURIComponent(msg.message_id)}`">[view thread]</router-link>  <a :href="`/api/raw?id=${encodeURIComponent(msg.message_id)}`">[raw]</a><template v-if="prevMessage || nextMessage">  <router-link v-if="prevMessage" :to="`/message/${encodeURIComponent(prevMessage.message_id)}`" :title="prevMessage.subject">[&larr; prev]</router-link><template v-if="prevMessage && nextMessage">  </template><router-link v-if="nextMessage" :to="`/message/${encodeURIComponent(nextMessage.message_id)}`" :title="nextMessage.subject">[next &rarr;]</router-link></template></pre>
 

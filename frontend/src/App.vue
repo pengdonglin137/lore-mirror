@@ -98,6 +98,8 @@ Message view:
   j           next message in thread
   k           previous message in thread
   t           view thread
+
+Tip: click any sender/address for quick search filters
 </pre>
     </div>
   </div>

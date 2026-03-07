@@ -1,5 +1,6 @@
 <script setup>
 import { formatDate, shortenSender } from '../utils.js'
+import AddressLink from './AddressLink.vue'
 
 defineProps(['node', 'depth', 'currentId'])
 </script>
@@ -15,7 +16,7 @@ export default { name: 'ThreadNode' }
         :class="{ current: node.message_id === currentId }"
         class="thread-subject"
       >{{ node.subject }}</router-link>
-      <span class="thread-meta">{{ formatDate(node.date) }} - {{ shortenSender(node.sender) }}</span>
+      <span class="thread-meta">{{ formatDate(node.date) }} - <AddressLink :address="node.sender" short /></span>
     </div>
     <ThreadNode
       v-for="child in node.children"

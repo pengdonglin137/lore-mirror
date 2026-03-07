@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getInbox } from '../api.js'
 import { formatDate, shortenSender } from '../utils.js'
+import AddressLink from '../components/AddressLink.vue'
 
 const props = defineProps(['name'])
 const route = useRoute()
@@ -62,7 +63,7 @@ function goPrev() {
       </div>
 
       <pre class="message-list"><template v-for="msg in data.messages" :key="msg.id"
->{{ formatDate(msg.date) }}  {{ shortenSender(msg.sender).padEnd(30).slice(0,30) }}  <router-link :to="`/message/${encodeURIComponent(msg.message_id)}`">{{ msg.subject }}</router-link>
+><span class="msg-date">{{ formatDate(msg.date) }}</span>  <span class="msg-sender"><AddressLink :address="msg.sender" short /></span>  <router-link :to="`/message/${encodeURIComponent(msg.message_id)}`">{{ msg.subject }}</router-link>
 </template></pre>
 
       <div class="pagination">
@@ -78,5 +79,12 @@ function goPrev() {
 .message-list {
   font-size: 13px;
   line-height: 1.6;
+}
+.msg-sender {
+  display: inline-block;
+  width: 30ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
 }
 </style>

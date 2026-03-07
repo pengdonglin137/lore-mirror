@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { search, getInboxes } from '../api.js'
 import { formatDate, shortenSender } from '../utils.js'
 import SearchHelp from '../components/SearchHelp.vue'
+import AddressLink from '../components/AddressLink.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -89,7 +90,7 @@ function onInboxChange() {
 
       <div v-for="msg in data.messages" :key="msg.id" class="search-result">
         <pre><router-link :to="`/message/${encodeURIComponent(msg.message_id)}`">{{ msg.subject }}</router-link>
-{{ formatDate(msg.date) }}  {{ shortenSender(msg.sender) }}  [<router-link :to="`/inbox/${msg.inbox_name}`">{{ msg.inbox_name }}</router-link>]
+{{ formatDate(msg.date) }}  <AddressLink :address="msg.sender" short />  [<router-link :to="`/inbox/${msg.inbox_name}`">{{ msg.inbox_name }}</router-link>]
 <span v-if="msg.snippet" v-html="msg.snippet" class="snippet"></span>
 </pre>
       </div>
