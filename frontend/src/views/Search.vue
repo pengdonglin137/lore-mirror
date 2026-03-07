@@ -43,6 +43,9 @@ async function doSearch() {
 
 watch(() => [route.query.q, route.query.page, route.query.inbox], doSearch, { immediate: true })
 
+// Keep dropdown in sync with URL (e.g., after nav bar search loses inbox param)
+watch(() => route.query.inbox, (val) => { selectedInbox.value = val || '' })
+
 function goPage(p) {
   router.push({ path: '/search', query: { ...route.query, page: p } })
 }

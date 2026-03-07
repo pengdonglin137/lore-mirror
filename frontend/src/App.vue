@@ -14,7 +14,13 @@ function doLocate() {
 
 function doSearchAll() {
   if (!query.value.trim()) return
-  router.push({ path: '/search', query: { q: query.value.trim() } })
+  const current = router.currentRoute.value
+  const q = { q: query.value.trim() }
+  // Preserve inbox filter when already on search page
+  if (current.path === '/search' && current.query.inbox) {
+    q.inbox = current.query.inbox
+  }
+  router.push({ path: '/search', query: q })
 }
 
 // Theme toggle: light ↔ dark (detects system preference on first visit)
