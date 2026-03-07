@@ -346,7 +346,7 @@ python3 scripts/test_api.py                        # 测试本地
 python3 scripts/test_api.py --url http://host:8000  # 测试远程
 ```
 
-40 个测试用例覆盖所有端点，零外部依赖。
+48 个测试用例覆盖所有端点，零外部依赖。
 
 ## 项目结构
 

@@ -37,7 +37,7 @@
 - 日期排序：过滤异常日期（Y2K、未来时间戳、non-ISO 格式）
 - 性能优化：索引友好查询 + 内存缓存（5 分钟 TTL）+ 30 秒查询超时保护
 - 生产模式: 同时 serve Vue SPA 静态文件
-- `scripts/test_api.py`: 自动化 API 测试（38 个用例，零外部依赖，支持 `--url` 远程测试）
+- `scripts/test_api.py`: 自动化 API 测试（48 个用例，零外部依赖，支持 `--url` 远程测试）
 
 ### 模块 4: Vue 3 前端 (Phase 4) ✅
 - 6 个页面: Home, Inbox, Message, Thread, Search, NotFound(404)
@@ -568,7 +568,7 @@ python3 scripts/test_api.py --url http://your-host:8000
 python3 scripts/test_api.py -v
 ```
 
-40 个测试用例覆盖所有 API 端点，零外部依赖，失败时 exit 1 可用于 CI。
+48 个测试用例覆盖所有 API 端点，零外部依赖，失败时 exit 1 可用于 CI。
 
 ---
 
