@@ -2,6 +2,8 @@
 import { ref, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { search, getInboxes } from '../api.js'
+import { formatDate, shortenSender } from '../utils.js'
+import SearchHelp from '../components/SearchHelp.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -54,16 +56,7 @@ function onInboxChange() {
   router.push({ path: '/search', query })
 }
 
-function formatDate(d) {
-  if (!d) return ''
-  return d.replace('T', ' ').slice(0, 19)
-}
 
-function shortenSender(s) {
-  if (!s) return ''
-  const match = s.match(/^([^<]+)/)
-  return match ? match[1].trim() : s
-}
 </script>
 
 <template>
@@ -76,24 +69,7 @@ function shortenSender(s) {
       <a href="#" @click.prevent="showHelp = !showHelp" class="help-toggle">[{{ showHelp ? 'hide' : 'search' }} help]</a>
     </div>
 
-    <pre v-if="showHelp" class="search-help">Search prefixes (compatible with lore.kernel.org):
-
-  s:keyword        match in Subject         s:"memory leak"
-  f:name           match From/sender        f:torvalds
-  b:keyword        match in body            b:use-after-free
-  bs:keyword       match Subject + body     bs:regression
-  d:range          date range               d:2026-01-01..2026-03-01
-                                            d:2026-01-01..  d:..2026-03-01
-  t:addr           match To header          t:linux-mm@kvack.org
-  c:addr           match Cc header          c:stable@vger.kernel.org
-  a:addr           match any address        a:torvalds@linux-foundation.org
-  tc:addr          match To + Cc            tc:netdev@vger.kernel.org
-
-Operators: AND (default), OR, NOT, "exact phrase", prefix*
-Examples:
-  s:PATCH f:torvalds d:2026-01-01..
-  "use after free" b:kasan NOT s:Re:
-</pre>
+    <SearchHelp v-if="showHelp" />
 
     <pre v-if="!route.query.q">Enter a search query above.</pre>
     <pre v-else-if="loading" class="loading">Searching for "{{ route.query.q }}"...</pre>
@@ -140,15 +116,6 @@ Examples:
 
 .help-toggle {
   font-size: 12px;
-}
-
-.search-help {
-  font-size: 12px;
-  background: #f6f6f6;
-  border: 1px solid #ddd;
-  padding: 8px 12px;
-  margin-bottom: 8px;
-  color: #555;
 }
 
 .search-result {

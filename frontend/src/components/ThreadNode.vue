@@ -1,19 +1,10 @@
+<script setup>
+import { formatDate, shortenSender } from '../utils.js'
+
+defineProps(['node', 'depth', 'currentId'])
+</script>
 <script>
-export default {
-  name: 'ThreadNode',
-  props: ['node', 'depth', 'currentId'],
-  methods: {
-    formatDate(d) {
-      if (!d) return ''
-      return d.replace('T', ' ').slice(0, 19)
-    },
-    shortenSender(s) {
-      if (!s) return ''
-      const match = s.match(/^([^<]+)/)
-      return match ? match[1].trim() : s
-    }
-  }
-}
+export default { name: 'ThreadNode' }
 </script>
 
 <template>

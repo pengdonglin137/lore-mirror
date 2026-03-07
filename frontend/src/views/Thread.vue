@@ -44,7 +44,7 @@ const tree = computed(() => {
     <pre v-if="loading" class="loading">Loading...</pre>
     <pre v-else-if="error" class="error">Error: {{ error }}</pre>
     <template v-else-if="data">
-      <pre><router-link to="/">lore-mirror</router-link> — thread ({{ data.total }} messages)
+      <pre><router-link to="/">lore-mirror</router-link><template v-if="data.inbox"> / <router-link :to="`/inbox/${data.inbox}`">{{ data.inbox }}</router-link></template> — thread ({{ data.total }} messages)
 </pre>
       <div class="thread-tree">
         <ThreadNode

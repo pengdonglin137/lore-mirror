@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getInbox } from '../api.js'
+import { formatDate, shortenSender } from '../utils.js'
 
 const props = defineProps(['name'])
 const route = useRoute()
@@ -41,16 +42,7 @@ function goPrev() {
   }
 }
 
-function formatDate(d) {
-  if (!d) return ''
-  return d.replace('T', ' ').slice(0, 19)
-}
 
-function shortenSender(s) {
-  if (!s) return ''
-  const match = s.match(/^([^<]+)/)
-  return match ? match[1].trim() : s
-}
 </script>
 
 <template>
@@ -58,7 +50,7 @@ function shortenSender(s) {
     <pre v-if="loading" class="loading">Loading...</pre>
     <pre v-else-if="error" class="error">Error: {{ error }}</pre>
     <template v-else-if="data">
-      <pre><router-link to="/">lore-mirror</router-link> / <b>{{ data.inbox.name }}</b>
+      <pre><router-link to="/">lore-mirror</router-link> / <b>{{ data.inbox.name }}</b>  <router-link :to="`/search?q=&inbox=${data.inbox.name}`">[search this inbox]</router-link>
 {{ data.inbox.description }}
 {{ data.total }} messages — page {{ data.page }}/{{ data.pages }}
 </pre>
