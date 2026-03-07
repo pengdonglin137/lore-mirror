@@ -92,7 +92,7 @@ function formatDate(d) {
 </pre>
       <pre><template v-if="filteredInboxes.length === 0">  No matching inboxes found.
 </template><template v-for="inbox in filteredInboxes" :key="inbox.name">
-<router-link :to="`/inbox/${inbox.name}`">{{ inbox.name.padEnd(24) }}</router-link> {{ formatCount(inbox.message_count).toString().padStart(7) }} msgs  {{ formatDate(inbox.earliest) }} ~ {{ formatDate(inbox.latest) }}
+<router-link :to="`/inbox/${inbox.name}`">{{ inbox.name }}</router-link>{{ ''.padEnd(24 - inbox.name.length > 0 ? 24 - inbox.name.length : 1) }}{{ formatCount(inbox.message_count).toString().padStart(7) }} msgs  {{ formatDate(inbox.earliest) }} ~ {{ formatDate(inbox.latest) }}
   <span class="inbox-desc">{{ inbox.description }}</span>
 </template></pre>
 
