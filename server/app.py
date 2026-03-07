@@ -296,10 +296,15 @@ def get_message_raw(id: str = Query(..., alias="id"), download: int = Query(0)):
         conn.close()
 
         if row and row["raw_email"]:
-            headers = {"Content-Type": "message/rfc822"}
+            safe = _sanitize_filename(row["subject"] or "message")
             if download:
-                safe = _sanitize_filename(row["subject"] or "patch")
-                headers["Content-Disposition"] = f'attachment; filename="{safe}.patch"'
+                ext, disposition = ".patch", "attachment"
+            else:
+                ext, disposition = ".eml", "inline"
+            headers = {
+                "Content-Type": "message/rfc822",
+                "Content-Disposition": f'{disposition}; filename="{safe}{ext}"',
+            }
             return Response(content=row["raw_email"], headers=headers)
 
     raise HTTPException(404, "Message not found")
