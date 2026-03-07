@@ -211,6 +211,8 @@ LORE_DB_DIR=/data/lore/db
 
 从裸机迁移：现有的 `repos/` 和 `db/` 直接被 Docker 卷挂载复用。
 
+> **MCP + Docker：** MCP server 在本地运行（由 Claude Code spawn），通过 HTTP 访问 Docker 中的 REST API。如果修改了 `LORE_PORT`，需要同步设置 MCP 的环境变量：`export LORE_API_URL=http://localhost:9000`
+
 ## API
 
 详细的 API 文档见 [docs/API.md](docs/API.md)。
