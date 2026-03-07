@@ -104,6 +104,12 @@ function onPageInput(e) {
 .msg-sender {
   display: inline-block;
   width: 30ch;
+  overflow: visible;
+  vertical-align: bottom;
+}
+.msg-sender :deep(.addr-link) {
+  display: inline-block;
+  max-width: 30ch;
   overflow: hidden;
   text-overflow: ellipsis;
   vertical-align: bottom;
