@@ -122,6 +122,7 @@ GET /api/threads/{message_id}
 Returns all messages in the thread, sorted by date (oldest first).
 Use `in_reply_to` to reconstruct the tree structure.
 The `root` field is the Message-ID of the thread root.
+Add `?full=1` to include `body_text` and `headers` for each message (for inline reading).
 
 ### Step 5 (optional): Get Patch Series Metadata / Download
 

@@ -81,13 +81,12 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside, true))
 }
 .date-link {
   cursor: pointer;
-  border-bottom: 1px dashed #999;
   text-decoration: none;
   color: inherit;
 }
 .date-link:hover {
   text-decoration: none;
-  border-bottom-color: #00609f;
+  color: #00609f;
 }
 .date-menu {
   position: absolute;
@@ -121,8 +120,7 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside, true))
 </style>
 
 <style>
-html.dark .date-link { border-bottom-color: #484f58; }
-html.dark .date-link:hover { border-bottom-color: #58a6ff; }
+html.dark .date-link:hover { color: #58a6ff; }
 html.dark .date-menu { background: #21262d; border-color: #30363d; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
 html.dark .date-menu a { color: #c9d1d9; }
 html.dark .date-menu a:hover { background: #30363d; }

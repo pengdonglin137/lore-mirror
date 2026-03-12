@@ -82,12 +82,11 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside, true))
 }
 .addr-link {
   cursor: pointer;
-  border-bottom: 1px dashed #999;
   text-decoration: none;
 }
 .addr-link:hover {
   text-decoration: none;
-  border-bottom-color: #00609f;
+  color: #00609f;
 }
 .addr-menu {
   position: absolute;
@@ -121,8 +120,7 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside, true))
 </style>
 
 <style>
-html.dark .addr-link { border-bottom-color: #484f58; }
-html.dark .addr-link:hover { border-bottom-color: #58a6ff; }
+html.dark .addr-link:hover { color: #58a6ff; }
 html.dark .addr-menu { background: #21262d; border-color: #30363d; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
 html.dark .addr-menu a { color: #c9d1d9; }
 html.dark .addr-menu a:hover { background: #30363d; }

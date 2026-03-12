@@ -249,8 +249,11 @@ Get the full discussion thread containing the specified message. The API walks u
 | Name | Required | Description |
 |------|----------|-------------|
 | message_id | yes (path) | Any Message-ID in the thread |
+| full | no (query) | Set to `1` to include `body_text` and `headers` for each message. Default `0` (metadata only). |
 
 **Example:** `GET /api/threads/5b5c8a8b-5832-4566-af45-dee6818fa44c%40hartkopp.net`
+
+**Example (full):** `GET /api/threads/5b5c8a8b-5832-4566-af45-dee6818fa44c%40hartkopp.net?full=1`
 
 **Response:**
 ```json
@@ -283,6 +286,7 @@ Get the full discussion thread containing the specified message. The API walks u
 - Messages are sorted by date (oldest first).
 - Use `in_reply_to` to reconstruct the tree structure: messages with `in_reply_to == ""` are thread roots, others are replies to the specified parent.
 - `root` is the Message-ID of the thread root (may not exist in the database if it's in a different inbox or epoch).
+- With `full=1`, each message additionally includes `body_text` (string) and `headers` (parsed JSON object). `raw_email` is always excluded.
 
 ---
 

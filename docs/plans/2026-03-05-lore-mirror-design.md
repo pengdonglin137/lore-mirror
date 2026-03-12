@@ -41,16 +41,19 @@
 
 ### 模块 4: Vue 3 前端 (Phase 4) ✅
 - 6 个页面: Home, Inbox, Message, Thread, Search, NotFound(404)
-- 4 个组件: ThreadNode, SearchHelp, AddressLink, (App.vue 布局)
+- 6 个组件: ThreadNode, SearchHelp, AddressLink, DateLink, MessageBody, (App.vue 布局)
 - 功能:
   - locate inbox、search all inboxes（带 inbox 选择器和搜索语法帮助）
   - 导航栏搜索输入与 URL 双向同步，搜索帮助按钮（`?`）
   - 邮件分页浏览、线程树视图
+  - Thread 页面三种视图模式：tree（元数据导航树）、flat（按时间排列的完整内容）、nested（按回复深度缩进的完整内容），通过 URL 参数 `?view=flat` 持久化
   - diff 高亮（+/-/@@/diff --git）、引用行着色、内核 trailer 高亮（Signed-off-by 等）
   - 可折叠引用块（4+ 行连续引用自动折叠，点击展开）
   - 邮件正文 URL 自动转为可点击链接（XSS 安全）
   - References 头各 Message-ID 可独立点击
   - 地址快捷过滤菜单：点击 From/To/Cc 中的地址弹出菜单，可按 f:/a:/t:/c: 搜索，支持区分原始邮件和回复（Inbox 列表和 Message 页均可用）
+  - 日期快捷过滤菜单：点击日期弹出菜单，可按 d: 搜索当天/本周/本月/起止范围，自动限定当前 inbox
+  - Inbox 列表使用 CSS Grid 三列布局（日期/发件人/标题），长标题折行时与标题列对齐
   - 邮件页面 `[patch]` 下载单个 patch、`[series mbox]` 下载整个 patch series（b4-like: 版本检测、cover letter 排除、trailer 注入）
   - 邮件页面 `[raw]` 下载原始邮件（.eml），`[lore]` 链接直达 lore.kernel.org 原始页面
   - 增强分页：首页/末页、±10 跳转、页码输入框
@@ -236,7 +239,7 @@ lore-mirror/
 │   └── mcp_server.py           # MCP 协议服务器（包装 REST API，stdio 传输）
 ├── frontend/
 │   ├── src/views/              # Vue 页面：Home, Inbox, Message, Thread, Search, NotFound
-│   ├── src/components/         # 可复用组件：ThreadNode, SearchHelp, AddressLink
+│   ├── src/components/         # 可复用组件：ThreadNode, SearchHelp, AddressLink, DateLink, MessageBody
 │   ├── src/utils.js            # 共享工具函数（formatDate, shortenSender, linkifyLine）
 │   ├── src/api.js              # API 客户端
 │   ├── src/router.js           # 路由配置（含 404 catch-all + scrollBehavior）
