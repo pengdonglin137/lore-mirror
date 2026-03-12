@@ -25,8 +25,9 @@ export function getMessage(messageId) {
   return fetchJSON(`${BASE}/messages/${encodeURIComponent(messageId)}`)
 }
 
-export function getThread(messageId) {
-  return fetchJSON(`${BASE}/threads/${encodeURIComponent(messageId)}`)
+export function getThread(messageId, { full = false } = {}) {
+  const params = full ? '?full=1' : ''
+  return fetchJSON(`${BASE}/threads/${encodeURIComponent(messageId)}${params}`)
 }
 
 export function locateInbox(q) {

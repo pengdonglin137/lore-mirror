@@ -685,8 +685,11 @@ def get_series(id: str = Query(..., alias="id"), download: int = Query(0)):
 # ── Threads ──────────────────────────────────────────
 
 @app.get("/api/threads/{message_id:path}")
-def get_thread(message_id: str):
-    """Get the full thread for a message."""
+def get_thread(message_id: str, full: int = Query(0)):
+    """Get the full thread for a message.
+
+    With full=1, include body_text and headers for each message (for inline reading).
+    """
     conn, target_inbox, thread_ids = _find_thread_messages(message_id)
 
     if not thread_ids:
@@ -694,8 +697,12 @@ def get_thread(message_id: str):
         return {"root": message_id, "total": 0, "inbox": target_inbox, "messages": []}
 
     placeholders = ",".join("?" for _ in thread_ids)
+    if full:
+        columns = "id, message_id, subject, sender, date, in_reply_to, body_text, headers"
+    else:
+        columns = "id, message_id, subject, sender, date, in_reply_to"
     messages = conn.execute(
-        f"""SELECT id, message_id, subject, sender, date, in_reply_to
+        f"""SELECT {columns}
         FROM messages
         WHERE message_id IN ({placeholders})
         ORDER BY date ASC""",
@@ -709,12 +716,18 @@ def get_thread(message_id: str):
             root_msg_id = m["message_id"]
             break
 
+    msg_list = [row_to_dict(m) for m in messages]
+    if full:
+        for m in msg_list:
+            if m.get("headers"):
+                m["headers"] = json.loads(m["headers"])
+
     conn.close()
     return {
         "root": root_msg_id,
         "total": len(messages),
         "inbox": target_inbox,
-        "messages": [row_to_dict(m) for m in messages],
+        "messages": msg_list,
     }
 
 

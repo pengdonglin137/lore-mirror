@@ -360,6 +360,24 @@ def run_tests(base_url):
     else:
         skip("Get thread", "no message_id")
 
+    # Thread with full=1 (includes body_text and headers)
+    if thread_msg_id:
+        test(base_url, f"Thread full=1: {thread_msg_id[:40]}...", "GET",
+             f"/api/threads/{urllib.parse.quote(thread_msg_id, safe='')}?full=1",
+             validate=lambda d, b, h: (
+                 next((f"Missing key '{k}'" for k in ["root", "total", "inbox", "messages"] if k not in d), None)
+                 or ("Thread should have >= 1 message" if d["total"] <= 0 else None)
+                 or next((f"Full thread message missing '{k}'" for m in d["messages"]
+                          for k in ["body_text", "headers"]
+                          if k not in m), None)
+                 or ("headers should be dict or null"
+                     if any(m.get("headers") is not None and not isinstance(m["headers"], dict)
+                            for m in d["messages"])
+                     else None)
+             ))
+    else:
+        skip("Thread full=1", "no message_id")
+
     test(base_url, "Thread: nonexistent (404)", "GET",
          "/api/threads/nonexistent%40nope.invalid", expect_status=404)
 
