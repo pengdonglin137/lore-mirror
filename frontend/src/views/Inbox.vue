@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { getInbox } from '../api.js'
 import { formatDate, shortenSender } from '../utils.js'
 import AddressLink from '../components/AddressLink.vue'
+import DateLink from '../components/DateLink.vue'
 
 const props = defineProps(['name'])
 const route = useRoute()
@@ -81,7 +82,7 @@ function onPageInput(e) {
 
       <div class="message-list">
         <template v-for="msg in data.messages" :key="msg.id">
-          <span class="msg-date">{{ formatDate(msg.date) }}</span>
+          <span class="msg-date"><DateLink :date="msg.date" :inbox="props.name" /></span>
           <span class="msg-sender"><AddressLink :address="msg.sender" short /></span>
           <router-link :to="`/message/${encodeURIComponent(msg.message_id)}`" class="msg-subject">{{ msg.subject }}</router-link>
         </template>
@@ -113,13 +114,12 @@ function onPageInput(e) {
 
 .msg-date {
   white-space: nowrap;
-  color: #555;
+  color: #666;
 }
 
 .msg-sender {
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
   max-width: 30ch;
 }
 
@@ -135,6 +135,7 @@ function onPageInput(e) {
   overflow-wrap: break-word;
   word-break: break-word;
   min-width: 0;
+  width: fit-content;
 }
 </style>
 
