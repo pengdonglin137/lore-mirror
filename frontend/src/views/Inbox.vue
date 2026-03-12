@@ -79,9 +79,13 @@ function onPageInput(e) {
         <button :disabled="page >= data.pages" @click="goPage(data.pages, { last: true })" title="last page">&gt;|</button>
       </div>
 
-      <pre class="message-list"><template v-for="msg in data.messages" :key="msg.id"
-><span class="msg-date">{{ formatDate(msg.date) }}</span>  <span class="msg-sender"><AddressLink :address="msg.sender" short /></span>  <router-link :to="`/message/${encodeURIComponent(msg.message_id)}`">{{ msg.subject }}</router-link>
-</template></pre>
+      <div class="message-list">
+        <template v-for="msg in data.messages" :key="msg.id">
+          <span class="msg-date">{{ formatDate(msg.date) }}</span>
+          <span class="msg-sender"><AddressLink :address="msg.sender" short /></span>
+          <router-link :to="`/message/${encodeURIComponent(msg.message_id)}`" class="msg-subject">{{ msg.subject }}</router-link>
+        </template>
+      </div>
 
       <div class="pagination">
         <button :disabled="page <= 1" @click="goPage(1)" title="first page">|&lt;</button>
@@ -98,15 +102,27 @@ function onPageInput(e) {
 
 <style scoped>
 .message-list {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 0 1.5ch;
+  font-family: monospace;
   font-size: 13px;
   line-height: 1.6;
+  padding: 4px 0;
 }
+
+.msg-date {
+  white-space: nowrap;
+  color: #555;
+}
+
 .msg-sender {
-  display: inline-block;
-  width: 30ch;
-  overflow: visible;
-  vertical-align: bottom;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 30ch;
 }
+
 .msg-sender :deep(.addr-link) {
   display: inline-block;
   max-width: 30ch;
@@ -114,4 +130,14 @@ function onPageInput(e) {
   text-overflow: ellipsis;
   vertical-align: bottom;
 }
+
+.msg-subject {
+  overflow-wrap: break-word;
+  word-break: break-word;
+  min-width: 0;
+}
+</style>
+
+<style>
+html.dark .message-list .msg-date { color: #8b949e; }
 </style>
