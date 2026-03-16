@@ -33,10 +33,10 @@ inboxes:
       and cross-subsystem discussions. If unsure which list to search, start here.
 
   # ── Core subsystems ────────────────────────────────
-  # - name: netdev
-  #   description: >-
-  #     Linux networking stack development — TCP/IP, sockets, routing, network drivers (ethernet, wifi),
-  #     iptables/nftables, XDP, traffic control (tc), network namespaces, netlink, and protocol implementations.
+  - name: netdev
+    description: >-
+      Linux networking stack development — TCP/IP, sockets, routing, network drivers (ethernet, wifi),
+      iptables/nftables, XDP, traffic control (tc), network namespaces, netlink, and protocol implementations.
   - name: linux-mm
     description: >-
       Linux Memory Management — page allocator, slab/slub, page cache, swap, OOM killer, memory cgroups,
@@ -138,79 +138,129 @@ inboxes:
       bpftool, XDP (eXpress Data Path), tc-bpf, BPF tracing (kprobe/uprobe/tracepoint),
       BPF LSM, and BPF CO-RE.
   # - name: mptcp
-  #   description: "MPTCP Linux Development"
-  # - name: netfilter-devel
-  #   description: "Linux Netfilter development"
+  #   description: >-
+  #     Multipath TCP (MPTCP) for Linux — simultaneous use of multiple network paths,
+  #     MPTCP socket API, path manager, packet scheduler, and MPTCP-specific sysctl tunables.
+  - name: netfilter-devel
+    description: >-
+      Linux Netfilter/nftables development — packet filtering, NAT, connection tracking (conntrack),
+      nf_tables rule engine, iptables/ip6tables/ebtables compat, flow offload, and flowtable.
   # - name: bridge
-  #   description: "Ethernet Bridge development"
+  #   description: >-
+  #     Linux Ethernet bridging — bridge device, STP/RSTP, VLAN filtering, MDB (multicast),
+  #     bridge port attributes, and software switching datapath.
   # - name: linux-wireless
-  #   description: "Linux wireless drivers development"
+  #   description: >-
+  #     Linux wireless (Wi-Fi) development — mac80211, cfg80211, wireless drivers (iwlwifi,
+  #     ath, mt76, rtw89, brcmfmac), regulatory domain, and WPA/WPA3 offload.
   # - name: wireless-regdb
-  #   description: "Wireless-regdb"
+  #   description: "Wireless regulatory database — country-specific frequency/power rules for Wi-Fi and radio devices"
   # - name: linux-bluetooth
-  #   description: "Linux bluetooth development"
+  #   description: >-
+  #     Linux Bluetooth subsystem — BlueZ kernel side, HCI core, L2CAP, RFCOMM, BLE (Bluetooth Low Energy),
+  #     LE Audio, ISO channels, Bluetooth mesh, and host controller drivers.
   # - name: linux-can
-  #   description: "Linux CAN drivers development"
+  #   description: >-
+  #     Linux CAN (Controller Area Network) — SocketCAN framework, CAN/CAN FD/CAN XL protocols,
+  #     CAN bus drivers (mcp251x, kvaser, peak, gs_usb), J1939, and ISO-TP transport protocol.
   # - name: linux-ppp
-  #   description: "Linux PPP protocol development"
+  #   description: "Linux PPP (Point-to-Point Protocol) — pppd kernel support, PPPoE, PPPoATM, and PPTP"
   # - name: linux-sctp
-  #   description: "Linux SCTP protocol development"
+  #   description: >-
+  #     Linux SCTP (Stream Control Transmission Protocol) — multi-homing, multi-streaming,
+  #     SCTP socket API, association management, and path MTU discovery.
   # - name: linux-x25
-  #   description: "Linux X.25 subsystem development"
+  #   description: "Linux X.25 packet-switched network protocol subsystem"
   # - name: linux-hams
-  #   description: "Linux HAM/Amateur Radio development"
+  #   description: "Linux HAM/Amateur Radio — AX.25, NET/ROM, ROSE protocols and packet radio drivers"
   # - name: quic
-  #   description: "Linux QUIC protocol development"
+  #   description: >-
+  #     Linux in-kernel QUIC protocol — kernel-space QUIC transport implementation,
+  #     TLS 1.3 handshake offload, and QUIC socket API for userspace applications.
   # - name: intel-wired-lan
-  #   description: "Intel Wired LAN"
+  #   description: >-
+  #     Intel Wired LAN drivers — e1000e, igb, igc, ixgbe, ice, i40e, and iavf Ethernet drivers,
+  #     SR-IOV, hardware timestamping, and Intel network adapter firmware.
 
   # ── Filesystems ────────────────────────────────────
   # - name: linux-xfs
-  #   description: "Linux XFS filesystem development"
+  #   description: >-
+  #     Linux XFS filesystem — high-performance journaling filesystem, online repair (xfs_scrub),
+  #     realtime subvolumes, reflink/CoW, DAX, reverse mapping (rmap), and xfsprogs userspace tools.
   # - name: linux-btrfs
-  #   description: "Linux Btrfs filesystem development"
+  #   description: >-
+  #     Linux Btrfs filesystem — copy-on-write, snapshots, subvolumes, RAID (1/5/6/10), send/receive,
+  #     online balancing, compression (zstd/lzo/zlib), deduplication, and btrfs-progs tools.
   - name: linux-ext4
     description: >-
       Linux ext4 filesystem — journaling, extent tree, inline data, encryption (fscrypt),
       verity (fsverity), online resize, fast commit, and e2fsprogs userspace tools.
   # - name: linux-f2fs-devel
-  #   description: "Linux f2fs filesystem development"
+  #   description: >-
+  #     Linux F2FS (Flash-Friendly File System) — log-structured filesystem optimized for NAND flash,
+  #     SSDs, and eMMC. Supports compression, encryption (fscrypt), verity, GC tuning, and zoned storage.
   # - name: linux-nfs
-  #   description: "Linux NFS development"
+  #   description: >-
+  #     Linux NFS (Network File System) — NFS client and server (nfsd), NFSv3/v4/v4.1/v4.2,
+  #     pNFS layouts, Kerberos authentication, state management, and nfs-utils tools.
   # - name: linux-cifs
-  #   description: "Linux CIFS filesystem development"
+  #   description: >-
+  #     Linux CIFS/SMB filesystem — SMB2/SMB3 client (cifs.ko), DFS referrals, multichannel,
+  #     RDMA transport, Kerberos/NTLM auth, and ksmbd in-kernel SMB server.
   - name: linux-erofs
     description: >-
       Linux EROFS (Enhanced Read-Only File System) — compressed read-only filesystem for containers,
       Android, and embedded devices. Supports LZ4/LZMA compression, FSDAX, and fscache.
   # - name: linux-unionfs
-  #   description: "Linux Overlay Filesystem development"
+  #   description: >-
+  #     Linux OverlayFS — union mount filesystem for containers (Docker/Podman), layer merging,
+  #     copy-up, metacopy, redirect_dir, and overlay whiteouts.
   # - name: linux-nilfs
-  #   description: "Linux NILFS development"
+  #   description: >-
+  #     Linux NILFS2 — continuous snapshotting log-structured filesystem, garbage collector,
+  #     checkpoint management, and nilfs-utils userspace tools.
   # - name: ntfs3
-  #   description: "NTFS3 file system kernel mode driver"
+  #   description: >-
+  #     Linux NTFS3 driver — read-write NTFS filesystem support by Paragon Software,
+  #     supports compression, extended attributes, and Windows-compatible file permissions.
   # - name: ceph-devel
-  #   description: "CEPH filesystem development"
+  #   description: >-
+  #     Ceph distributed storage for Linux — CephFS kernel client, RBD (RADOS block device),
+  #     libceph messenger, CRUSH algorithm, and Ceph cluster integration.
   # - name: gfs2
-  #   description: "gfs2 filesystem and dlm development"
+  #   description: >-
+  #     Linux GFS2 and DLM — Global File System 2 (shared-disk cluster filesystem),
+  #     Distributed Lock Manager, and Red Hat cluster infrastructure.
   # - name: ocfs2-devel
-  #   description: "Linux ocfs2 filesystem development"
+  #   description: >-
+  #     Linux OCFS2 — Oracle Cluster File System 2, shared-disk cluster filesystem,
+  #     reflink support, and dlmfs distributed lock manager.
   # - name: v9fs
-  #   description: "Linux 9p file system development"
+  #   description: >-
+  #     Linux 9P/Plan 9 filesystem — VirtFS for host-guest file sharing (QEMU/KVM),
+  #     9P2000.L protocol, and v9fs kernel client.
   # - name: rpdfs-devel
-  #   description: "RapidFS Filesystem Development"
+  #   description: "RapidFS — experimental high-performance filesystem development"
   # - name: netfs
-  #   description: "Linux network filesystem support library"
+  #   description: >-
+  #     Linux network filesystem library (netfslib) — shared read/write helpers for NFS, CIFS,
+  #     AFS, Ceph, and 9P; local caching (fscache/cachefiles), and bounce buffer management.
   # - name: fstests
-  #   description: "FS/XFS testing framework"
+  #   description: >-
+  #     fstests (xfstests) — filesystem test suite for XFS, ext4, Btrfs, F2FS, and others.
+  #     Test development, generic and filesystem-specific test cases, and CI results.
   # - name: fsverity
-  #   description: "Linux fsverity development list"
+  #   description: >-
+  #     Linux fs-verity — file-level integrity/authenticity via Merkle trees,
+  #     built-in signature verification, and integration with IMA/dm-verity.
   # - name: linux-fscrypt
-  #   description: "Linux FSCRYPT development"
+  #   description: >-
+  #     Linux fscrypt — filesystem-level encryption framework used by ext4, F2FS, and UBIFS.
+  #     Per-file/per-directory encryption policies, v1/v2 key management, and hardware inline crypto.
   # - name: ecryptfs
-  #   description: "EcryptFS development"
+  #   description: "Linux eCryptfs — stacked cryptographic filesystem for per-file encryption in userspace home directories"
   # - name: autofs
-  #   description: "AutoFS development"
+  #   description: "Linux autofs — kernel-based automounter for NFS, CIFS, and other on-demand mounts"
 
   # ── Storage & drivers ──────────────────────────────
   # - name: linux-scsi
@@ -228,19 +278,29 @@ inboxes:
   #     Linux Device Mapper — dm-crypt (LUKS), dm-thin, dm-cache, dm-integrity,
   #     dm-multipath, LVM, and DM target development.
   # - name: linux-mtd
-  #   description: "Linux MTD"
+  #   description: >-
+  #     Linux MTD (Memory Technology Devices) — raw NAND/NOR flash, SPI-NOR, UBIFS, JFFS2,
+  #     MTD partitions, NAND ECC, and bad block management.
   # - name: linux-mmc
-  #   description: "Linux MultiMedia Card development"
+  #   description: >-
+  #     Linux MMC/SD/eMMC subsystem — MMC host controller drivers, SD card support,
+  #     eMMC features (HS400, command queuing), and SDIO device drivers.
   # - name: linux-ide
-  #   description: "Linux ATA/IDE development"
+  #   description: "Linux ATA/IDE subsystem — libata, AHCI, SATA/PATA host controllers, and legacy IDE drivers"
   # - name: target-devel
-  #   description: "SCSI target development"
+  #   description: >-
+  #     Linux SCSI target (LIO) — iSCSI target, Fibre Channel target, SRP target, vhost-scsi,
+  #     TCMU (userspace backstore), and target core engine development.
   # - name: nvdimm
-  #   description: "NVDIMM Device and Persistent Memory development"
+  #   description: >-
+  #     Linux NVDIMM and Persistent Memory — libnvdimm, DAX (direct access), PMEM driver,
+  #     BTT (block translation table), namespace management, and ndctl tools.
   # - name: linux-cxl
-  #   description: "Linux CXL"
+  #   description: >-
+  #     Linux CXL (Compute Express Link) — CXL memory devices, CXL.mem/CXL.cache protocols,
+  #     CXL port/decoder topology, region/interleave, RAS/poison, and CXL memory hotplug.
   # - name: linux-bcache
-  #   description: "Linux bcache driver list"
+  #   description: "Linux bcache — SSD caching layer for block devices, writeback/writethrough modes, and cache device management"
   # - name: io-uring
   #   description: >-
   #     Linux io_uring — async I/O framework, submission/completion queues, io_uring_setup,
@@ -248,187 +308,321 @@ inboxes:
 
   # ── GPU & graphics ─────────────────────────────────
   # - name: dri-devel
-  #   description: "dri-devel"
+  #   description: >-
+  #     Linux DRM/KMS graphics — Direct Rendering Manager, kernel mode setting, GEM/TTM memory
+  #     management, atomic modesetting, DRM scheduler, display pipeline, and cross-vendor GPU infrastructure.
   # - name: amd-gfx
-  #   description: "AMD-GFX"
+  #   description: >-
+  #     AMD GPU drivers (amdgpu/amdkfd) — RDNA/CDNA/GCN GPU support, display core (DC),
+  #     GPU compute (ROCm/KFD), power management, and AMD-specific DRM features.
   # - name: intel-gfx
-  #   description: "Intel-GFX"
+  #   description: >-
+  #     Intel i915 GPU driver — integrated graphics (Gen9–Gen12+), display, GuC/HuC firmware,
+  #     power management (RC6/DC states), GVT-g (GPU virtualization), and Intel GPU tools.
   # - name: intel-xe
-  #   description: "Intel-XE"
+  #   description: >-
+  #     Intel Xe GPU driver — next-generation Intel GPU driver for discrete (DG1/DG2/Battlemage)
+  #     and integrated GPUs, replacing i915 for newer hardware.
   # - name: nouveau
-  #   description: "Nouveau"
+  #   description: >-
+  #     Nouveau — open-source NVIDIA GPU driver for Linux, DRM/KMS support, firmware loading,
+  #     power management, and hardware acceleration for NVIDIA GPUs.
   # - name: igt-dev
-  #   description: "Igt-dev"
+  #   description: >-
+  #     IGT GPU Tools — test suite for DRM/KMS drivers (i915, xe, amdgpu, nouveau),
+  #     GPU test development, CI results, and display/render testing infrastructure.
   # - name: linux-fbdev
-  #   description: "Linux Framebuffer Layer development"
+  #   description: "Linux framebuffer subsystem — legacy fbdev API, fbcon console, and framebuffer device drivers"
 
   # ── Architecture specific ──────────────────────────
   # - name: linux-arm-kernel
-  #   description: "Linux ARM Kernel"
+  #   description: >-
+  #     Linux ARM/ARM64 architecture — ARMv7/ARMv8/ARMv9 core support, exception handling, NEON/SVE,
+  #     memory management (LPAE, ARM64 page tables), EFI, perf PMU, and ARM-specific errata workarounds.
   # - name: linux-arm-msm
-  #   description: "Linux ARM-MSM sub-architecture"
+  #   description: >-
+  #     Linux Qualcomm MSM/Snapdragon SoC — Qualcomm platform drivers, DSI/DP display,
+  #     Adreno GPU, remoteproc (DSP/modem), interconnect, and Qualcomm-specific DT bindings.
   # - name: linux-riscv
-  #   description: "Linux RISC-V"
+  #   description: >-
+  #     Linux RISC-V architecture — RV32/RV64 kernel support, ISA extensions (V, H, Zicbom),
+  #     SBI interface, RISC-V SoC (SiFive, StarFive, T-Head), and RISC-V platform drivers.
   # - name: loongarch
-  #   description: "LoongArch architecture development"
+  #   description: >-
+  #     Linux LoongArch architecture — Loongson CPU support, LoongArch ISA, LBT (binary translation),
+  #     LSX/LASX SIMD, KVM/LoongArch, and Loongson SoC platform drivers.
   # - name: linuxppc-dev
-  #   description: "LinuxPPC-Dev"
+  #   description: >-
+  #     Linux PowerPC architecture — POWER/PPC32/PPC64 kernel support, KVM/PowerPC,
+  #     OPAL firmware interface, pseries (LPAR), and PowerNV bare-metal platform.
   # - name: linux-s390
-  #   description: "Linux s390 Architecture development"
+  #   description: >-
+  #     Linux s390/s390x (IBM Z) architecture — z/VM, LPAR, DASD, channel I/O (ccw),
+  #     virtio-ccw, PCI, s390-specific KVM, and IBM Z cryptographic hardware.
   # - name: linux-mips
-  #   description: "Linux MIPS Architecture development"
+  #   description: >-
+  #     Linux MIPS architecture — MIPS32/MIPS64 kernel support, Loongson legacy,
+  #     Ralink/MediaTek MIPS SoCs, and MIPS-specific platform drivers.
   # - name: linux-parisc
-  #   description: "Linux PARISC architecture development"
+  #   description: "Linux PA-RISC (HP PARISC) architecture — HP 9000 and IA-64 Itanium related kernel support"
   # - name: linux-sh
-  #   description: "SUPERH platform development"
+  #   description: "Linux SuperH (SH) architecture — SH-4/SH-4A CPU support and Renesas legacy SH SoC platforms"
   # - name: linux-m68k
-  #   description: "Linux M68K Architecture development"
+  #   description: "Linux Motorola 68k architecture — Amiga, Atari, Mac, Q40/Q60, Sun3, and ColdFire support"
   # - name: linux-alpha
-  #   description: "Alpha arch development list"
+  #   description: "Linux Alpha (DEC Alpha/AXP) architecture — Alpha EV4–EV7 CPU and platform support"
   # - name: linux-csky
-  #   description: "Linux C-SKY architecture development"
+  #   description: "Linux C-SKY architecture — C-SKY V2 CPU support for embedded/IoT applications"
   # - name: linux-hexagon
-  #   description: "Linux Hexagon architecture development"
+  #   description: "Linux Qualcomm Hexagon DSP architecture — Hexagon virtual machine and kernel port"
   # - name: linux-um
-  #   description: "linux-um"
+  #   description: "Linux User Mode (UML) — run the Linux kernel as a userspace process for testing and development"
   # - name: openrisc
-  #   description: "Linux OpenRISC platform development"
+  #   description: "Linux OpenRISC architecture — OR1K CPU support, open-source FPGA-friendly processor platform"
   # - name: sparclinux
-  #   description: "SPARC and UltraSPARC platform development"
+  #   description: "Linux SPARC/UltraSPARC architecture — Sun/Oracle SPARC platforms and SPARC64 kernel support"
 
   # ── SoC / platform ────────────────────────────────
   # - name: linux-rockchip
-  #   description: "Linux Rockchip"
+  #   description: >-
+  #     Linux Rockchip SoC — RK3xxx platform drivers, display (VOP2), GPU (Mali/Panfrost),
+  #     NPU, crypto, PCIe, and Rockchip-specific DT bindings.
   # - name: linux-mediatek
-  #   description: "Linux Mediatek"
+  #   description: >-
+  #     Linux MediaTek SoC — MT8xxx/MT6xxx platform drivers, display (DISP/MMSYS),
+  #     connectivity (PCIe, USB), thermal, and MediaTek-specific DT bindings.
   # - name: linux-samsung-soc
-  #   description: "Linux Samsung SOC development"
+  #   description: >-
+  #     Linux Samsung Exynos SoC — Exynos platform drivers, display (DECON/DSI),
+  #     clock, power domain, and Samsung-specific DT bindings.
   # - name: linux-renesas-soc
-  #   description: "Linux Renesas SOC kernel development"
+  #   description: >-
+  #     Linux Renesas SoC — R-Car, RZ/G, RZ/V platform drivers, display (DU),
+  #     Ethernet (rswitch/ravb), and Renesas-specific DT bindings.
   # - name: linux-tegra
-  #   description: "Linux Tegra architecture development"
+  #   description: >-
+  #     Linux NVIDIA Tegra SoC — Jetson platform drivers, display (DC/SOR), BPMP firmware,
+  #     memory controller, and Tegra-specific DT bindings.
   # - name: linux-amlogic
-  #   description: "Linux Amlogic"
+  #   description: >-
+  #     Linux Amlogic SoC — Meson G12/S905/A311D platform drivers, display (VPU),
+  #     clock, thermal, and Amlogic-specific DT bindings.
   # - name: linux-sunxi
-  #   description: "ARM Sunxi Platform Development"
+  #   description: >-
+  #     Linux Allwinner (Sunxi) SoC — A64/H6/H616/D1 platform drivers, display (DE2/DE3),
+  #     clock (CCU), power, and Allwinner-specific DT bindings.
   # - name: linux-omap
-  #   description: "Linux on ARM based TI OMAP SoCs"
+  #   description: >-
+  #     Linux TI OMAP/AM/DRA SoC — OMAP3/4/5 and AM335x/AM57xx platform drivers,
+  #     PRU-ICSS, display (DSS/TIDSS), and TI-specific DT bindings.
   # - name: linux-aspeed
-  #   description: "Linux Aspeed"
+  #   description: >-
+  #     Linux Aspeed BMC SoC — AST2400/2500/2600 BMC platform drivers, IPMI, KCS,
+  #     VGA/video engine, and OpenBMC kernel integration.
   # - name: imx
-  #   description: "Linux kernel and device drivers for NXP i.MX platforms"
+  #   description: >-
+  #     Linux NXP i.MX SoC — i.MX6/7/8/9 platform drivers, display (LCDIF/DCSS/LDB),
+  #     GPU (Vivante/etnaviv), USB, PCIe, and i.MX-specific DT bindings.
   # - name: sophgo
-  #   description: "Linux Sophgo SoC development"
+  #   description: >-
+  #     Linux Sophgo SoC — SG2000/SG2042 RISC-V SoC platform drivers,
+  #     AI accelerator (TPU), and Sophgo-specific DT bindings.
   # - name: spacemit
-  #   description: "Linux SpacemiT device drivers"
+  #   description: >-
+  #     Linux SpacemiT SoC — SpacemiT K1 RISC-V SoC platform drivers
+  #     and SpacemiT-specific DT bindings.
   # - name: platform-driver-x86
-  #   description: "X86 platform drivers"
+  #   description: >-
+  #     Linux x86 platform drivers — laptop/desktop vendor-specific drivers (Lenovo, Dell, HP, ASUS),
+  #     WMI, ACPI platform devices, intel-hid, and fan/LED/hotkey control.
   # - name: chrome-platform
-  #   description: "Chrome platform driver development"
+  #   description: >-
+  #     Linux ChromeOS platform drivers — Chrome EC (cros_ec), Wilco EC,
+  #     ChromeOS ACPI, and Chromebook-specific hardware support.
 
   # ── Bus & device subsystems ────────────────────────
   # - name: linux-pci
-  #   description: "Linux PCI subsystem development"
+  #   description: >-
+  #     Linux PCI/PCIe subsystem — PCI core, PCIe enumeration, MSI/MSI-X, AER (Advanced Error Reporting),
+  #     hotplug, SR-IOV, PCI host bridge drivers, and PCI endpoint framework.
   # - name: linux-usb
-  #   description: "Linux USB"
+  #   description: >-
+  #     Linux USB subsystem — USB core, xHCI/EHCI/OHCI host controllers, USB gadget framework,
+  #     USB Type-C/PD, USB device drivers (mass storage, serial, HID), and usbutils.
   # - name: linux-i2c
-  #   description: "Linux I2C development"
+  #   description: >-
+  #     Linux I2C subsystem — I2C core, bus multiplexers, slave interface,
+  #     I2C host adapter drivers, and I2C device instantiation.
   # - name: linux-i3c
-  #   description: "Linux I3C"
+  #   description: >-
+  #     Linux I3C (MIPI I3C) subsystem — I3C core, IBI (In-Band Interrupt), hot-join,
+  #     I3C master controllers, and I3C device drivers.
   # - name: linux-spi
-  #   description: "Linux SPI subsystem development"
+  #   description: >-
+  #     Linux SPI subsystem — SPI core framework, SPI controller drivers,
+  #     SPI device protocol drivers (spidev, SPI-NOR, SPI-NAND), and DMA transfers.
   # - name: linux-gpio
-  #   description: "Linux GPIO subsystem development"
+  #   description: >-
+  #     Linux GPIO subsystem — GPIO descriptor API, gpio-chip drivers, GPIO aggregator,
+  #     GPIO interrupt controller, and userspace GPIO (libgpiod/chardev).
   # - name: linux-iio
-  #   description: "Linux IIO development"
+  #   description: >-
+  #     Linux IIO (Industrial I/O) — ADCs, DACs, IMUs, accelerometers, gyroscopes, magnetometers,
+  #     proximity/light sensors, IIO buffers/triggers, and iio-triggered-buffer.
   # - name: linux-phy
-  #   description: "Linux PHY"
+  #   description: >-
+  #     Linux PHY subsystem — generic PHY framework, USB PHY, PCIe PHY, MIPI D-PHY,
+  #     Ethernet PHY (MDIO/phylib), and SerDes/combo PHY drivers.
   # - name: linux-clk
-  #   description: "Linux clock framework development"
+  #   description: >-
+  #     Linux clock framework — common clock framework (CCF), clock providers/consumers,
+  #     PLL/divider/mux/gate clocks, and SoC-specific clock controller drivers.
   # - name: dmaengine
-  #   description: "DMA Engine development"
+  #   description: >-
+  #     Linux DMA engine subsystem — DMA channel management, slave/memcpy/scatter-gather APIs,
+  #     DMA controller drivers (PL330, EDMA, QDMA), and virt-dma helpers.
   # - name: linux-hwmon
-  #   description: "Linux Hardware Monitor development"
+  #   description: >-
+  #     Linux hardware monitoring — temperature/voltage/fan speed/power sensors,
+  #     hwmon sysfs API, PMBus drivers, and chip-specific drivers (lm-sensors).
   # - name: linux-leds
-  #   description: "Linux LED subsystem development"
+  #   description: >-
+  #     Linux LED subsystem — LED class devices, LED triggers (heartbeat, disk-activity, netdev),
+  #     multi-color LEDs, LED flash, and hardware-controlled blinking.
   # - name: linux-watchdog
-  #   description: "Linux Watchdog driver development"
+  #   description: >-
+  #     Linux watchdog subsystem — watchdog core framework, hardware watchdog timer drivers,
+  #     pretimeout governors, and /dev/watchdog userspace interface.
   # - name: linux-input
-  #   description: "Linux Input/HID development"
+  #   description: >-
+  #     Linux input subsystem — evdev, input event reporting, touchscreen/touchpad drivers,
+  #     keyboard/mouse drivers, HID core, gamepad/joystick, and force feedback.
   # - name: linux-rtc
-  #   description: "Linux RTC"
+  #   description: >-
+  #     Linux RTC (Real-Time Clock) subsystem — RTC core framework, alarm timers,
+  #     wakealarm, nvmem integration, and hardware RTC chip drivers.
   # - name: linux-fpga
-  #   description: "Linux FPGA development"
+  #   description: >-
+  #     Linux FPGA framework — FPGA manager (bitstream loading), FPGA bridge, FPGA region,
+  #     DFL (Device Feature List) for Intel FPGA, and FPGA device drivers.
   # - name: linux-hotplug
-  #   description: "Linux Hotplug development"
+  #   description: "Linux hotplug — dynamic device add/remove, uevents, and userspace device manager integration"
   # - name: linux-rdma
-  #   description: "Linux RDMA and InfiniBand development"
+  #   description: >-
+  #     Linux RDMA/InfiniBand — RDMA core (verbs), IB/RoCE/iWARP, RDMA-CM,
+  #     HCA drivers (mlx5, bnxt_re, efa), NVMe-oF RDMA transport, and rdma-core userspace.
   # - name: ntb
-  #   description: "Linux PCI Non-Transparent Bridge framework and drivers"
+  #   description: >-
+  #     Linux NTB (Non-Transparent Bridge) — PCI NTB framework, NTB transport,
+  #     NTB hardware drivers (Intel, AMD, Broadcom), and peer-to-peer communication.
 
   # ── Security & crypto ──────────────────────────────
   # - name: linux-crypto
-  #   description: "Linux cryptographic layer development"
+  #   description: >-
+  #     Linux crypto subsystem — crypto API (skcipher, aead, hash, akcipher), hardware crypto
+  #     accelerators, AF_ALG socket interface, and algorithm self-tests.
   # - name: keyrings
-  #   description: "Kernel keyring development"
+  #   description: >-
+  #     Linux kernel keyring — key management service, key types (user, logon, asymmetric, encrypted),
+  #     keyctl syscall, KEYS subsystem, and trusted/encrypted key sealing (TPM).
   # - name: linux-integrity
-  #   description: "Linux Integrity Measurement development"
+  #   description: >-
+  #     Linux Integrity Measurement Architecture (IMA) — file integrity measurement/appraisal,
+  #     EVM (Extended Verification Module), and TPM-based platform integrity.
   # - name: selinux
-  #   description: "SELinux Security Module development"
+  #   description: >-
+  #     SELinux (Security-Enhanced Linux) — mandatory access control, SELinux policy,
+  #     labeling, type enforcement, and kernel SELinux infrastructure.
   # - name: linux-sgx
-  #   description: "Intel SGX development"
+  #   description: >-
+  #     Intel SGX (Software Guard Extensions) — SGX enclave support in Linux,
+  #     SGX driver, EPC management, attestation, and SGX virtualization (vSGX).
   # - name: linux-coco
-  #   description: "Linux Confidential Computing Development"
+  #   description: >-
+  #     Linux Confidential Computing — AMD SEV/SEV-ES/SEV-SNP, Intel TDX,
+  #     guest attestation, shared/private memory, and confidential VM infrastructure.
   # - name: audit
-  #   description: "Audit system development"
+  #   description: >-
+  #     Linux audit subsystem — syscall auditing, audit rules/filters, audit log generation,
+  #     fanotify/inotify integration, and auditd kernel interface.
   # - name: kernel-tls-handshake
-  #   description: "Handshake for in-kernel TLS consumers"
+  #   description: "Linux in-kernel TLS handshake — TLS handshake helper for kTLS consumers (NFS, SMB)"
 
   # ── Tracing, testing & debugging ───────────────────
   - name: linux-trace-kernel
     description: >-
       Linux kernel tracing — ftrace, kprobes, uprobes, tracepoints, perf events, trace-cmd,
       BPF tracing integration, function graph tracer, event triggers, and histogram tracing.
-  # - name: linux-perf-users
-  #   description: "Linux Perf Users"
+  - name: linux-perf-users
+    description: >-
+      Linux perf tool users — perf record/report/stat/top usage, PMU events, flame graphs,
+      perf scripting, hardware performance counters, and perf tooling discussion.
   # - name: linux-kselftest
-  #   description: "Linux Kernel Selftest development"
+  #   description: >-
+  #     Linux kernel selftests (kselftest) — test development for all subsystems,
+  #     test framework improvements, CI integration, and test result reporting.
   # - name: ltp
-  #   description: "Linux Test Project"
+  #   description: >-
+  #     Linux Test Project (LTP) — POSIX compliance tests, syscall tests, filesystem tests,
+  #     kernel regression tests, and LTP framework development.
   # - name: syzbot
-  #   description: "Archive-only list for syzbot"
+  #   description: >-
+  #     syzbot automated bug reports — archive-only list for syzkaller/syzbot kernel fuzzer
+  #     crash reports, reproducers, and fix notifications.
   # - name: rcu
-  #   description: "Linux RCU subsystem development"
+  #   description: >-
+  #     Linux RCU (Read-Copy-Update) — RCU core implementation (tree/tiny/tasks),
+  #     SRCU, RCU callbacks, grace periods, and read-side critical section primitives.
   # - name: damon
-  #   description: "DAMON development mailing list"
+  #   description: >-
+  #     Linux DAMON (Data Access MONitor) — data access pattern monitoring,
+  #     DAMOS (access-aware operations), proactive reclaim, and memory tiering.
   # - name: live-patching
-  #   description: "Live Patching"
+  #   description: >-
+  #     Linux live patching — kpatch/livepatch infrastructure, function patching at runtime,
+  #     consistency model, and stack checking for safe patch application.
   # - name: linux-rt-devel
-  #   description: "Linux real-time development"
+  #   description: >-
+  #     Linux PREEMPT_RT real-time development — RT mutex, threaded interrupts,
+  #     preemptible spinlocks, RT scheduling latency, and PREEMPT_RT patchset.
   # - name: linux-edac
-  #   description: "Linux EDAC development"
+  #   description: >-
+  #     Linux EDAC (Error Detection And Correction) — memory ECC error handling,
+  #     EDAC drivers for memory controllers, RAS/CPER, and hardware error reporting.
   # - name: dwarves
-  #   description: "Dwarves debugging tools"
+  #   description: >-
+  #     dwarves DWARF tools — pahole (structure layout analysis), BTF generation for BPF,
+  #     DWARF pretty-printing, and debugging information utilities.
   # - name: dtrace
-  #   description: "Linux DTrace development list"
+  #   description: "Linux DTrace — DTrace tracing framework port to Linux kernel"
   # - name: criu
-  #   description: "CRIU (Checkpoint/Restore in Userspace)"
+  #   description: >-
+  #     CRIU (Checkpoint/Restore In Userspace) — process checkpoint/restore, live migration,
+  #     container migration, and kernel interfaces (prctl, /proc, userfaultfd).
 
   # ── Sound & media ──────────────────────────────────
   # - name: linux-sound
-  #   description: "Linux Sound subsystem development"
+  #   description: >-
+  #     Linux sound subsystem — ALSA core, ASoC (SoC audio), HD-Audio, USB audio,
+  #     audio codec drivers, PCM, mixer, MIDI, and sound firmware loading.
   # - name: alsa-devel
-  #   description: "ALSA Development"
+  #   description: >-
+  #     ALSA (Advanced Linux Sound Architecture) — ALSA library (alsa-lib), ALSA tools/plugins,
+  #     UCM (Use Case Manager), PulseAudio/PipeWire kernel interface, and ALSA topology.
   # - name: linux-media
-  #   description: "Linux Media Controller development"
+  #   description: >-
+  #     Linux media subsystem — V4L2 (Video4Linux2), media controller framework, camera drivers,
+  #     DVB (digital TV), CEC (HDMI-CEC), codec drivers, and media request API.
 
   # ── Devicetree ─────────────────────────────────────
   # - name: linux-devicetree
-  #   description: "Devicetree"
+  #   description: >-
+  #     Linux Devicetree — DT bindings (YAML/JSON schema), DT overlays, dtbs_check validation,
+  #     DT binding reviews, and cross-subsystem devicetree infrastructure.
   # - name: devicetree-compiler
-  #   description: "Devicetree Compiler"
+  #   description: "Devicetree compiler (dtc) — DTS parser/compiler, libfdt library, fdtoverlay, and dtc tooling"
   # - name: devicetree-spec
-  #   description: "Devicetree Spec"
+  #   description: "Devicetree specification — DT standard development, node/property definitions, and versioning"
 
   # ── Scheduling & cgroups ───────────────────────────
   - name: cgroups
@@ -436,25 +630,39 @@ inboxes:
       Linux cgroups (control groups) — cgroup v1/v2, CPU/memory/IO/PID controllers,
       resource limits, cgroupfs, systemd integration, and container resource management.
   # - name: sched-ext
-  #   description: "Sched_ext development"
+  #   description: >-
+  #     Linux sched_ext — BPF-extensible CPU scheduler, custom scheduling policies via BPF programs,
+  #     scx_* example schedulers, and pluggable scheduler framework.
 
   # ── IOMMU & ACPI & EFI ────────────────────────────
   # - name: linux-iommu
-  #   description: "Linux IOMMU Development"
+  #   description: >-
+  #     Linux IOMMU subsystem — IOMMU core/domain API, Intel VT-d, AMD-Vi, ARM SMMU,
+  #     DMA remapping, SVA (Shared Virtual Addressing), and VFIO/IOMMUFD passthrough.
   # - name: linux-acpi
-  #   description: "Linux ACPI"
+  #   description: >-
+  #     Linux ACPI (Advanced Configuration and Power Interface) — ACPI tables, ACPICA,
+  #     ACPI device enumeration, thermal zones, battery/power supply, and ACPI platform drivers.
   # - name: linux-efi
-  #   description: "Linux EFI development"
+  #   description: >-
+  #     Linux EFI/UEFI — EFI stub, EFI runtime services, EFI variables, EFI capsule updates,
+  #     Secure Boot, MOK (Machine Owner Key), and UEFI boot path.
   # - name: x86-cpuid
-  #   description: "x86-cpuid.org development mailing list"
+  #   description: "x86 CPUID — CPU feature identification, x86 feature flags, and CPUID leaf documentation"
 
   # ── Remoteproc / firmware ──────────────────────────
   # - name: linux-remoteproc
-  #   description: "Linux Remote Processor Subsystem development"
+  #   description: >-
+  #     Linux remoteproc/rpmsg — remote processor lifecycle management, firmware loading,
+  #     crash recovery, rpmsg (inter-processor messaging), and virtio-based RPMsg transport.
   # - name: linux-firmware
-  #   description: "Linux Firmware"
+  #   description: >-
+  #     Linux firmware repository — binary firmware blobs for GPUs, Wi-Fi, Bluetooth, DSP,
+  #     and other hardware requiring firmware loading at runtime.
   # - name: arm-scmi
-  #   description: "SCMI firmware/drivers"
+  #   description: >-
+  #     ARM SCMI (System Control and Management Interface) — firmware protocol for clock, power domain,
+  #     sensor, performance domain management between OS and SCP firmware.
 
   # ── Build systems & tooling ────────────────────────
   # - name: rust-for-linux
@@ -462,72 +670,102 @@ inboxes:
   #     Rust for Linux — Rust language support in the kernel, Rust abstractions for kernel APIs,
   #     Rust drivers (e.g. nova-core, binder), and Rust build/toolchain integration.
   # - name: llvm
-  #   description: "Building the Linux kernel with Clang and LLVM"
+  #   description: >-
+  #     ClangBuiltLinux — building the Linux kernel with Clang/LLVM, compiler bug reports,
+  #     LTO (Link-Time Optimization), CFI, and Clang-specific kernel build issues.
   # - name: cocci
-  #   description: "Coccinelle"
+  #   description: >-
+  #     Coccinelle — semantic patch tool for C code, SmPL (Semantic Patch Language),
+  #     automated kernel API transformations, and spatch development.
   # - name: tools
-  #   description: "Linux maintainer tooling and workflows"
+  #   description: "Linux kernel tools/ directory — perf, bpftool, selftests, and misc userspace tools shipped with the kernel"
   # - name: workflows
-  #   description: "Maintainer workflows discussions"
+  #   description: "Linux kernel maintainer workflows — git best practices, pull request conventions, and CI/automation for maintainers"
   # - name: linux-spdx
-  #   description: "Linux Licenses and SPDX discussions"
+  #   description: "Linux SPDX license identifiers — license compliance, SPDX tags in source files, and licensing discussions"
   # - name: linux-man
-  #   description: "Linux Manual Pages development"
+  #   description: "Linux man-pages project — syscall/library documentation (man2/man3/man7), API docs, and manpage formatting"
   # - name: kernelci
-  #   description: "KernelCI discussions"
+  #   description: >-
+  #     KernelCI — automated kernel testing infrastructure, build/boot/test CI results,
+  #     LAVA lab integration, and kernel quality dashboards.
 
   # ── Build / kbuild / testing infra ─────────────────
   # - name: oe-kbuild-all
-  #   description: "kbuild Development List"
+  #   description: "Intel 0-day kbuild — automated kernel build reports for all architectures and configs"
   # - name: oe-kbuild
-  #   description: "0 day kernel build service"
+  #   description: "Intel 0-day kernel build service — build error/warning reports from automated kernel compilation"
   # - name: oe-lkp
-  #   description: "Linux Kernel Performance"
+  #   description: >-
+  #     Intel 0-day LKP (Linux Kernel Performance) — automated performance regression reports,
+  #     benchmark results, and resource usage comparisons between kernel versions.
   # - name: linux-staging
-  #   description: "Linux kernel staging patches"
+  #   description: >-
+  #     Linux staging tree — drivers/staging/ cleanup, code quality improvements,
+  #     moving drivers to mainline, and Greg KH's staging tree patches.
 
   # ── Bootloader ─────────────────────────────────────
   # - name: u-boot
-  #   description: "U-Boot"
+  #   description: >-
+  #     U-Boot bootloader — SPL, device drivers, DT support, EFI payload, verified boot,
+  #     boot scripts, and board support for ARM/RISC-V/x86/MIPS platforms.
   # - name: barebox
-  #   description: "barebox mailing list"
+  #   description: >-
+  #     barebox bootloader — Linux-like bootloader with shell, filesystem support,
+  #     device framework, and ARM/MIPS/RISC-V board support.
   # - name: grub-devel
-  #   description: "Grub Development"
+  #   description: >-
+  #     GNU GRUB bootloader — GRUB2 development, boot menu, filesystem modules,
+  #     EFI support, Secure Boot chain, and GRUB scripting.
 
   # ── Embedded / Yocto / OpenEmbedded ────────────────
   # - name: yocto
-  #   description: "Yocto Project Discussions"
+  #   description: >-
+  #     Yocto Project — embedded Linux build system, BitBake recipes, image generation,
+  #     SDK, layer management, and Poky reference distribution.
   # - name: yocto-patches
-  #   description: "Patches for Yocto layers and components"
+  #   description: "Yocto Project patches — patch submissions for Poky, BitBake, and Yocto layer recipes"
   # - name: yocto-meta-arago
-  #   description: "Yocto Meta Arago"
+  #   description: "Yocto meta-arago layer — TI Arago distribution recipes for TI Sitara/AM/DRA SoCs"
   # - name: yocto-meta-ti
-  #   description: "Yocto Meta TI"
+  #   description: "Yocto meta-ti layer — TI BSP recipes for AM335x, AM57xx, AM6x, J7, and other TI platforms"
   # - name: yocto-meta-virtualization
-  #   description: "Yocto Meta Virtualization"
+  #   description: "Yocto meta-virtualization layer — container (Docker, Podman), KVM, Xen, and hypervisor recipes"
   # - name: openembedded-devel
-  #   description: "Openembedded Devel Discussions"
+  #   description: >-
+  #     OpenEmbedded development — OE-Core recipes, BitBake classes, cross-compilation,
+  #     package management, and embedded Linux distribution building.
   # - name: openembedded-core
-  #   description: "Openembedded Core Discussions"
+  #   description: "OpenEmbedded-Core (OE-Core) — base recipes, classes, and core infrastructure for OE/Yocto builds"
   # - name: buildroot
-  #   description: "Buildroot"
+  #   description: >-
+  #     Buildroot — lightweight embedded Linux build system, package recipes, toolchain generation,
+  #     root filesystem creation, and board defconfigs.
   # - name: cip-dev
-  #   description: "CIP Development"
+  #   description: >-
+  #     Civil Infrastructure Platform (CIP) — super-long-term Linux kernel maintenance,
+  #     industrial/infrastructure use cases, and CIP kernel testing.
 
   # ── Other ──────────────────────────────────────────
   # - name: all
-  #   description: "All of lore.kernel.org"
+  #   description: "All of lore.kernel.org — unified archive of all mailing lists (read-only, extremely high volume)"
   # - name: git
-  #   description: "Git development"
+  #   description: >-
+  #     Git version control development — git core, libgit2, protocol, pack format,
+  #     merge strategies, and git tooling (gitk, git-gui).
   # - name: ddprobe
-  #   description: "List used for roundtrip monitoring"
+  #   description: "ddprobe — roundtrip monitoring probe for lore.kernel.org infrastructure health"
   # - name: dpdk-dev
-  #   description: "DPDK development"
+  #   description: >-
+  #     DPDK (Data Plane Development Kit) — userspace networking, PMD (Poll Mode Drivers),
+  #     packet processing, DPDK EAL, and high-performance I/O libraries.
   # - name: openbmc
-  #   description: "OpenBMC"
+  #   description: >-
+  #     OpenBMC — open-source BMC firmware based on Yocto/Linux, BMC management,
+  #     IPMI, Redfish, phosphor services, and BMC hardware enablement.
   # - name: phone-devel
-  #   description: "Linux smartphone development"
+  #   description: "Linux smartphone development — mainline Linux on mobile devices, modem support, and mobile UI integration"
   # - name: distributions
-  #   description: "Forum for Linux distributions"
+  #   description: "Linux distributions forum — cross-distro collaboration, packaging, ABI compatibility, and distribution kernel topics"
   # - name: dash
-  #   description: "DASH Shell discussions"
+  #   description: "DASH shell — lightweight POSIX-compliant /bin/sh, performance, and POSIX compliance"
