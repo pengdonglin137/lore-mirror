@@ -26,6 +26,42 @@ pip3 install -r requirements.txt
 cd frontend && npm install && npx vite build && cd ..
 ```
 
+#### 树莓派 / Debian Bookworm 注意事项
+
+Debian 12+ 和 Raspberry Pi OS (Bookworm) 默认禁止 pip 直接安装到系统 Python（PEP 668），需要使用虚拟环境：
+
+```bash
+# 安装 venv 模块
+sudo apt install python3-full python3-venv
+
+# 创建并激活虚拟环境
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 然后正常安装依赖
+pip3 install -r requirements.txt
+```
+
+使用 venv 后，cron 和启动脚本中需使用 `.venv/bin/python3` 替代 `python3`：
+
+```cron
+# 每 6 小时同步（venv 环境）
+0 */6 * * * cd /path/to/lore-mirror && .venv/bin/python3 scripts/sync.py >> sync.log 2>&1
+```
+
+MCP 配置中同样需要指向 venv 的 Python：
+
+```json
+{
+  "mcpServers": {
+    "lore-mirror": {
+      "command": "/path/to/lore-mirror/.venv/bin/python3",
+      "args": ["/path/to/lore-mirror/server/mcp_server.py"]
+    }
+  }
+}
+```
+
 ### 方式二：Docker 部署
 
 ```bash
