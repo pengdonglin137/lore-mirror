@@ -206,7 +206,7 @@ lore.kernel.org 基于 [public-inbox](https://public-inbox.org/) 项目，每个
 ### Docker — 为什么提供但不强制？
 
 **可选容器化的理由**:
-- 裸机部署更简单（`pip install` + `./start.sh`），适合开发者日常使用
+- 裸机部署更简单（`./start.sh` 自动检测并安装 Python/Node.js 依赖），适合开发者日常使用
 - Docker 适合服务器/团队部署，提供环境一致性和 cron 集成（sync 容器）
 - 数据卷挂载让裸机和 Docker 之间可以无缝切换，不需要重新下载或导入
 
@@ -387,6 +387,8 @@ python3 scripts/import_mail.py --stats
 ./start.sh --port 9000 --dev-port 4000
 LORE_PORT=9000 LORE_DEV_PORT=4000 ./start.sh
 ```
+
+`start.sh` 会自动检测并安装缺失的依赖（Python 包和 Node.js 模块），首次部署无需手动安装。
 
 访问 http://localhost:3000（开发）或 http://localhost:8000（生产，默认端口）。
 

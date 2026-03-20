@@ -7,7 +7,7 @@ Local mirror of lore.kernel.org kernel mailing list archives.
 ```
 /vol_8t/lore/
 ├── config.yaml              # Inbox list (~200 inboxes, most commented out) + settings
-├── start.sh                 # Launch script: ./start.sh (dev) or ./start.sh --build (prod); --port/--dev-port flags
+├── start.sh                 # Launch script: auto-installs deps, ./start.sh (dev) or ./start.sh --build (prod)
 ├── Dockerfile               # Multi-stage build (Node + Python)
 ├── docker-compose.yml       # web + sync services
 ├── repos/                   # Git mirror repos: repos/{inbox}/git/{epoch}.git
