@@ -9,6 +9,7 @@ Usage:
 """
 
 import json
+import logging
 import re
 import sqlite3
 import time
@@ -1074,3 +1075,8 @@ if FRONTEND_DIST.exists():
         if file.exists() and file.is_file():
             return FileResponse(file)
         return FileResponse(FRONTEND_DIST / "index.html")
+else:
+    logging.warning(
+        "frontend/dist/ not found — web UI disabled. "
+        "Build with: cd frontend && npm install && npx vite build"
+    )

@@ -29,7 +29,24 @@ pkill -f "uvicorn server.app" 2>/dev/null || true
 pkill -f "vite.*--host" 2>/dev/null || true
 sleep 1
 
+ensure_python_deps() {
+    if ! python3 -c "import fastapi" 2>/dev/null; then
+        echo "Installing Python dependencies..."
+        pip install -r requirements.txt
+    fi
+}
+
+ensure_frontend_deps() {
+    if [ ! -d frontend/node_modules ]; then
+        echo "Installing frontend dependencies..."
+        (cd frontend && npm install)
+    fi
+}
+
+ensure_python_deps
+
 if [ "$BUILD" = "1" ]; then
+    ensure_frontend_deps
     echo "Building frontend for production..."
     (cd frontend && npx vite build)
     echo ""
@@ -37,6 +54,7 @@ if [ "$BUILD" = "1" ]; then
     echo "Access at: http://localhost:${PORT}"
     python3 -m uvicorn server.app:app --host 0.0.0.0 --port "${PORT}" --workers 4
 else
+    ensure_frontend_deps
     echo "Starting backend on :${PORT}..."
     nohup python3 -m uvicorn server.app:app --host 0.0.0.0 --port "${PORT}" --workers 4 > server.log 2>&1 &
     echo "  Backend PID: $! (log: server.log)"
