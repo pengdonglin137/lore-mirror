@@ -105,10 +105,10 @@ const maxCount = computed(() => {
           <div class="summary-value">{{ stats.total_inboxes }}</div>
           <div class="summary-label">inboxes</div>
         </div>
-        <div class="summary-card">
+        <router-link to="/databases" class="summary-card clickable">
           <div class="summary-value">{{ formatSize(stats.database_size_bytes) }}</div>
           <div class="summary-label">database</div>
-        </div>
+        </router-link>
         <div v-if="syncingInboxes.length" class="summary-card syncing">
           <div class="summary-value">{{ syncingInboxes.length }}</div>
           <div class="summary-label">syncing</div>
@@ -176,6 +176,19 @@ const maxCount = computed(() => {
 
 .summary-card:hover {
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.summary-card.clickable {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.summary-card.clickable:hover {
+  border-color: #0969da;
+  box-shadow: 0 4px 12px rgba(9,105,218,0.1);
+  transform: translateY(-1px);
 }
 
 .summary-card.syncing {
@@ -309,6 +322,10 @@ html.dark .summary-card {
 }
 html.dark .summary-card:hover {
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+html.dark .summary-card.clickable:hover {
+  border-color: #58a6ff;
+  box-shadow: 0 4px 12px rgba(88,166,255,0.08);
 }
 html.dark .summary-card.syncing {
   background: #0d2744;

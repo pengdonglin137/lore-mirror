@@ -47,3 +47,7 @@ export function search(q, { inbox, page = 1, perPage = 50 } = {}) {
 export function getVisitStats({ days = 30, hours = 48 } = {}) {
   return fetchJSON(`${BASE}/stats/visits?days=${days}&hours=${hours}`)
 }
+
+export function getDatabaseStats() {
+  return fetchJSON(`${BASE}/stats/databases`)
+}

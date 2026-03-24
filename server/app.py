@@ -1097,6 +1097,55 @@ def get_stats():
     return result
 
 
+@app.get("/api/stats/databases")
+def get_database_stats():
+    """Get per-inbox database statistics (cached 5 min)."""
+    cached = cache_get("db_stats")
+    if cached is not None:
+        return cached
+
+    results = []
+    total_size = 0
+    total_messages = 0
+
+    for name in get_available_inboxes():
+        db_path = DB_DIR / f"{name}.db"
+        entry = {"name": name, "size_bytes": 0, "message_count": 0,
+                 "earliest": None, "latest": None, "description": INBOXES_CONFIG.get(name, "")}
+        try:
+            entry["size_bytes"] = db_path.stat().st_size
+            total_size += entry["size_bytes"]
+
+            conn = get_db(name)
+            entry["message_count"] = conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
+            total_messages += entry["message_count"]
+
+            earliest = conn.execute(
+                "SELECT date FROM messages WHERE date >= '1990' ORDER BY date ASC LIMIT 1"
+            ).fetchone()
+            latest = conn.execute(
+                "SELECT date FROM messages WHERE date <= '2027' ORDER BY date DESC LIMIT 1"
+            ).fetchone()
+            entry["earliest"] = earliest["date"] if earliest else None
+            entry["latest"] = latest["date"] if latest else None
+            conn.close()
+        except Exception:
+            pass
+        results.append(entry)
+
+    # Sort by size descending (largest first)
+    results.sort(key=lambda x: x["size_bytes"], reverse=True)
+
+    resp = {
+        "total_size_bytes": total_size,
+        "total_messages": total_messages,
+        "total_inboxes": len(results),
+        "inboxes": results,
+    }
+    cache_set("db_stats", resp)
+    return resp
+
+
 # ── Visit statistics ────────────────────────────────
 
 @app.get("/api/stats/visits")
