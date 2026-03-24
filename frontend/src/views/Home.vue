@@ -158,17 +158,17 @@ const maxCount = computed(() => {
 /* ── Summary Cards ───────────────────────────── */
 .summary-row {
   display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
+  gap: 8px;
+  margin-bottom: 16px;
   flex-wrap: wrap;
 }
 
 .summary-card {
   background: #fff;
   border: 1px solid #d1d9e0;
-  border-radius: 10px;
-  padding: 16px 24px;
-  min-width: 120px;
+  border-radius: 8px;
+  padding: 8px 16px;
+  min-width: 80px;
   flex: 1;
   text-align: center;
   transition: box-shadow 0.2s;
@@ -197,18 +197,18 @@ const maxCount = computed(() => {
 }
 
 .summary-value {
-  font-size: 24px;
+  font-size: 16px;
   font-weight: 700;
   color: #1f2328;
   line-height: 1.2;
 }
 
 .summary-label {
-  font-size: 12px;
+  font-size: 11px;
   color: #656d76;
-  margin-top: 2px;
+  margin-top: 1px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
 }
 
 /* ── Filter bar ──────────────────────────────── */
