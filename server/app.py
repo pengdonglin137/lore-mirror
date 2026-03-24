@@ -151,7 +151,7 @@ def get_available_inboxes() -> list[str]:
         return []
     return sorted(
         p.stem for p in DB_DIR.glob("*.db")
-        if p.stem != "schema"
+        if p.stem not in ("schema", "stats")
     )
 
 
