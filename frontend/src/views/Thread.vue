@@ -114,20 +114,32 @@ const inbox = computed(() => data.value?.inbox || '')
 
 <template>
   <div>
-    <pre v-if="loading" class="loading">Loading...</pre>
-    <pre v-else-if="error" class="error">Error: {{ error }}</pre>
+    <div v-if="loading" class="loading">Loading...</div>
+    <div v-else-if="error" class="error">Error: {{ error }}</div>
     <template v-else-if="data">
-      <pre class="thread-header"><router-link to="/">lore-mirror</router-link><template v-if="inbox"> / <router-link :to="`/inbox/${inbox}`">{{ inbox }}</router-link></template> — thread ({{ data.total }} messages)
-
-<span class="view-toggle">[<template v-for="(mode, i) in ['tree', 'flat', 'nested']" :key="mode"><template v-if="i"> | </template><a
-  v-if="viewMode !== mode"
-  href="#"
-  @click.prevent="setView(mode)"
->{{ mode }}</a><b v-else>{{ mode }}</b></template>]</span>
-</pre>
+      <div class="thread-header-card">
+        <div class="thread-breadcrumb">
+          <router-link to="/">lore-mirror</router-link>
+          <template v-if="inbox">
+            <span class="bc-sep">/</span>
+            <router-link :to="`/inbox/${inbox}`">{{ inbox }}</router-link>
+          </template>
+          <span class="bc-sep">&mdash;</span>
+          thread ({{ data.total }} messages)
+        </div>
+        <div class="view-toggle">
+          <button
+            v-for="mode in ['tree', 'flat', 'nested']"
+            :key="mode"
+            class="view-btn"
+            :class="{ active: viewMode === mode }"
+            @click="setView(mode)"
+          >{{ mode }}</button>
+        </div>
+      </div>
 
       <!-- Tree view (default) -->
-      <div v-if="viewMode === 'tree'" class="thread-tree">
+      <div v-if="viewMode === 'tree'" class="thread-tree-card">
         <ThreadNode
           v-for="node in tree"
           :key="node.message_id"
@@ -139,10 +151,17 @@ const inbox = computed(() => data.value?.inbox || '')
 
       <!-- Flat view -->
       <template v-else-if="viewMode === 'flat'">
-        <pre v-if="loadingFull" class="loading">Loading full thread...</pre>
+        <div v-if="loadingFull" class="loading">Loading full thread...</div>
         <div v-else class="thread-full">
           <div v-for="msg in flatMessages" :key="msg.message_id" class="thread-message">
-            <div class="thread-msg-header"><AddressLink :address="msg.sender" context="header" /> <span class="thread-msg-date">{{ formatDate(msg.date) }}</span> <router-link :to="`/message/${encodeURIComponent(msg.message_id)}`" class="thread-msg-link">[message]</router-link> <a :href="`/api/raw?id=${encodeURIComponent(msg.message_id)}`" class="thread-msg-link">[raw]</a> <a :href="`https://lore.kernel.org/${inbox}/${msg.message_id}/`" target="_blank" rel="noopener" class="thread-msg-link">[lore]</a>
+            <div class="thread-msg-header">
+              <AddressLink :address="msg.sender" context="header" />
+              <span class="thread-msg-date">{{ formatDate(msg.date) }}</span>
+              <div class="thread-msg-actions">
+                <router-link :to="`/message/${encodeURIComponent(msg.message_id)}`" class="action-btn">message</router-link>
+                <a :href="`/api/raw?id=${encodeURIComponent(msg.message_id)}`" class="action-btn">raw</a>
+                <a :href="`https://lore.kernel.org/${inbox}/${msg.message_id}/`" target="_blank" rel="noopener" class="action-btn">lore</a>
+              </div>
               <div v-if="msg.subject !== flatMessages[0]?.subject" class="thread-msg-subject">{{ msg.subject }}</div>
             </div>
             <MessageBody :bodyText="msg.body_text" />
@@ -152,7 +171,7 @@ const inbox = computed(() => data.value?.inbox || '')
 
       <!-- Nested view -->
       <template v-else-if="viewMode === 'nested'">
-        <pre v-if="loadingFull" class="loading">Loading full thread...</pre>
+        <div v-if="loadingFull" class="loading">Loading full thread...</div>
         <div v-else class="thread-full">
           <div
             v-for="msg in nestedMessages"
@@ -160,7 +179,14 @@ const inbox = computed(() => data.value?.inbox || '')
             class="thread-message"
             :style="{ marginLeft: (msg.depth * 24) + 'px' }"
           >
-            <div class="thread-msg-header"><AddressLink :address="msg.sender" context="header" /> <span class="thread-msg-date">{{ formatDate(msg.date) }}</span> <router-link :to="`/message/${encodeURIComponent(msg.message_id)}`" class="thread-msg-link">[message]</router-link> <a :href="`/api/raw?id=${encodeURIComponent(msg.message_id)}`" class="thread-msg-link">[raw]</a> <a :href="`https://lore.kernel.org/${inbox}/${msg.message_id}/`" target="_blank" rel="noopener" class="thread-msg-link">[lore]</a>
+            <div class="thread-msg-header">
+              <AddressLink :address="msg.sender" context="header" />
+              <span class="thread-msg-date">{{ formatDate(msg.date) }}</span>
+              <div class="thread-msg-actions">
+                <router-link :to="`/message/${encodeURIComponent(msg.message_id)}`" class="action-btn">message</router-link>
+                <a :href="`/api/raw?id=${encodeURIComponent(msg.message_id)}`" class="action-btn">raw</a>
+                <a :href="`https://lore.kernel.org/${inbox}/${msg.message_id}/`" target="_blank" rel="noopener" class="action-btn">lore</a>
+              </div>
               <div v-if="msg.subject !== nestedMessages[0]?.subject" class="thread-msg-subject">{{ msg.subject }}</div>
             </div>
             <MessageBody :bodyText="msg.body_text" />
@@ -172,61 +198,125 @@ const inbox = computed(() => data.value?.inbox || '')
 </template>
 
 <style scoped>
-.thread-tree {
-  margin-top: 8px;
-  font-family: monospace;
+.thread-header-card {
+  background: #fff;
+  border: 1px solid #d1d9e0;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-.thread-header {
-  margin-bottom: 0;
+.thread-breadcrumb {
+  font-size: 13px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
 }
 
-.view-toggle a {
+.bc-sep { color: #8b949e; }
+
+.view-toggle {
+  display: flex;
+  gap: 0;
+  border: 1px solid #d1d9e0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.view-btn {
+  font-family: inherit;
+  font-size: 12px;
+  padding: 4px 12px;
+  border: none;
+  background: #f6f8fa;
+  color: #656d76;
   cursor: pointer;
+  transition: all 0.15s;
+  border-right: 1px solid #d1d9e0;
+}
+.view-btn:last-child { border-right: none; }
+.view-btn:hover { background: #eaeef2; }
+.view-btn.active {
+  background: #0969da;
+  color: #fff;
+}
+
+.thread-tree-card {
+  background: #fff;
+  border: 1px solid #d1d9e0;
+  border-radius: 10px;
+  padding: 12px 16px;
 }
 
 .thread-full {
-  margin-top: 8px;
+  margin-top: 0;
 }
 
 .thread-message {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .thread-msg-header {
-  background: #f8f9fa;
-  padding: 6px 12px;
-  border: 1px solid #ddd;
-  border-left: 3px solid #00609f;
-  margin-bottom: 0;
-  border-bottom: none;
-  font-family: monospace;
+  background: #f6f8fa;
+  padding: 10px 16px;
+  border: 1px solid #d1d9e0;
+  border-radius: 10px 10px 0 0;
   font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .thread-msg-date {
-  color: #666;
+  color: #656d76;
+  font-size: 12px;
 }
 
-.thread-msg-link {
-  font-size: 12px;
-  color: #888;
+.thread-msg-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.action-btn {
+  font-size: 11px;
+  padding: 2px 8px;
+  border: 1px solid #d1d9e0;
+  border-radius: 6px;
+  color: #656d76;
+  text-decoration: none !important;
+  transition: all 0.15s;
+}
+.action-btn:hover {
+  background: #eaeef2;
+  border-color: #0969da;
+  color: #0969da;
 }
 
 .thread-msg-subject {
   font-size: 12px;
-  color: #555;
+  color: #656d76;
+  width: 100%;
   margin-top: 2px;
 }
 </style>
 
 <style>
-html.dark .thread-msg-header {
-  background: #21262d;
-  border-color: #383e47;
-  border-left: 3px solid #58a6ff;
-}
+html.dark .thread-header-card { background: #161b22; border-color: #30363d; }
+html.dark .view-toggle { border-color: #30363d; }
+html.dark .view-btn { background: #21262d; color: #8b949e; border-color: #30363d; }
+html.dark .view-btn:hover { background: #30363d; }
+html.dark .view-btn.active { background: #388bfd; color: #fff; }
+html.dark .thread-tree-card { background: #161b22; border-color: #30363d; }
+html.dark .thread-msg-header { background: #0d1117; border-color: #30363d; }
 html.dark .thread-msg-date { color: #8b949e; }
-html.dark .thread-msg-link { color: #6e7681; }
+html.dark .action-btn { color: #8b949e; border-color: #30363d; }
+html.dark .action-btn:hover { background: #21262d; color: #58a6ff; border-color: #58a6ff; }
 html.dark .thread-msg-subject { color: #8b949e; }
 </style>

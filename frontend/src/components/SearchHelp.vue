@@ -1,5 +1,6 @@
 <template>
-  <pre class="search-help">Search prefixes (compatible with lore.kernel.org):
+  <div class="search-help-card">
+    <pre class="search-help">Search prefixes (compatible with lore.kernel.org):
 
   s:keyword        Subject              s:"memory leak"    s:PATCH
   f:name           From/sender          f:torvalds
@@ -21,4 +22,26 @@ Examples:
   b:"use after free" d:2026-02-01..          UAF bugs since Feb 2026
   s:PATCH b:mm_struct                        patches mentioning mm_struct
 </pre>
+  </div>
 </template>
+
+<style scoped>
+.search-help-card {
+  margin: 10px -20px -10px;
+  border-top: 1px solid #d1d9e0;
+}
+
+.search-help {
+  font-size: 12px;
+  background: #f6f8fa;
+  padding: 12px 20px;
+  color: #656d76;
+  margin: 0;
+  line-height: 1.6;
+}
+</style>
+
+<style>
+html.dark .search-help-card { border-color: #30363d; }
+html.dark .search-help { background: #0d1117; color: #8b949e; }
+</style>

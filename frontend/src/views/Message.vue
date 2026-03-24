@@ -153,61 +153,137 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
 <template>
   <div>
-    <pre v-if="loading" class="loading">Loading...</pre>
-    <pre v-else-if="error" class="error">Error: {{ error }}</pre>
+    <div v-if="loading" class="loading">Loading...</div>
+    <div v-else-if="error" class="error">Error: {{ error }}</div>
     <template v-else-if="msg">
-      <pre class="msg-header"><router-link to="/">lore-mirror</router-link> / <router-link :to="`/inbox/${msg.inbox_name}`">{{ msg.inbox_name }}</router-link>
+      <div class="msg-header-card">
+        <div class="msg-breadcrumb">
+          <router-link to="/">lore-mirror</router-link>
+          <span class="bc-sep">/</span>
+          <router-link :to="`/inbox/${msg.inbox_name}`">{{ msg.inbox_name }}</router-link>
+        </div>
 
-<template v-for="h in headerLines" :key="h.key"><b>{{ h.key }}:</b> <template v-if="h.key === 'In-Reply-To' && h.value"><router-link :to="`/message/${encodeURIComponent(h.value.replace(/[<>]/g, ''))}`">{{ h.value }}</router-link></template><template v-else-if="h.ids && h.ids.length"><template v-for="(id, idx) in h.ids" :key="id"><template v-if="idx"> </template>&lt;<router-link :to="`/message/${encodeURIComponent(id)}`">{{ id }}</router-link>&gt;</template></template><template v-else-if="h.addrs && h.addrs.length"><template v-for="(addr, idx) in h.addrs" :key="idx"><template v-if="idx">, </template><AddressLink :address="addr" context="header" /></template></template><template v-else>{{ h.value }}</template>
-</template>
-<a href="#" @click.prevent="showAllHeaders = !showAllHeaders">[{{ showAllHeaders ? 'hide' : 'show all' }} headers]</a>  <router-link :to="`/thread/${encodeURIComponent(msg.message_id)}`">[view thread]</router-link>  <a :href="`/api/raw?id=${encodeURIComponent(msg.message_id)}`">[raw]</a>  <a :href="`https://lore.kernel.org/${msg.inbox_name}/${msg.message_id}/`" target="_blank" rel="noopener">[lore]</a><template v-if="isPatch">  <a :href="`/api/raw?id=${encodeURIComponent(msg.message_id)}&download=1`">[patch]</a><template v-if="seriesTotal > 1">  <a :href="`/api/series?id=${encodeURIComponent(msg.message_id)}&download=1`">[series mbox]</a></template></template><template v-if="prevMessage || nextMessage">  <router-link v-if="prevMessage" :to="`/message/${encodeURIComponent(prevMessage.message_id)}`" :title="prevMessage.subject">[&larr; prev]</router-link><template v-if="prevMessage && nextMessage">  </template><router-link v-if="nextMessage" :to="`/message/${encodeURIComponent(nextMessage.message_id)}`" :title="nextMessage.subject">[next &rarr;]</router-link></template></pre>
+        <pre class="msg-headers"><template v-for="h in headerLines" :key="h.key"><b>{{ h.key }}:</b> <template v-if="h.key === 'In-Reply-To' && h.value"><router-link :to="`/message/${encodeURIComponent(h.value.replace(/[<>]/g, ''))}`">{{ h.value }}</router-link></template><template v-else-if="h.ids && h.ids.length"><template v-for="(id, idx) in h.ids" :key="id"><template v-if="idx"> </template>&lt;<router-link :to="`/message/${encodeURIComponent(id)}`">{{ id }}</router-link>&gt;</template></template><template v-else-if="h.addrs && h.addrs.length"><template v-for="(addr, idx) in h.addrs" :key="idx"><template v-if="idx">, </template><AddressLink :address="addr" context="header" /></template></template><template v-else>{{ h.value }}</template>
+</template></pre>
+
+        <div class="msg-actions">
+          <a href="#" @click.prevent="showAllHeaders = !showAllHeaders" class="action-btn">{{ showAllHeaders ? 'hide' : 'all' }} headers</a>
+          <router-link :to="`/thread/${encodeURIComponent(msg.message_id)}`" class="action-btn">thread</router-link>
+          <a :href="`/api/raw?id=${encodeURIComponent(msg.message_id)}`" class="action-btn">raw</a>
+          <a :href="`https://lore.kernel.org/${msg.inbox_name}/${msg.message_id}/`" target="_blank" rel="noopener" class="action-btn">lore</a>
+          <template v-if="isPatch">
+            <a :href="`/api/raw?id=${encodeURIComponent(msg.message_id)}&download=1`" class="action-btn">patch</a>
+            <template v-if="seriesTotal > 1">
+              <a :href="`/api/series?id=${encodeURIComponent(msg.message_id)}&download=1`" class="action-btn">series mbox</a>
+            </template>
+          </template>
+          <template v-if="prevMessage || nextMessage">
+            <span class="action-sep"></span>
+            <router-link v-if="prevMessage" :to="`/message/${encodeURIComponent(prevMessage.message_id)}`" :title="prevMessage.subject" class="action-btn">&larr; prev</router-link>
+            <router-link v-if="nextMessage" :to="`/message/${encodeURIComponent(nextMessage.message_id)}`" :title="nextMessage.subject" class="action-btn">next &rarr;</router-link>
+          </template>
+        </div>
+      </div>
 
       <MessageBody :bodyText="msg.body_text" />
 
       <template v-if="msg.attachments && msg.attachments.length">
-        <pre class="msg-attachments">
-<b>Attachments:</b>
-<template v-for="att in msg.attachments" :key="att.id">  {{ att.filename || '(unnamed)' }} ({{ att.content_type }}, {{ att.size }} bytes)
-</template></pre>
+        <div class="msg-attachments">
+          <strong>Attachments:</strong>
+          <div v-for="att in msg.attachments" :key="att.id" class="attachment-item">
+            {{ att.filename || '(unnamed)' }} ({{ att.content_type }}, {{ att.size }} bytes)
+          </div>
+        </div>
       </template>
     </template>
   </div>
 </template>
 
 <style scoped>
-/* ── Light theme ── */
-.msg-header {
-  background: #f8f9fa;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-left: 3px solid #00609f;
+.msg-header-card {
+  background: #fff;
+  border: 1px solid #d1d9e0;
+  border-radius: 10px;
+  overflow: hidden;
   margin-bottom: 0;
-  border-bottom: none;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.msg-breadcrumb {
+  padding: 12px 16px;
+  font-size: 13px;
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid #eef1f5;
+  background: #f6f8fa;
+}
+
+.bc-sep { color: #8b949e; }
+
+.msg-headers {
+  padding: 12px 16px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.msg-actions {
+  display: flex;
+  gap: 4px;
+  padding: 8px 16px;
+  border-top: 1px solid #eef1f5;
+  background: #f6f8fa;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  font-size: 12px;
+  padding: 3px 10px;
+  border: 1px solid #d1d9e0;
+  border-radius: 6px;
+  color: #656d76;
+  text-decoration: none !important;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.action-btn:hover {
+  background: #eaeef2;
+  border-color: #0969da;
+  color: #0969da;
+}
+
+.action-sep {
+  width: 1px;
+  background: #d1d9e0;
+  margin: 2px 4px;
 }
 
 .msg-attachments {
-  margin-top: 0;
-  padding: 8px 12px;
-  background: #f9f9f0;
-  border: 1px solid #ddd;
-  border-top: 1px dashed #ccc;
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: #fff;
+  border: 1px solid #d1d9e0;
+  border-radius: 10px;
+  font-size: 13px;
 }
 
-
+.attachment-item {
+  margin-top: 4px;
+  color: #656d76;
+}
 </style>
 
 <style>
-/* ── Dark theme (unscoped: html.dark is outside component) ── */
-html.dark .msg-header {
-  background: #21262d;
-  border-color: #383e47;
-  border-left: 3px solid #58a6ff;
-}
-
-html.dark .msg-attachments {
-  background: #1c2128;
+html.dark .msg-header-card {
+  background: #161b22;
   border-color: #30363d;
-  border-top-color: #484f58;
 }
-
+html.dark .msg-breadcrumb { background: #0d1117; border-color: #21262d; }
+html.dark .msg-actions { background: #0d1117; border-color: #21262d; }
+html.dark .action-btn { color: #8b949e; border-color: #30363d; }
+html.dark .action-btn:hover { background: #21262d; border-color: #58a6ff; color: #58a6ff; }
+html.dark .action-sep { background: #30363d; }
+html.dark .msg-attachments { background: #161b22; border-color: #30363d; }
+html.dark .attachment-item { color: #8b949e; }
 </style>

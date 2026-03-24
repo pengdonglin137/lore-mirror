@@ -63,15 +63,17 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside, true))
 <template>
   <span class="addr-wrap" ref="menuEl">
     <a href="#" class="addr-link" @click="onClick">{{ displayText }}</a>
-    <span v-if="showMenu" class="addr-menu">
-      <a href="#" @click.prevent="doSearch(qFrom)">f: from this sender</a>
-      <a href="#" @click.prevent="doSearch(qOriginal)">f: original emails only (not replies)</a>
-      <a href="#" @click.prevent="doSearch(qReplies)">f: replies only</a>
-      <span class="addr-sep"></span>
-      <a href="#" @click.prevent="doSearch(qAny)">a: any address field</a>
-      <a v-if="context === 'header'" href="#" @click.prevent="doSearch(qTo)">t: in To</a>
-      <a v-if="context === 'header'" href="#" @click.prevent="doSearch(qCc)">c: in Cc</a>
-    </span>
+    <Transition name="menu">
+      <span v-if="showMenu" class="addr-menu">
+        <a href="#" @click.prevent="doSearch(qFrom)">f: from this sender</a>
+        <a href="#" @click.prevent="doSearch(qOriginal)">f: original emails only (not replies)</a>
+        <a href="#" @click.prevent="doSearch(qReplies)">f: replies only</a>
+        <span class="addr-sep"></span>
+        <a href="#" @click.prevent="doSearch(qAny)">a: any address field</a>
+        <a v-if="context === 'header'" href="#" @click.prevent="doSearch(qTo)">t: in To</a>
+        <a v-if="context === 'header'" href="#" @click.prevent="doSearch(qCc)">c: in Cc</a>
+      </span>
+    </Transition>
   </span>
 </template>
 
@@ -86,43 +88,48 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside, true))
 }
 .addr-link:hover {
   text-decoration: none;
-  color: #00609f;
+  color: #0969da;
 }
 .addr-menu {
   position: absolute;
   left: 0;
-  top: 1.4em;
+  top: 1.6em;
   z-index: 50;
   background: #fff;
-  border: 1px solid #ccc;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-  padding: 4px 0;
+  border: 1px solid #d1d9e0;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+  padding: 6px 0;
   white-space: nowrap;
   font-size: 13px;
 }
 .addr-menu a {
   display: block;
-  padding: 3px 12px;
-  color: #333;
+  padding: 5px 14px;
+  color: #1f2328;
   text-decoration: none;
-  font-family: monospace;
+  transition: background 0.1s;
 }
 .addr-menu a:hover {
-  background: #f0f0f0;
+  background: #f6f8fa;
   text-decoration: none;
 }
 .addr-sep {
   display: block;
   height: 1px;
-  background: #e0e0e0;
-  margin: 3px 0;
+  background: #d1d9e0;
+  margin: 4px 0;
 }
+
+/* Transition */
+.menu-enter-active, .menu-leave-active { transition: opacity 0.15s, transform 0.15s; }
+.menu-enter-from, .menu-leave-to { opacity: 0; transform: translateY(-4px); }
 </style>
 
 <style>
 html.dark .addr-link:hover { color: #58a6ff; }
-html.dark .addr-menu { background: #21262d; border-color: #30363d; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
-html.dark .addr-menu a { color: #c9d1d9; }
-html.dark .addr-menu a:hover { background: #30363d; }
+html.dark .addr-menu { background: #161b22; border-color: #30363d; box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
+html.dark .addr-menu a { color: #e6edf3; }
+html.dark .addr-menu a:hover { background: #21262d; }
 html.dark .addr-sep { background: #30363d; }
 </style>

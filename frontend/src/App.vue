@@ -29,7 +29,7 @@ function doSearchAll() {
   router.push({ path: '/search', query: q })
 }
 
-// Theme toggle: light ↔ dark (detects system preference on first visit)
+// Theme toggle: light <-> dark (detects system preference on first visit)
 const stored = localStorage.getItem('theme')
 const isDark = ref(stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches)
 
@@ -70,18 +70,21 @@ onUnmounted(() => window.removeEventListener('keydown', onGlobalKey))
     <header>
       <nav>
         <router-link to="/" class="logo-link">lore-mirror</router-link>
-        <input
-          v-model="query"
-          type="text"
-          class="nav-input"
-          placeholder="s:PATCH f:torvalds ..."
-          @keyup.enter="doSearchAll"
-        />
+        <div class="search-wrap">
+          <svg class="search-icon" width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M11.5 7a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Zm-.82 4.74a6 6 0 1 1 1.06-1.06l3.04 3.04a.75.75 0 1 1-1.06 1.06l-3.04-3.04Z"/></svg>
+          <input
+            v-model="query"
+            type="text"
+            class="nav-input"
+            placeholder="s:PATCH f:torvalds ..."
+            @keyup.enter="doSearchAll"
+          />
+        </div>
         <button class="nav-btn" @click="doLocate">locate inbox</button>
-        <button class="nav-btn" @click="doSearchAll">search all inboxes</button>
-        <button class="nav-btn help-btn" @click="showHelp = !showHelp" title="Search syntax help">?</button>
-        <router-link to="/stats" class="nav-btn stats-btn" title="Visit statistics"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:-2px"><rect x="1" y="9" width="3" height="6"/><rect x="6" y="5" width="3" height="10"/><rect x="11" y="1" width="3" height="14"/></svg></router-link>
-        <button class="nav-btn theme-btn" @click="toggleTheme" :title="isDark ? 'Switch to light' : 'Switch to dark'">{{ isDark ? '\u2600' : '\u263D' }}</button>
+        <button class="nav-btn primary" @click="doSearchAll">search</button>
+        <button class="nav-btn icon-btn" @click="showHelp = !showHelp" title="Search syntax help">?</button>
+        <router-link to="/stats" class="nav-btn icon-btn" title="Visit statistics"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="9" width="3" height="6" rx="0.5"/><rect x="6" y="5" width="3" height="10" rx="0.5"/><rect x="11" y="1" width="3" height="14" rx="0.5"/></svg></router-link>
+        <button class="nav-btn icon-btn" @click="toggleTheme" :title="isDark ? 'Switch to light' : 'Switch to dark'">{{ isDark ? '\u2600' : '\u263D' }}</button>
       </nav>
       <SearchHelp v-if="showHelp" />
     </header>
@@ -89,8 +92,9 @@ onUnmounted(() => window.removeEventListener('keydown', onGlobalKey))
       <router-view />
     </main>
     <div v-if="showKeys" class="keys-overlay" @click="showKeys = false">
-      <pre class="keys-box" @click.stop>Keyboard shortcuts
-
+      <div class="keys-box" @click.stop>
+        <div class="keys-title">Keyboard Shortcuts</div>
+        <pre class="keys-content">
   ?           toggle this help
   /  s        focus search input
   Esc         blur search input
@@ -102,11 +106,13 @@ Message view:
 
 Tip: click any sender/address for quick search filters
 </pre>
+      </div>
     </div>
   </div>
 </template>
 
 <style>
+/* ── Reset & Base ───────────────────────────── */
 * {
   margin: 0;
   padding: 0;
@@ -114,18 +120,20 @@ Tip: click any sender/address for quick search filters
 }
 
 body {
-  font-family: monospace;
+  font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', Menlo, Consolas, monospace;
   font-size: 14px;
-  line-height: 1.5;
-  color: #333;
-  background: #fff;
+  line-height: 1.6;
+  color: #1f2328;
+  background: #f6f8fa;
 }
 
 a {
-  color: #00609f;
+  color: #0969da;
   text-decoration: none;
+  transition: color 0.15s;
 }
 a:hover {
+  color: #0550ae;
   text-decoration: underline;
 }
 
@@ -134,63 +142,108 @@ pre {
   word-wrap: break-word;
 }
 
+/* ── Header / Nav ───────────────────────────── */
 header {
-  border-bottom: 1px solid #ccc;
-  padding: 8px 16px;
-  background: #f6f6f6;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  border-bottom: 1px solid #d1d9e0;
+  padding: 10px 20px;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 header nav {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .logo-link {
-  font-weight: bold;
+  font-weight: 700;
   font-size: 16px;
-  color: #333;
+  color: #1f2328;
   margin-right: 8px;
+  letter-spacing: -0.3px;
+  text-decoration: none !important;
+}
+
+.search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 140px;
+  max-width: 420px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #656d76;
+  pointer-events: none;
 }
 
 .nav-input {
-  font-family: monospace;
-  font-size: 14px;
-  padding: 2px 6px;
-  border: 1px solid #999;
-  width: 200px;
-  min-width: 120px;
-  flex: 1;
-  max-width: 400px;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 6px 10px 6px 30px;
+  border: 1px solid #d1d9e0;
+  border-radius: 6px;
+  width: 100%;
+  background: #f6f8fa;
+  color: #1f2328;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  outline: none;
+}
+
+.nav-input:focus {
+  border-color: #0969da;
+  box-shadow: 0 0 0 3px rgba(9,105,218,0.15);
+  background: #fff;
 }
 
 .nav-btn {
-  font-family: monospace;
-  font-size: 14px;
-  padding: 2px 8px;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 5px 12px;
   cursor: pointer;
-  border: 1px solid #999;
-  background: #eee;
+  border: 1px solid #d1d9e0;
+  border-radius: 6px;
+  background: #f6f8fa;
+  color: #1f2328;
   white-space: nowrap;
+  transition: all 0.15s;
+  text-decoration: none !important;
 }
 
-.help-btn, .theme-btn {
-  font-weight: bold;
-  min-width: 26px;
-  text-align: center;
-  padding: 2px 6px;
+.nav-btn:hover {
+  background: #eaeef2;
+  border-color: #c4ccd4;
 }
 
-.stats-btn {
-  min-width: 26px;
+.nav-btn:active {
+  background: #d1d9e0;
+}
+
+.nav-btn.primary {
+  background: #0969da;
+  color: #fff;
+  border-color: #0969da;
+}
+
+.nav-btn.primary:hover {
+  background: #0550ae;
+  border-color: #0550ae;
+}
+
+.icon-btn {
+  min-width: 32px;
+  padding: 5px 8px;
   text-align: center;
-  padding: 2px 6px;
-  border: 1px solid #999;
-  background: #eee;
-  color: #333;
-  text-decoration: none;
-  cursor: pointer;
+  font-weight: 600;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -198,85 +251,189 @@ header nav {
 
 .search-help {
   font-size: 12px;
-  background: #f0f0f0;
-  border-top: 1px solid #ddd;
-  padding: 8px 16px;
-  color: #555;
-  margin: 0;
+  background: #f6f8fa;
+  border-top: 1px solid #d1d9e0;
+  padding: 12px 20px;
+  color: #656d76;
+  margin: 10px -20px -10px;
+  border-radius: 0;
 }
 
+/* ── Main Content ───────────────────────────── */
 main {
-  padding: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 20px;
 }
 
+/* ── Pagination ─────────────────────────────── */
 .pagination {
   margin: 16px 0;
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .pagination button {
-  font-family: monospace;
+  font-family: inherit;
+  font-size: 13px;
   padding: 4px 12px;
   cursor: pointer;
-  border: 1px solid #999;
-  background: #eee;
+  border: 1px solid #d1d9e0;
+  border-radius: 6px;
+  background: #f6f8fa;
+  color: #1f2328;
+  transition: all 0.15s;
+}
+
+.pagination button:hover:not(:disabled) {
+  background: #eaeef2;
+  border-color: #c4ccd4;
 }
 
 .pagination button:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: default;
 }
 
 .page-input {
-  font-family: monospace;
+  font-family: inherit;
   font-size: 13px;
   width: 4em;
   text-align: center;
-  padding: 2px 4px;
-  border: 1px solid #999;
+  padding: 3px 6px;
+  border: 1px solid #d1d9e0;
+  border-radius: 6px;
   background: #fff;
+  color: #1f2328;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
+.page-input:focus {
+  border-color: #0969da;
+  box-shadow: 0 0 0 3px rgba(9,105,218,0.15);
+}
+
+/* ── States ──────────────────────────────────── */
 .loading {
-  color: #666;
-  padding: 20px 0;
+  color: #656d76;
+  padding: 24px 0;
 }
 
 .error {
-  color: #c00;
-  padding: 20px 0;
+  color: #cf222e;
+  padding: 24px 0;
+  background: #ffebe9;
+  border: 1px solid #ffcecb;
+  border-radius: 8px;
+  padding: 16px 20px;
 }
 
 mark {
-  background: #ff0;
-  padding: 0 1px;
+  background: #fff8c5;
+  padding: 1px 3px;
+  border-radius: 3px;
 }
 
-html.dark { color-scheme: dark; }
-html.dark body { background: #0d1117; color: #c9d1d9; }
-html.dark a { color: #58a6ff; }
-html.dark header { background: #161b22; border-color: #30363d; }
-html.dark .logo-link { color: #c9d1d9; }
-html.dark .nav-input, html.dark .nav-btn, html.dark .pagination button, html.dark .page-input {
-  background: #21262d; color: #c9d1d9; border-color: #30363d;
-}
-html.dark .stats-btn { background: #21262d; color: #c9d1d9; border-color: #30363d; }
-html.dark .nav-btn:hover { background: #30363d; }
-html.dark mark { background: #5a4a00; color: #e3b341; }
-html.dark .loading { color: #8b949e; }
-html.dark .error { color: #f85149; }
-html.dark .search-help { background: #161b22; border-color: #30363d; color: #8b949e; }
-
+/* ── Keyboard shortcuts overlay ──────────────── */
 .keys-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100;
   display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
 }
 .keys-box {
-  background: #fff; border: 1px solid #ccc; padding: 16px 24px;
-  font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  background: #fff;
+  border: 1px solid #d1d9e0;
+  border-radius: 12px;
+  padding: 0;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  overflow: hidden;
+  min-width: 380px;
 }
+.keys-title {
+  font-weight: 700;
+  font-size: 14px;
+  padding: 14px 20px;
+  border-bottom: 1px solid #d1d9e0;
+  background: #f6f8fa;
+}
+.keys-content {
+  padding: 12px 20px 16px;
+  font-size: 13px;
+}
+
+/* ── Dark Theme ──────────────────────────────── */
+html.dark { color-scheme: dark; }
+html.dark body { background: #010409; color: #e6edf3; }
+html.dark a { color: #58a6ff; }
+html.dark a:hover { color: #79c0ff; }
+
+html.dark header {
+  background: rgba(22,27,34,0.85);
+  border-color: #30363d;
+  backdrop-filter: blur(12px);
+}
+html.dark .logo-link { color: #e6edf3; }
+
+html.dark .nav-input {
+  background: #0d1117;
+  color: #e6edf3;
+  border-color: #30363d;
+}
+html.dark .nav-input:focus {
+  border-color: #58a6ff;
+  box-shadow: 0 0 0 3px rgba(88,166,255,0.15);
+  background: #161b22;
+}
+html.dark .search-icon { color: #8b949e; }
+
+html.dark .nav-btn {
+  background: #21262d;
+  color: #e6edf3;
+  border-color: #30363d;
+}
+html.dark .nav-btn:hover {
+  background: #30363d;
+  border-color: #484f58;
+}
+html.dark .nav-btn.primary {
+  background: #238636;
+  color: #fff;
+  border-color: #238636;
+}
+html.dark .nav-btn.primary:hover {
+  background: #2ea043;
+  border-color: #2ea043;
+}
+
+html.dark .pagination button {
+  background: #21262d;
+  color: #e6edf3;
+  border-color: #30363d;
+}
+html.dark .pagination button:hover:not(:disabled) {
+  background: #30363d;
+  border-color: #484f58;
+}
+html.dark .page-input {
+  background: #0d1117;
+  color: #e6edf3;
+  border-color: #30363d;
+}
+html.dark .page-input:focus {
+  border-color: #58a6ff;
+  box-shadow: 0 0 0 3px rgba(88,166,255,0.15);
+}
+
+html.dark mark { background: #3b2e00; color: #e3b341; }
+html.dark .loading { color: #8b949e; }
+html.dark .error { color: #ffa198; background: #2d1619; border-color: #5b2d32; }
+html.dark .search-help { background: #0d1117; border-color: #30363d; color: #8b949e; }
+
 html.dark .keys-overlay { background: rgba(0,0,0,0.6); }
-html.dark .keys-box { background: #161b22; border-color: #30363d; color: #c9d1d9; }
+html.dark .keys-box { background: #161b22; border-color: #30363d; }
+html.dark .keys-title { background: #0d1117; border-color: #30363d; color: #e6edf3; }
+html.dark .keys-content { color: #c9d1d9; }
 </style>

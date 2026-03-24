@@ -82,17 +82,19 @@ function onInboxChange() {
         <option value="">all inboxes</option>
         <option v-for="ib in inboxes" :key="ib.name" :value="ib.name">{{ ib.name }}</option>
       </select>
-      <a href="#" @click.prevent="showHelp = !showHelp" class="help-toggle">[{{ showHelp ? 'hide' : 'search' }} help]</a>
+      <a href="#" @click.prevent="showHelp = !showHelp" class="help-toggle">{{ showHelp ? 'hide' : 'search' }} help</a>
     </div>
 
     <SearchHelp v-if="showHelp" />
 
-    <pre v-if="!route.query.q">Enter a search query above.</pre>
-    <pre v-else-if="loading" class="loading">Searching for "{{ route.query.q }}"...</pre>
-    <pre v-else-if="error" class="error">Error: {{ error }}</pre>
+    <div v-if="!route.query.q" class="empty-state">Enter a search query above.</div>
+    <div v-else-if="loading" class="loading">Searching for "{{ route.query.q }}"...</div>
+    <div v-else-if="error" class="error">Error: {{ error }}</div>
     <template v-else-if="data">
-      <pre>Search: "{{ data.query }}"<template v-if="route.query.inbox"> in {{ route.query.inbox }}</template> — {{ data.total }} results (page {{ data.page }}/{{ data.pages }})
-</pre>
+      <div class="search-summary">
+        Search: "<strong>{{ data.query }}</strong>"<template v-if="route.query.inbox"> in {{ route.query.inbox }}</template> &mdash; {{ data.total }} results (page {{ data.page }}/{{ data.pages }})
+      </div>
+
       <div class="pagination" v-if="data.pages > 1">
         <button :disabled="data.page <= 1" @click="goPage(1)" title="first page">|&lt;</button>
         <button :disabled="data.page <= 1" @click="goPage(data.page - 1)">&lt; prev</button>
@@ -103,11 +105,18 @@ function onInboxChange() {
         <button :disabled="data.page >= data.pages" @click="goPage(data.pages)" title="last page">&gt;|</button>
       </div>
 
-      <div v-for="msg in data.messages" :key="msg.id" class="search-result">
-        <pre><router-link :to="`/message/${encodeURIComponent(msg.message_id)}`">{{ msg.subject }}</router-link>
-{{ formatDate(msg.date) }}  <AddressLink :address="msg.sender" short />  [<router-link :to="`/inbox/${msg.inbox_name}`">{{ msg.inbox_name }}</router-link>]
-<span v-if="msg.snippet" v-html="msg.snippet" class="snippet"></span>
-</pre>
+      <div class="search-results">
+        <div v-for="msg in data.messages" :key="msg.id" class="search-result">
+          <div class="result-title">
+            <router-link :to="`/message/${encodeURIComponent(msg.message_id)}`">{{ msg.subject }}</router-link>
+          </div>
+          <div class="result-meta">
+            <span class="result-date">{{ formatDate(msg.date) }}</span>
+            <AddressLink :address="msg.sender" short />
+            <router-link :to="`/inbox/${msg.inbox_name}`" class="result-inbox">{{ msg.inbox_name }}</router-link>
+          </div>
+          <div v-if="msg.snippet" v-html="msg.snippet" class="snippet"></div>
+        </div>
       </div>
 
       <div class="pagination" v-if="data.pages > 1">
@@ -128,36 +137,99 @@ function onInboxChange() {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .inbox-select {
-  font-family: monospace;
+  font-family: inherit;
   font-size: 13px;
-  padding: 2px 6px;
-  border: 1px solid #999;
+  padding: 5px 10px;
+  border: 1px solid #d1d9e0;
+  border-radius: 6px;
+  background: #f6f8fa;
+  color: #1f2328;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.inbox-select:focus {
+  border-color: #0969da;
 }
 
 .help-toggle {
   font-size: 12px;
+  color: #656d76;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px 0;
+  color: #656d76;
+}
+
+.search-summary {
+  font-size: 13px;
+  color: #656d76;
+  margin-bottom: 12px;
+}
+
+.search-results {
+  background: #fff;
+  border: 1px solid #d1d9e0;
+  border-radius: 10px;
+  overflow: hidden;
 }
 
 .search-result {
-  border-bottom: 1px solid #eee;
-  padding: 4px 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid #eef1f5;
+  transition: background 0.1s;
 }
-.search-result pre {
-  font-size: 13px;
-}
-.snippet {
-  color: #666;
+.search-result:last-child { border-bottom: none; }
+.search-result:hover { background: #f6f8fa; }
+
+.result-title {
+  font-size: 14px;
+  margin-bottom: 4px;
 }
 
+.result-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: #656d76;
+}
+
+.result-date { white-space: nowrap; }
+
+.result-inbox {
+  font-size: 11px;
+  background: #eef1f5;
+  padding: 1px 8px;
+  border-radius: 12px;
+  color: #656d76;
+  text-decoration: none !important;
+}
+.result-inbox:hover {
+  background: #d1d9e0;
+}
+
+.snippet {
+  font-size: 12px;
+  color: #656d76;
+  margin-top: 6px;
+  line-height: 1.5;
+}
 </style>
 
 <style>
-html.dark .inbox-select { background: #21262d; color: #c9d1d9; border-color: #30363d; }
-html.dark .search-help { background: #161b22; border-color: #30363d; color: #8b949e; }
+html.dark .inbox-select { background: #0d1117; color: #e6edf3; border-color: #30363d; }
+html.dark .inbox-select:focus { border-color: #58a6ff; }
+html.dark .search-results { background: #161b22; border-color: #30363d; }
 html.dark .search-result { border-color: #21262d; }
+html.dark .search-result:hover { background: #1c2128; }
+html.dark .result-inbox { background: #21262d; color: #8b949e; }
+html.dark .result-inbox:hover { background: #30363d; }
 html.dark .snippet { color: #8b949e; }
+html.dark .search-summary { color: #8b949e; }
 </style>

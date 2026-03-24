@@ -21,7 +21,7 @@ const parsed = computed(() => {
   const month = d.slice(5, 7)
   const day = parseInt(d.slice(8, 10)) || 1
 
-  // Compute week range (±3 days)
+  // Compute week range (+-3 days)
   const dt = new Date(dateStr)
   const weekStart = new Date(dt)
   weekStart.setDate(dt.getDate() - 3)
@@ -63,14 +63,16 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside, true))
 <template>
   <span class="date-wrap" ref="menuEl">
     <a href="#" class="date-link" @click="onClick">{{ formatDate(date) }}</a>
-    <span v-if="showMenu" class="date-menu">
-      <a href="#" @click.prevent="doSearch(`d:${parsed.dateStr}`)">d: this date ({{ parsed.dateStr }})</a>
-      <a href="#" @click.prevent="doSearch(`d:${parsed.weekStart}..${parsed.weekEnd}`)">d: this week (±3 days)</a>
-      <a href="#" @click.prevent="doSearch(`d:${parsed.monthStart}..${parsed.monthEnd}`)">d: this month ({{ parsed.monthStr }})</a>
-      <span class="date-sep"></span>
-      <a href="#" @click.prevent="doSearch(`d:${parsed.dateStr}..`)">d: from this date onward</a>
-      <a href="#" @click.prevent="doSearch(`d:..${parsed.dateStr}`)">d: up to this date</a>
-    </span>
+    <Transition name="menu">
+      <span v-if="showMenu" class="date-menu">
+        <a href="#" @click.prevent="doSearch(`d:${parsed.dateStr}`)">d: this date ({{ parsed.dateStr }})</a>
+        <a href="#" @click.prevent="doSearch(`d:${parsed.weekStart}..${parsed.weekEnd}`)">d: this week (+-3 days)</a>
+        <a href="#" @click.prevent="doSearch(`d:${parsed.monthStart}..${parsed.monthEnd}`)">d: this month ({{ parsed.monthStr }})</a>
+        <span class="date-sep"></span>
+        <a href="#" @click.prevent="doSearch(`d:${parsed.dateStr}..`)">d: from this date onward</a>
+        <a href="#" @click.prevent="doSearch(`d:..${parsed.dateStr}`)">d: up to this date</a>
+      </span>
+    </Transition>
   </span>
 </template>
 
@@ -86,43 +88,48 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside, true))
 }
 .date-link:hover {
   text-decoration: none;
-  color: #00609f;
+  color: #0969da;
 }
 .date-menu {
   position: absolute;
   left: 0;
-  top: 1.4em;
+  top: 1.6em;
   z-index: 50;
   background: #fff;
-  border: 1px solid #ccc;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-  padding: 4px 0;
+  border: 1px solid #d1d9e0;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+  padding: 6px 0;
   white-space: nowrap;
   font-size: 13px;
 }
 .date-menu a {
   display: block;
-  padding: 3px 12px;
-  color: #333;
+  padding: 5px 14px;
+  color: #1f2328;
   text-decoration: none;
-  font-family: monospace;
+  transition: background 0.1s;
 }
 .date-menu a:hover {
-  background: #f0f0f0;
+  background: #f6f8fa;
   text-decoration: none;
 }
 .date-sep {
   display: block;
   height: 1px;
-  background: #e0e0e0;
-  margin: 3px 0;
+  background: #d1d9e0;
+  margin: 4px 0;
 }
+
+/* Transition */
+.menu-enter-active, .menu-leave-active { transition: opacity 0.15s, transform 0.15s; }
+.menu-enter-from, .menu-leave-to { opacity: 0; transform: translateY(-4px); }
 </style>
 
 <style>
 html.dark .date-link:hover { color: #58a6ff; }
-html.dark .date-menu { background: #21262d; border-color: #30363d; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
-html.dark .date-menu a { color: #c9d1d9; }
-html.dark .date-menu a:hover { background: #30363d; }
+html.dark .date-menu { background: #161b22; border-color: #30363d; box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
+html.dark .date-menu a { color: #e6edf3; }
+html.dark .date-menu a:hover { background: #21262d; }
 html.dark .date-sep { background: #30363d; }
 </style>

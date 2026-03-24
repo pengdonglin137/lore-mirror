@@ -63,13 +63,20 @@ function onPageInput(e) {
 
 <template>
   <div>
-    <pre v-if="loading" class="loading">Loading...</pre>
-    <pre v-else-if="error" class="error">Error: {{ error }}</pre>
+    <div v-if="loading" class="loading">Loading...</div>
+    <div v-else-if="error" class="error">Error: {{ error }}</div>
     <template v-else-if="data">
-      <pre><router-link to="/">lore-mirror</router-link> / <b>{{ data.inbox.name }}</b>  <router-link :to="`/search?q=&inbox=${data.inbox.name}`">[search this inbox]</router-link>
-{{ data.inbox.description }}
-{{ data.total }} messages — page {{ data.page }}/{{ data.pages }}
-</pre>
+      <div class="inbox-header-card">
+        <div class="inbox-breadcrumb">
+          <router-link to="/">lore-mirror</router-link>
+          <span class="bc-sep">/</span>
+          <strong>{{ data.inbox.name }}</strong>
+          <router-link :to="`/search?q=&inbox=${data.inbox.name}`" class="inbox-search-link">search this inbox</router-link>
+        </div>
+        <div v-if="data.inbox.description" class="inbox-header-desc">{{ data.inbox.description }}</div>
+        <div class="inbox-meta">{{ data.total }} messages &mdash; page {{ data.page }}/{{ data.pages }}</div>
+      </div>
+
       <div class="pagination">
         <button :disabled="page <= 1" @click="goPage(1)" title="first page">|&lt;</button>
         <button :disabled="page <= 1" @click="goPage(page - 1)">&lt; prev</button>
@@ -81,11 +88,11 @@ function onPageInput(e) {
       </div>
 
       <div class="message-list">
-        <template v-for="msg in data.messages" :key="msg.id">
+        <div v-for="msg in data.messages" :key="msg.id" class="msg-row">
           <span class="msg-date"><DateLink :date="msg.date" :inbox="props.name" /></span>
           <span class="msg-sender"><AddressLink :address="msg.sender" short /></span>
           <router-link :to="`/message/${encodeURIComponent(msg.message_id)}`" class="msg-subject">{{ msg.subject }}</router-link>
-        </template>
+        </div>
       </div>
 
       <div class="pagination">
@@ -102,43 +109,131 @@ function onPageInput(e) {
 </template>
 
 <style scoped>
+.inbox-header-card {
+  background: #fff;
+  border: 1px solid #d1d9e0;
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+}
+
+.inbox-breadcrumb {
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.bc-sep { color: #8b949e; }
+
+.inbox-search-link {
+  font-size: 12px;
+  margin-left: auto;
+  color: #656d76;
+  border: 1px solid #d1d9e0;
+  border-radius: 6px;
+  padding: 2px 10px;
+  transition: all 0.15s;
+}
+.inbox-search-link:hover {
+  background: #f6f8fa;
+  border-color: #0969da;
+  color: #0969da;
+  text-decoration: none;
+}
+
+.inbox-header-desc {
+  font-size: 13px;
+  color: #656d76;
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+.inbox-meta {
+  font-size: 12px;
+  color: #8b949e;
+  margin-top: 8px;
+}
+
+/* ── Message list ────────────────────────────── */
 .message-list {
+  background: #fff;
+  border: 1px solid #d1d9e0;
+  border-radius: 10px;
+}
+
+.msg-row {
   display: grid;
-  grid-template-columns: auto auto 1fr;
+  grid-template-columns: 19ch 20ch 1fr;
   gap: 0 1.5ch;
-  font-family: monospace;
+  padding: 6px 16px;
   font-size: 13px;
   line-height: 1.6;
-  padding: 4px 0;
+  border-bottom: 1px solid #eef1f5;
+  transition: background 0.1s;
+}
+
+.msg-row:last-child { border-bottom: none; }
+
+.msg-row:hover {
+  background: #f6f8fa;
 }
 
 .msg-date {
   white-space: nowrap;
-  color: #666;
+  color: #8b949e;
 }
 
 .msg-sender {
   white-space: nowrap;
   overflow: visible;
-  max-width: 30ch;
+  color: #1f2328;
+  position: relative;
 }
 
 .msg-sender :deep(.addr-link) {
+  color: #1f2328;
+  font-weight: 500;
   display: inline-block;
-  max-width: 30ch;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   vertical-align: bottom;
 }
 
+.msg-sender :deep(.addr-link:hover) {
+  color: #0969da;
+}
+
 .msg-subject {
-  overflow-wrap: break-word;
-  word-break: break-word;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   min-width: 0;
-  width: fit-content;
+  color: #0969da;
 }
 </style>
 
 <style>
-html.dark .message-list .msg-date { color: #8b949e; }
+html.dark .inbox-header-card {
+  background: #161b22;
+  border-color: #30363d;
+}
+html.dark .inbox-header-desc { color: #8b949e; }
+html.dark .inbox-meta { color: #6e7681; }
+html.dark .inbox-search-link { color: #8b949e; border-color: #30363d; }
+html.dark .inbox-search-link:hover { background: #21262d; color: #58a6ff; border-color: #58a6ff; }
+
+html.dark .message-list {
+  background: #161b22;
+  border-color: #30363d;
+}
+html.dark .msg-row { border-color: #21262d; }
+html.dark .msg-row:hover { background: #1c2128; }
+html.dark .msg-date { color: #6e7681; }
+html.dark .msg-sender { color: #e6edf3; }
+html.dark .msg-sender .addr-link { color: #e6edf3; }
+html.dark .msg-sender .addr-link:hover { color: #58a6ff; }
+html.dark .msg-subject { color: #58a6ff; }
 </style>

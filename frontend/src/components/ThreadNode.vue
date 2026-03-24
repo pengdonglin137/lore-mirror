@@ -30,39 +30,46 @@ export default { name: 'ThreadNode' }
 
 <style scoped>
 .thread-child {
-  margin-left: 16px;
+  margin-left: 20px;
 }
 
 .thread-entry {
-  padding: 3px 0;
-  border-left: 2px solid #ddd;
-  padding-left: 8px;
+  padding: 5px 10px;
+  border-left: 2px solid #d1d9e0;
   margin: 2px 0;
+  border-radius: 0 6px 6px 0;
+  transition: background 0.1s;
+}
+
+.thread-entry:hover {
+  background: #f6f8fa;
 }
 
 .thread-subject {
   display: block;
-  font-family: monospace;
   font-size: 13px;
 }
 
 .thread-meta {
   display: block;
-  font-family: monospace;
   font-size: 12px;
-  color: #666;
+  color: #656d76;
+  margin-top: 1px;
 }
 
 .current {
   font-weight: bold;
-  background: #fff3cd;
-  padding: 1px 4px;
+  background: #ddf4ff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline;
 }
 
 </style>
 
 <style>
 html.dark .thread-entry { border-color: #30363d; }
+html.dark .thread-entry:hover { background: #1c2128; }
 html.dark .thread-meta { color: #8b949e; }
-html.dark .current { background: #2d2a00; color: #e3b341; }
+html.dark .current { background: #0d2744; color: #58a6ff; }
 </style>
