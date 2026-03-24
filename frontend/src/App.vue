@@ -80,7 +80,7 @@ onUnmounted(() => window.removeEventListener('keydown', onGlobalKey))
         <button class="nav-btn" @click="doLocate">locate inbox</button>
         <button class="nav-btn" @click="doSearchAll">search all inboxes</button>
         <button class="nav-btn help-btn" @click="showHelp = !showHelp" title="Search syntax help">?</button>
-        <router-link to="/stats" class="nav-btn stats-btn" title="Visit statistics">stats</router-link>
+        <router-link to="/stats" class="nav-btn stats-btn" title="Visit statistics"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:-2px"><rect x="1" y="9" width="3" height="6"/><rect x="6" y="5" width="3" height="10"/><rect x="11" y="1" width="3" height="14"/></svg></router-link>
         <button class="nav-btn theme-btn" @click="toggleTheme" :title="isDark ? 'Switch to light' : 'Switch to dark'">{{ isDark ? '\u2600' : '\u263D' }}</button>
       </nav>
       <SearchHelp v-if="showHelp" />
@@ -183,14 +183,17 @@ header nav {
 }
 
 .stats-btn {
-  font-family: monospace;
-  font-size: 14px;
-  padding: 2px 8px;
+  min-width: 26px;
+  text-align: center;
+  padding: 2px 6px;
   border: 1px solid #999;
   background: #eee;
   color: #333;
   text-decoration: none;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .search-help {
