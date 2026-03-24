@@ -16,10 +16,11 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # ── In-memory cache ──────────────────────────────────
 _cache: dict[str, tuple[float, any]] = {}
@@ -57,6 +58,66 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ── Visit statistics middleware ─────────────────────
+from server.stats import init_stats, get_stats_collector
+
+_stats = init_stats(DB_DIR)
+
+# Patterns to extract inbox / message_id from URL paths
+_RE_INBOX = re.compile(r"^/api/inboxes/([^/]+)")
+_RE_MSG = re.compile(r"^/api/(?:messages|threads)/(.+)")
+
+
+class StatsMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+        if not path.startswith("/api/") or path.startswith("/api/stats"):
+            return await call_next(request)
+
+        t0 = time.monotonic()
+        response = await call_next(request)
+        elapsed_ms = (time.monotonic() - t0) * 1000
+
+        # Normalize endpoint: strip IDs for grouping
+        endpoint = path
+        if _RE_MSG.match(path):
+            endpoint = "/api/messages/*" if "/messages/" in path else "/api/threads/*"
+        elif _RE_INBOX.match(path):
+            endpoint = "/api/inboxes/*"
+
+        # Extract inbox name
+        inbox = ""
+        m = _RE_INBOX.match(path)
+        if m:
+            inbox = m.group(1)
+        elif path == "/api/search":
+            inbox = request.query_params.get("inbox", "")
+
+        # Extract message_id
+        message_id = ""
+        m = _RE_MSG.match(path)
+        if m:
+            message_id = m.group(1)
+
+        # Detect source (MCP vs web)
+        source = request.headers.get("x-source", "web")
+        endpoint_with_source = f"{endpoint} [{source}]"
+
+        collector = get_stats_collector()
+        if collector:
+            collector.record(
+                endpoint=endpoint_with_source,
+                elapsed_ms=elapsed_ms,
+                inbox=inbox,
+                message_id=message_id,
+            )
+
+        return response
+
+
+app.add_middleware(StatsMiddleware)
 
 
 QUERY_TIMEOUT_SECONDS = 30
@@ -1034,6 +1095,39 @@ def get_stats():
     }
     cache_set("stats", result)
     return result
+
+
+# ── Visit statistics ────────────────────────────────
+
+@app.get("/api/stats/visits")
+def get_visit_stats(
+    days: int = Query(30, ge=1, le=365),
+    hours: int = Query(48, ge=1, le=168),
+):
+    """Get comprehensive visit statistics."""
+    collector = get_stats_collector()
+    if not collector:
+        return {"error": "Stats not available"}
+
+    return {
+        "totals": collector.query_total(),
+        "daily_trend": collector.query_daily_trend(days),
+        "hourly_trend": collector.query_hourly_trend(hours),
+        "top_endpoints": collector.query_top_endpoints(days=min(days, 30)),
+        "top_inboxes": collector.query_top_inboxes(days=min(days, 30)),
+        "top_messages": collector.query_top_messages(limit=20),
+    }
+
+
+@app.get("/api/stats/visits/trend")
+def get_visit_trend(
+    days: int = Query(30, ge=1, le=365),
+):
+    """Get daily visit trend only (lightweight)."""
+    collector = get_stats_collector()
+    if not collector:
+        return []
+    return collector.query_daily_trend(days)
 
 
 # ── Sync ─────────────────────────────────────────────

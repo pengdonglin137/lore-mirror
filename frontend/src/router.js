@@ -4,6 +4,7 @@ import Inbox from './views/Inbox.vue'
 import Message from './views/Message.vue'
 import Thread from './views/Thread.vue'
 import Search from './views/Search.vue'
+import Stats from './views/Stats.vue'
 import NotFound from './views/NotFound.vue'
 
 const routes = [
@@ -12,6 +13,7 @@ const routes = [
   { path: '/message/:id(.*)', component: Message, props: true },
   { path: '/thread/:id(.*)', component: Thread, props: true },
   { path: '/search', component: Search },
+  { path: '/stats', component: Stats },
   { path: '/:pathMatch(.*)*', component: NotFound },
 ]
 

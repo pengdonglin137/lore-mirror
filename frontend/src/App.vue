@@ -80,6 +80,7 @@ onUnmounted(() => window.removeEventListener('keydown', onGlobalKey))
         <button class="nav-btn" @click="doLocate">locate inbox</button>
         <button class="nav-btn" @click="doSearchAll">search all inboxes</button>
         <button class="nav-btn help-btn" @click="showHelp = !showHelp" title="Search syntax help">?</button>
+        <router-link to="/stats" class="nav-btn stats-btn" title="Visit statistics">stats</router-link>
         <button class="nav-btn theme-btn" @click="toggleTheme" :title="isDark ? 'Switch to light' : 'Switch to dark'">{{ isDark ? '\u2600' : '\u263D' }}</button>
       </nav>
       <SearchHelp v-if="showHelp" />
@@ -181,6 +182,17 @@ header nav {
   padding: 2px 6px;
 }
 
+.stats-btn {
+  font-family: monospace;
+  font-size: 14px;
+  padding: 2px 8px;
+  border: 1px solid #999;
+  background: #eee;
+  color: #333;
+  text-decoration: none;
+  cursor: pointer;
+}
+
 .search-help {
   font-size: 12px;
   background: #f0f0f0;
@@ -247,6 +259,7 @@ html.dark .logo-link { color: #c9d1d9; }
 html.dark .nav-input, html.dark .nav-btn, html.dark .pagination button, html.dark .page-input {
   background: #21262d; color: #c9d1d9; border-color: #30363d;
 }
+html.dark .stats-btn { background: #21262d; color: #c9d1d9; border-color: #30363d; }
 html.dark .nav-btn:hover { background: #30363d; }
 html.dark mark { background: #5a4a00; color: #e3b341; }
 html.dark .loading { color: #8b949e; }

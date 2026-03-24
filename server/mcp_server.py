@@ -29,7 +29,7 @@ mcp = FastMCP(
 async def _api_get(path: str, params: Optional[dict] = None, timeout: float = 30.0) -> dict | str:
     """Shared helper for GET requests to the REST API."""
     async with httpx.AsyncClient(base_url=API_BASE, timeout=timeout) as client:
-        r = await client.get(path, params=params)
+        r = await client.get(path, params=params, headers={"X-Source": "mcp"})
         r.raise_for_status()
         content_type = r.headers.get("content-type", "")
         if "application/json" in content_type:

@@ -43,3 +43,7 @@ export function search(q, { inbox, page = 1, perPage = 50 } = {}) {
   if (inbox) params.set('inbox', inbox)
   return fetchJSON(`${BASE}/search?${params}`)
 }
+
+export function getVisitStats({ days = 30, hours = 48 } = {}) {
+  return fetchJSON(`${BASE}/stats/visits?days=${days}&hours=${hours}`)
+}
