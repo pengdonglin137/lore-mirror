@@ -13,7 +13,7 @@ const props = defineProps(['id'])
 const msg = ref(null)
 const loading = ref(true)
 const error = ref(null)
-const showAllHeaders = ref(false)
+const headerMode = ref('default') // 'default' | 'all' | 'raw'
 const rawThreadMessages = ref([])
 async function load() {
   loading.value = true
@@ -83,6 +83,13 @@ watch(() => props.id, load, { immediate: true })
 
 const importantHeaders = ['From', 'To', 'Cc', 'Date', 'Subject', 'Message-ID', 'In-Reply-To', 'References']
 
+// Headers shown in "all" mode — skip pure noise like multiple Received, internal X-*, etc.
+const noisyHeaders = new Set([
+  'Received', 'Authentication-Results', 'ARC-Seal', 'ARC-Message-Signature',
+  'ARC-Authentication-Results', 'X-Gm-Message-State', 'X-Gm-Gg',
+  'X-ClientProxiedBy', 'X-Received', 'Return-Path', 'Delivered-To'
+])
+
 function splitAddresses(raw) {
   if (!raw) return []
   // Split on commas not inside angle brackets
@@ -105,17 +112,38 @@ function parseMessageIds(raw) {
   return [...raw.matchAll(/<([^>]+)>/g)].map(m => m[1])
 }
 
+function unfoldHeader(val) {
+  // RFC 2047: continuation lines start with whitespace (tab or space).
+  // Python's email lib may preserve raw \t as continuation markers.
+  // Replace tabs with a single space to avoid huge gaps in <pre>,
+  // and collapse any continuation whitespace after newlines.
+  return val.replace(/\t/g, ' ').replace(/\r?\n\s+/g, '\n ').replace(/\r?\n/g, '\n').trim()
+}
+
 const headerLines = computed(() => {
   if (!msg.value?.headers) return []
   const h = msg.value.headers
-  const keys = showAllHeaders.value ? Object.keys(h) : importantHeaders.filter(k => h[k])
-  return keys.map(k => {
-    const val = Array.isArray(h[k]) ? h[k].join(', ') : h[k]
-    const ids = k === 'References' ? parseMessageIds(val) : null
-    // Split address headers into individual addresses
-    const addrs = addressHeaders.has(k) ? splitAddresses(val) : null
-    return { key: k, value: val, ids, addrs }
-  })
+  let keys
+  if (headerMode.value === 'default') {
+    keys = importantHeaders.filter(k => h[k])
+  } else if (headerMode.value === 'all') {
+    // Show meaningful extra headers, skip noise
+    keys = Object.keys(h).filter(k => !noisyHeaders.has(k) && !k.startsWith('X-'))
+  } else {
+    keys = Object.keys(h)
+  }
+  const lines = []
+  for (const k of keys) {
+    const raw = h[k]
+    const values = Array.isArray(raw) ? raw : [raw]
+    for (const v of values) {
+      const val = unfoldHeader(v)
+      const ids = k === 'References' ? parseMessageIds(val) : null
+      const addrs = addressHeaders.has(k) ? splitAddresses(val) : null
+      lines.push({ key: k, value: val, ids, addrs })
+    }
+  }
+  return lines
 })
 
 const hasDiff = computed(() => {
@@ -163,11 +191,11 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
           <router-link :to="`/inbox/${msg.inbox_name}`">{{ msg.inbox_name }}</router-link>
         </div>
 
-        <pre class="msg-headers"><template v-for="h in headerLines" :key="h.key"><b>{{ h.key }}:</b> <template v-if="h.key === 'In-Reply-To' && h.value"><router-link :to="`/message/${encodeURIComponent(h.value.replace(/[<>]/g, ''))}`">{{ h.value }}</router-link></template><template v-else-if="h.ids && h.ids.length"><template v-for="(id, idx) in h.ids" :key="id"><template v-if="idx"> </template>&lt;<router-link :to="`/message/${encodeURIComponent(id)}`">{{ id }}</router-link>&gt;</template></template><template v-else-if="h.addrs && h.addrs.length"><template v-for="(addr, idx) in h.addrs" :key="idx"><template v-if="idx">, </template><AddressLink :address="addr" context="header" /></template></template><template v-else>{{ h.value }}</template>
-</template></pre>
+        <div class="msg-headers"><template v-for="(h, i) in headerLines" :key="i"><div class="hdr-line"><b>{{ h.key }}:</b> <template v-if="h.key === 'In-Reply-To' && h.value"><router-link :to="`/message/${encodeURIComponent(h.value.replace(/[<>]/g, ''))}`">{{ h.value }}</router-link></template><template v-else-if="h.ids && h.ids.length"><template v-for="(id, idx) in h.ids" :key="id"><template v-if="idx"> </template>&lt;<router-link :to="`/message/${encodeURIComponent(id)}`">{{ id }}</router-link>&gt;</template></template><template v-else-if="h.addrs && h.addrs.length"><template v-for="(addr, idx) in h.addrs" :key="idx"><template v-if="idx">, </template><AddressLink :address="addr" context="header" /></template></template><template v-else>{{ h.value }}</template></div>
+</template></div>
 
         <div class="msg-actions">
-          <a href="#" @click.prevent="showAllHeaders = !showAllHeaders" class="action-btn">{{ showAllHeaders ? 'hide' : 'all' }} headers</a>
+          <a href="#" @click.prevent="headerMode = headerMode === 'default' ? 'all' : headerMode === 'all' ? 'raw' : 'default'" class="action-btn">{{ headerMode === 'default' ? 'all' : headerMode === 'all' ? 'raw' : 'hide' }} headers</a>
           <router-link :to="`/thread/${encodeURIComponent(msg.message_id)}`" class="action-btn">thread</router-link>
           <a :href="`/api/raw?id=${encodeURIComponent(msg.message_id)}`" class="action-btn">raw</a>
           <a :href="`https://lore.kernel.org/${msg.inbox_name}/${msg.message_id}/`" target="_blank" rel="noopener" class="action-btn">lore</a>
@@ -225,6 +253,13 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
   padding: 12px 16px;
   font-size: 13px;
   line-height: 1.7;
+  font-family: monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.hdr-line {
+  margin: 0;
 }
 
 .msg-actions {
