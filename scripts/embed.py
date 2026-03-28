@@ -275,9 +275,6 @@ def main():
         return
 
     vs_config = config.get("vector_search", {})
-    if not vs_config.get("enabled", False):
-        log.error("Vector search is not enabled in config.yaml")
-        sys.exit(1)
 
     inboxes = []
     if args.inbox:
