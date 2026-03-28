@@ -341,6 +341,29 @@ MCP (Model Context Protocol) 服务器让 AI 直接通过结构化工具访问�
 > "env": { "LORE_API_URL": "http://localhost:9000" }
 > ```
 
+**在局域网其他机器上使用：** 如果 lore-mirror 运行在服务器 A（如 `192.168.1.100`），其他机器 B 上的 Claude Code 可以通过网络访问：
+
+```json
+{
+  "mcpServers": {
+    "lore-mirror": {
+      "command": "python3",
+      "args": ["/path/to/lore-mirror/server/mcp_server.py"],
+      "env": {
+        "LORE_API_URL": "http://192.168.1.100:8000"
+      }
+    }
+  }
+}
+```
+
+> **前提：**
+> - 服务器 A 启动时监听 `0.0.0.0`（默认已是）：`./start.sh --build`
+> - 防火墙放行 8000 端口
+> - 机器 B 能 ping 通 `192.168.1.100`
+>
+> MCP server 在本地运行（Claude Code spawn），通过 HTTP 调用远程 REST API。无需在机器 B 上克隆完整仓库——只需 `mcp_server.py` 和 `pip install mcp httpx`。
+
 **安装 MCP 依赖（首次使用）：**
 
 ```bash
