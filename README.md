@@ -350,7 +350,7 @@ pip3 install mcp httpx
 pip3 install -r requirements.txt
 ```
 
-**可用工具（8 个）：**
+**可用工具（10 个）：**
 
 | 工具 | 说明 |
 |------|------|
@@ -362,6 +362,8 @@ pip3 install -r requirements.txt
 | `lore_get_thread` | 获取包含指定邮件的完整讨论线程 |
 | `lore_browse_inbox` | 浏览邮件列表（按时间倒序，支持分页） |
 | `lore_get_raw_email` | 获取原始 RFC 2822 邮件 |
+| `lore_get_series` | patch series 元数据（版本、trailer）或 mbox 下载 |
+| `lore_get_stats` | 全局统计（消息数、数据库大小等） |
 
 **环境变量：** 如果 REST API 不在默认端口，设置 `LORE_API_URL`：
 
