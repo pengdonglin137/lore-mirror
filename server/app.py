@@ -1060,16 +1060,17 @@ def search(
         has_prefix = bool(re.match(r'\w+:', q.strip()))
         if not has_prefix:
             try:
-                from server.vector_search import semantic_search as _semantic_search
-                vec_results = _semantic_search(q, inbox=inbox, top_k=per_page)
-                if vec_results:
-                    vec_messages = _fetch_vec_messages(vec_results)
-                    if vec_messages:
-                        result["messages"] = vec_messages
-                        result["total"] = len(vec_messages)
-                        result["pages"] = 1
-                        result["search_type"] = "semantic"
-                        result["fallback"] = True
+                from server.vector_search import semantic_search as _semantic_search, is_enabled as _vs_enabled
+                if _vs_enabled():
+                    vec_results = _semantic_search(q, inbox=inbox, top_k=per_page)
+                    if vec_results:
+                        vec_messages = _fetch_vec_messages(vec_results)
+                        if vec_messages:
+                            result["messages"] = vec_messages
+                            result["total"] = len(vec_messages)
+                            result["pages"] = 1
+                            result["search_type"] = "semantic"
+                            result["fallback"] = True
             except Exception:
                 pass  # vector search unavailable, return empty FTS result
 
@@ -1109,7 +1110,10 @@ def semantic_search_endpoint(
     per_page: int = Query(50, ge=1, le=200),
 ):
     """Semantic/vector search across mailing list messages."""
-    from server.vector_search import semantic_search
+    from server.vector_search import semantic_search, is_enabled
+
+    if not is_enabled():
+        raise HTTPException(status_code=503, detail="Vector search is disabled. Set vector_search.enabled: true in config.yaml")
 
     vec_results = semantic_search(q, inbox=inbox, top_k=per_page)
 

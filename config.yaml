@@ -19,7 +19,9 @@ sync:
   schedule: "0 */6 * * *"
 
 vector_search:
-  enabled: true
+  # Enable semantic/vector search (requires running: python3 scripts/embed.py)
+  # Disabled by default — embedding is CPU-intensive
+  enabled: false
   # Sentence-transformers model name
   model_name: "all-MiniLM-L6-v2"
   # Max words of body text to embed per message (model limit: 256 tokens)

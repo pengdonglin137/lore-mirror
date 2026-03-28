@@ -34,7 +34,13 @@ def set_config(config: dict):
     _config = config
 
 
+def is_enabled() -> bool:
+    return (_config or {}).get("vector_search", {}).get("enabled", False)
+
+
 def _get_model():
+    if not is_enabled():
+        return None
     global _model
     with _model_lock:
         if _model is None:
@@ -92,6 +98,8 @@ def get_available_vector_inboxes() -> list[str]:
 
 def semantic_search(query: str, inbox: str | None = None, top_k: int = 50) -> list[dict]:
     """Search by semantic similarity. Returns [{inbox_name, message_id, score}]."""
+    if not is_enabled():
+        return []
     model = _get_model()
 
     # Encode query
