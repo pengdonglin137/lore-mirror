@@ -292,7 +292,7 @@ Get the full discussion thread containing the specified message. The API walks u
 
 ### GET /api/search
 
-Full-text search with lore.kernel.org-compatible prefix syntax. Uses SQLite FTS5 with BM25 ranking.
+Full-text search with lore.kernel.org-compatible prefix syntax. Uses SQLite FTS5 with BM25 ranking. When vector search is enabled, automatically falls back to semantic search if FTS returns 0 results.
 
 **Parameters:**
 | Name | Required | Default | Description |
@@ -368,6 +368,66 @@ a:stable@vger.kernel.org             emails to/from/cc stable list
 - `snippet` contains a text excerpt with `<mark>` tags around matched terms. Empty for filter-only queries.
 - When searching across all inboxes, `inbox_name` indicates which inbox each result comes from.
 - For best performance on large datasets, always specify `inbox` parameter.
+- When vector search is enabled and FTS returns 0 results, the response includes `"search_type": "semantic"` and `"fallback": true`. Each result also includes a `score` field (similarity score).
+- Prefix syntax queries (`s:`, `f:`, `b:`, `d:`, etc.) never trigger semantic fallback.
+
+---
+
+### GET /api/search/semantic
+
+Semantic/vector search using sentence-transformers embeddings + FAISS. Requires `vector_search.enabled: true` in config and pre-built indexes.
+
+**Parameters:**
+| Name | Required | Default | Description |
+|------|----------|---------|-------------|
+| q | yes | | Natural language query (no prefix syntax) |
+| inbox | no | all | Limit search to this inbox |
+| per_page | no | 50 | Results per page (1-200) |
+
+**Example:** `GET /api/search/semantic?q=memory+fragmentation+in+page+allocator`
+
+**Response:**
+```json
+{
+  "query": "memory fragmentation in page allocator",
+  "total": 50,
+  "page": 1,
+  "per_page": 50,
+  "pages": 1,
+  "messages": [
+    {
+      "id": 4295,
+      "message_id": "...",
+      "subject": "[PATCH -next 3/8] mm: huge_memory: convert split_huge_pages_all() to use folios",
+      "sender": "...",
+      "date": "...",
+      "inbox_name": "damon",
+      "snippet": "",
+      "score": 0.5586
+    }
+  ],
+  "search_type": "semantic"
+}
+```
+
+**Notes:**
+- Returns 503 if vector search is disabled.
+- Results ranked by cosine similarity score (higher = more relevant).
+- Does NOT support prefix syntax — use `/api/search` for structured queries.
+
+---
+
+### GET /api/search/vector-status
+
+Check which inboxes have vector search indexes available.
+
+**Response:**
+```json
+{
+  "available": ["netdev", "linux-mm", "bpf"],
+  "count": 3
+}
+```
 
 ---
 
@@ -549,7 +609,8 @@ MCP (Model Context Protocol) 服务器提供结构化工具，让 AI 直接访�
 |------|---------------|------|
 | `lore_list_inboxes` | `GET /api/inboxes` | 列出所有可用邮件列表（含消息计数和日期范围） |
 | `lore_locate_inbox` | `GET /api/locate` | 按关键词模糊匹配邮件列表名称和描述 |
-| `lore_search_emails` | `GET /api/search` | 搜索邮件，支持 lore 前缀语法（s: f: b: d: 等） |
+| `lore_search_emails` | `GET /api/search` | 搜索邮件，支持 lore 前缀语法（s: f: b: d: 等）。FTS 无结果时自动语义 fallback |
+| `lore_semantic_search` | `GET /api/search/semantic` | 语义搜索，按概念相似度查找邮件（需启用向量搜索） |
 | `lore_get_message` | `GET /api/messages/{id}` | 获取单封邮件（解析后内容，不含 raw_email） |
 | `lore_get_thread` | `GET /api/threads/{id}` | 获取完整讨论线程（包含所有回复） |
 | `lore_browse_inbox` | `GET /api/inboxes/{name}` | 浏览邮件列表，按时间倒序，支持 keyset 分页 |

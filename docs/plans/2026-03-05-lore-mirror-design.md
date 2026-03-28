@@ -81,11 +81,21 @@
 
 ### 模块 7: MCP Server (AI 工具集成) ✅
 - `server/mcp_server.py`: MCP 协议服务器，通过 httpx 调用本地 REST API
-- 7 个工具: list_inboxes, locate_inbox, search_emails, get_message, get_thread, browse_inbox, get_raw_email
+- 8 个工具: list_inboxes, locate_inbox, search_emails, semantic_search, get_message, get_thread, browse_inbox, get_raw_email
 - stdio 传输: Claude Code 通过 `.mcp.json` 自动发现和启动
 - 依赖 REST API 运行中，地址通过 `LORE_API_URL` 配置（默认 `http://localhost:8000`）
 - 工具名前缀 `lore_` 避免与其他 MCP 服务器冲突
 - `API_BASE` 可通过环境变量 `LORE_API_URL` 配置
+
+### 模块 8: 向量语义搜索 (可选) ✅
+- 默认关闭，`config.yaml` 中 `vector_search.enabled: false`
+- 模型: sentence-transformers `all-MiniLM-L6-v2` (384 维，CPU 推理)
+- 索引: 每个 inbox 一个 FAISS 文件 (`db/{name}.faiss` + `db/{name}.map.npy`)
+- 构建: `scripts/embed.py` — 支持增量更新，`--stats` 查看状态
+- 同步集成: `scripts/sync.py` import 后自动增量更新向量（失败不阻断）
+- 搜索流程: FTS5 优先 → 返回 0 结果时自动 fallback 到语义搜索
+- API: `GET /api/search/semantic`（显式语义搜索）、`GET /api/search/vector-status`（索引状态）
+- 前端: 搜索无结果时显示 "展示语义相近结果" 提示条 + 相似度分数
 
 ### 模块 6: 容器化部署 ✅
 - `Dockerfile`: 多阶段构建（Node 20 → Python 3.12-slim）
@@ -449,6 +459,40 @@ crontab -e
 ```
 
 同步状态会实时写入 `sync_status/` 目录（每 inbox 独立状态文件），前端首页可查看。
+
+### 6b. 向量语义搜索（可选）
+
+默认关闭。开启步骤：
+
+```yaml
+# config.yaml — 启用向量搜索
+vector_search:
+  enabled: true
+```
+
+```bash
+# 为热门 inbox 构建向量索引（CPU 密集，每个约 5-20 分钟）
+python3 scripts/embed.py --inbox netdev
+python3 scripts/embed.py --inbox linux-mm
+python3 scripts/embed.py --inbox bpf
+
+# 或全部构建
+python3 scripts/embed.py
+
+# 查看索引状态
+python3 scripts/embed.py --stats
+
+# 强制重建（换模型后需要）
+python3 scripts/embed.py --inbox netdev --rebuild
+```
+
+开启后：
+- FTS 搜索无结果时自动 fallback 到语义搜索
+- `sync.py` 同步后自动增量更新向量索引
+- API 新增 `/api/search/semantic` 和 `/api/search/vector-status` 端点
+- MCP 新增 `lore_semantic_search` 工具
+
+**注意：** 向量搜索 CPU 消耗高（每次查询需 Transformer 推理），不需要时建议保持关闭。
 
 ### 7. 健康检查与修复
 

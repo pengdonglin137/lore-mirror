@@ -22,7 +22,7 @@ Activate this skill when the user wants to:
 
 ## Access Methods
 
-**MCP (preferred in Claude Code):** If the `lore-mirror` MCP server is connected (check `/mcp`), use the `lore_*` tools directly — they wrap this API with structured parameters and error handling. Tool names: `lore_list_inboxes`, `lore_search_emails`, `lore_get_message`, `lore_get_thread`, `lore_browse_inbox`, `lore_locate_inbox`, `lore_get_raw_email`.
+**MCP (preferred in Claude Code):** If the `lore-mirror` MCP server is connected (check `/mcp`), use the `lore_*` tools directly — they wrap this API with structured parameters and error handling. Tool names: `lore_list_inboxes`, `lore_search_emails`, `lore_semantic_search`, `lore_get_message`, `lore_get_thread`, `lore_browse_inbox`, `lore_locate_inbox`, `lore_get_raw_email`.
 
 **REST API (fallback):** Use the HTTP endpoints below when MCP is not available.
 
@@ -81,6 +81,12 @@ GET /api/search?q=QUERY&inbox=INBOX_NAME&per_page=20
 Operators: `AND` (default), `OR`, `NOT`, `"exact phrase"`, `prefix*`
 
 Paste a bare Message-ID (containing `@`) to auto-detect and search it directly.
+
+#### Semantic Search (if enabled)
+
+When FTS returns 0 results, the search API automatically falls back to semantic/vector search (response includes `"search_type": "semantic"`). For explicit semantic search, use `lore_semantic_search` (MCP) or `GET /api/search/semantic?q=...` (REST).
+
+Best for conceptual queries like "memory fragmentation issues" or "network performance regression" where exact keywords may not match.
 
 #### Common Search Patterns
 

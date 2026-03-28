@@ -12,15 +12,18 @@ Local mirror of lore.kernel.org kernel mailing list archives.
 ├── docker-compose.yml       # web + sync services
 ├── repos/                   # Git mirror repos: repos/{inbox}/git/{epoch}.git
 ├── db/                      # Per-inbox SQLite+FTS5 databases: db/{inbox}.db
+│                            #   + optional FAISS indexes: db/{inbox}.faiss, .map.npy
 ├── scripts/
 │   ├── mirror.py            # Download git repos (epoch discovery, parallel clone)
 │   ├── import_mail.py       # Import emails from git into SQLite (incremental)
 │   ├── database.py          # SQLite schema definition (per-inbox, no shared DB)
 │   ├── sync.py              # Daily sync: git fetch + incremental import (CLI/cron only)
+│   ├── embed.py             # Build FAISS vector indexes for semantic search
 │   └── healthcheck.py       # Verify & repair git repos and databases
 ├── .mcp.json                # MCP server config for Claude Code auto-discovery
 ├── server/
 │   ├── app.py               # FastAPI backend (auto-discovers inbox DBs in db/)
+│   ├── vector_search.py     # Semantic search: FAISS index loading + query
 │   └── mcp_server.py        # MCP server (wraps REST API via httpx, stdio transport)
 └── frontend/                # Vue 3 + Vite SPA
     ├── src/views/           # Home, Inbox, Message, Thread, Search, NotFound
@@ -52,6 +55,7 @@ Local mirror of lore.kernel.org kernel mailing list archives.
 - **Configurable ports**: API port via `LORE_PORT` / `--port`, dev server port via `LORE_DEV_PORT` / `--dev-port`. MCP server uses `LORE_API_URL` (default `http://localhost:8000`). Vite proxy target also reads `LORE_PORT`.
 - **Pagination optimization**: Deep pagination uses reverse index scan when page is in the second half (avoids large OFFSET). `last=1` fetches last page via `ORDER BY ASC LIMIT` + reverse, O(1) regardless of table size.
 - **Patch series endpoint**: `/api/series` returns b4-like JSON metadata (version detection, cover letter, collected trailers) or mboxrd download with trailers injected before `---` separator.
+- **Vector search (optional)**: Disabled by default (`vector_search.enabled: false` in config.yaml). Uses sentence-transformers (all-MiniLM-L6-v2, 384-dim) + FAISS per-inbox indexes. Each inbox gets `db/{name}.faiss` + `db/{name}.map.npy`. Search flow: FTS first → auto-fallback to semantic when FTS returns 0 results. `scripts/embed.py` builds indexes; `sync.py` auto-updates after import. CPU-intensive — enable only when needed.
 
 ## Common Commands
 
