@@ -349,13 +349,12 @@ def get_message(message_id: str):
     for name in get_available_inboxes():
         try:
             conn = get_db(name)
-        except HTTPException:
+            msg = conn.execute(
+                "SELECT * FROM messages WHERE message_id=?",
+                (message_id,),
+            ).fetchone()
+        except Exception:
             continue
-
-        msg = conn.execute(
-            "SELECT * FROM messages WHERE message_id=?",
-            (message_id,),
-        ).fetchone()
 
         if msg:
             result = row_to_dict(msg)
@@ -386,13 +385,12 @@ def get_message_raw(id: str = Query(..., alias="id"), download: int = Query(0)):
     for name in get_available_inboxes():
         try:
             conn = get_db(name)
-        except HTTPException:
+            row = conn.execute(
+                "SELECT raw_email, subject FROM messages WHERE message_id=?", (id,)
+            ).fetchone()
+            conn.close()
+        except Exception:
             continue
-
-        row = conn.execute(
-            "SELECT raw_email, subject FROM messages WHERE message_id=?", (id,)
-        ).fetchone()
-        conn.close()
 
         if row and row["raw_email"]:
             safe = _sanitize_filename(row["subject"] or "message")
@@ -928,14 +926,14 @@ def search(
         for name in inboxes_check:
             try:
                 conn = get_db(name)
-            except HTTPException:
+                row = conn.execute(
+                    """SELECT id, message_id, subject, sender, date, in_reply_to
+                    FROM messages WHERE message_id=?""",
+                    (q_stripped,),
+                ).fetchone()
+                conn.close()
+            except Exception:
                 continue
-            row = conn.execute(
-                """SELECT id, message_id, subject, sender, date, in_reply_to
-                FROM messages WHERE message_id=?""",
-                (q_stripped,),
-            ).fetchone()
-            conn.close()
             if row:
                 d = row_to_dict(row)
                 d["inbox_name"] = name
