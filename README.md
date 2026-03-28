@@ -2,7 +2,7 @@
 
 本地镜像 [lore.kernel.org](https://lore.kernel.org) 的内核邮件列表归档系统。
 
-支持选择性镜像、全文搜索、邮件线程浏览、diff 高亮，以及通过 REST API 供 AI 工具访问。
+支持选择性镜像、全文搜索、语义搜索、邮件线程浏览、diff 高亮，以及通过 REST API 供 AI 工具访问。
 
 ## 快速开始
 
@@ -167,6 +167,25 @@ m:message-id@example.com             按 Message-ID 精确查找
 
 直接粘贴 Message-ID（含 `@`）会自动识别。搜索页面点击 `?` 按钮查看完整语法帮助。
 
+### 语义搜索（可选，默认关闭）
+
+基于 sentence-transformers + FAISS 的向量检索，适合概念性查询（如 "内存碎片化问题"）：
+
+```yaml
+# config.yaml — 启用
+vector_search:
+  enabled: true
+```
+
+```bash
+# 构建向量索引（CPU 密集，每个 inbox 约 5-20 分钟）
+python3 scripts/embed.py --inbox netdev
+python3 scripts/embed.py --inbox linux-mm
+python3 scripts/embed.py --stats     # 查看索引状态
+```
+
+开启后 FTS 搜不到时自动 fallback 到语义搜索，前端会显示提示条。`sync.py` 同步后会自动增量更新索引。
+
 ## 日常维护
 
 ### 同步更新
@@ -263,7 +282,9 @@ LORE_DB_DIR=/data/lore/db
 | `GET /api/inboxes` | 列出所有邮件列表（含详细描述） |
 | `GET /api/locate?q=keyword` | 模糊搜索邮件列表 |
 | `GET /api/inboxes/{name}?page=1` | 浏览某个列表的邮件 |
-| `GET /api/search?q=keyword&inbox=name` | 全文搜索 |
+| `GET /api/search?q=keyword&inbox=name` | 全文搜索（FTS 无结果时自动语义 fallback） |
+| `GET /api/search/semantic?q=query` | 语义搜索（需启用向量搜索） |
+| `GET /api/search/vector-status` | 向量索引状态 |
 | `GET /api/messages/{message_id}` | 查看单封邮件 |
 | `GET /api/threads/{message_id}` | 查看完整讨论线程 |
 | `GET /api/raw?id={message_id}` | 下载原始邮件（.eml），`&download=1` 下载为 .patch |
@@ -329,13 +350,14 @@ pip3 install mcp httpx
 pip3 install -r requirements.txt
 ```
 
-**可用工具（7 个）：**
+**可用工具（8 个）：**
 
 | 工具 | 说明 |
 |------|------|
 | `lore_list_inboxes` | 列出所有可用的邮件列表 |
 | `lore_locate_inbox` | 按关键词模糊匹配邮件列表 |
-| `lore_search_emails` | 搜索邮件（支持 lore 前缀语法） |
+| `lore_search_emails` | 搜索邮件（支持 lore 前缀语法，FTS 无结果自动语义 fallback） |
+| `lore_semantic_search` | 语义搜索（按概念相似度，需启用向量搜索） |
 | `lore_get_message` | 获取单封邮件的完整内容 |
 | `lore_get_thread` | 获取包含指定邮件的完整讨论线程 |
 | `lore_browse_inbox` | 浏览邮件列表（按时间倒序，支持分页） |
@@ -394,19 +416,21 @@ lore-mirror/
 ├── Dockerfile               # 多阶段构建 (Node → Python)
 ├── docker-compose.yml       # web + sync 服务编排
 ├── repos/                   # git mirror 仓库 (数据)
-├── db/                      # SQLite 数据库 (数据)
+├── db/                      # SQLite 数据库 (数据) + FAISS 向量索引 (可选)
 ├── sync_status/             # 同步状态 (per-inbox)
 ├── scripts/
 │   ├── mirror.py            # git 仓库下载
 │   ├── import_mail.py       # 邮件导入（优雅退出 + per-inbox 锁）
 │   ├── sync.py              # 同步（并行 + --stop + 优雅退出）
 │   ├── database.py          # 数据库 schema
+│   ├── embed.py             # 向量索引构建（语义搜索，可选）
 │   ├── healthcheck.py       # 完整性检查与修复
 │   ├── config_utils.py      # 配置加载
 │   └── test_api.py          # API 自动化测试
 ├── .mcp.json                # MCP 服务器自动发现配置（Claude Code）
 ├── server/
 │   ├── app.py               # FastAPI 后端（缓存 + 查询超时保护）
+│   ├── vector_search.py     # 语义搜索模块（FAISS + sentence-transformers）
 │   └── mcp_server.py        # MCP 服务器（包装 REST API，stdio 传输）
 ├── frontend/                # Vue 3 + Vite SPA
 └── docs/
