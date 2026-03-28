@@ -427,11 +427,11 @@ def _find_thread_messages(message_id: str):
     for name in get_available_inboxes():
         try:
             conn = get_db(name)
-        except HTTPException:
+            row = conn.execute(
+                "SELECT message_id FROM messages WHERE message_id=?", (message_id,),
+            ).fetchone()
+        except Exception:
             continue
-        row = conn.execute(
-            "SELECT message_id FROM messages WHERE message_id=?", (message_id,),
-        ).fetchone()
         if row:
             target_conn = conn
             target_inbox = name

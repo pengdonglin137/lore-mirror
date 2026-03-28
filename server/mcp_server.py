@@ -315,5 +315,65 @@ async def semantic_search_tool(
         return _handle_error(e)
 
 
+@mcp.tool(
+    name="lore_get_series",
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+    },
+)
+async def get_series(
+    message_id: str,
+    download: bool = False,
+) -> str:
+    """Get patch series metadata or download as mbox.
+
+    Returns b4-like metadata: version detection, patch list, cover letter,
+    and collected review trailers (Reviewed-by, Acked-by, etc.).
+
+    Args:
+        message_id: Any Message-ID in the patch thread.
+        download: If true, download as mboxrd file (for git am).
+                  If false, return JSON metadata.
+
+    Returns JSON with: version, total patches, cover_letter, patches list
+    with trailers, or raw mboxrd text if download=true.
+    """
+    try:
+        params: dict = {"id": message_id}
+        if download:
+            params["download"] = 1
+        data = await _api_get("/api/series", params=params)
+        if isinstance(data, str):
+            return data
+        return json.dumps(data, indent=2)
+    except Exception as e:
+        return _handle_error(e)
+
+
+@mcp.tool(
+    name="lore_get_stats",
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+    },
+)
+async def get_stats() -> str:
+    """Get overall statistics about the mirror.
+
+    Returns total message count, inbox count, database size,
+    and the latest message info.
+    """
+    try:
+        data = await _api_get("/api/stats")
+        return json.dumps(data, indent=2)
+    except Exception as e:
+        return _handle_error(e)
+
+
 if __name__ == "__main__":
     mcp.run()
