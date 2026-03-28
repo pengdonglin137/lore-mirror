@@ -103,6 +103,15 @@ GET /api/search?q=s:PATCH+b:mm_struct&inbox=linux-mm
 # Find all emails from a developer in a date range
 GET /api/search?q=f:akpm+d:2026-03-01..&inbox=linux-mm
 
+# Find bug type mentions (not replies)
+GET /api/search?q=b:kasan+NOT+s:Re:&inbox=linux-mm
+
+# Emails to/from a specific address
+GET /api/search?q=a:stable@vger.kernel.org&inbox=netdev
+
+# Conceptual query (semantic fallback if FTS returns 0)
+GET /api/search?q=memory+fragmentation+in+page+allocator&inbox=linux-mm
+
 # Find discussions about a specific topic
 GET /api/search?q=io_uring+splice+zero+copy&inbox=lkml
 ```

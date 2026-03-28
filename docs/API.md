@@ -605,16 +605,20 @@ MCP (Model Context Protocol) 服务器提供结构化工具，让 AI 直接访�
 
 所有工具名以 `lore_` 为前缀，只读、幂等。
 
+**推荐工作流：** `lore_list_inboxes`（发现列表）→ `lore_search_emails`（搜索）→ `lore_get_message` / `lore_get_thread`（阅读）
+
 | 工具 | 对应 REST API | 说明 |
 |------|---------------|------|
-| `lore_list_inboxes` | `GET /api/inboxes` | 列出所有可用邮件列表（含消息计数和日期范围） |
+| `lore_list_inboxes` | `GET /api/inboxes` | **先调这个！** 列出所有可用邮件列表（含描述、消息计数和日期范围） |
 | `lore_locate_inbox` | `GET /api/locate` | 按关键词模糊匹配邮件列表名称和描述 |
-| `lore_search_emails` | `GET /api/search` | 搜索邮件，支持 lore 前缀语法（s: f: b: d: 等）。FTS 无结果时自动语义 fallback |
+| `lore_search_emails` | `GET /api/search` | 搜索邮件，支持 lore 前缀语法。**始终传 inbox 参数**。FTS 无结果时自动语义 fallback |
 | `lore_semantic_search` | `GET /api/search/semantic` | 语义搜索，按概念相似度查找邮件（需启用向量搜索） |
 | `lore_get_message` | `GET /api/messages/{id}` | 获取单封邮件（解析后内容，不含 raw_email） |
-| `lore_get_thread` | `GET /api/threads/{id}` | 获取完整讨论线程（包含所有回复） |
+| `lore_get_thread` | `GET /api/threads/{id}` | 获取完整讨论线程（`full=true` 包含正文和 headers） |
 | `lore_browse_inbox` | `GET /api/inboxes/{name}` | 浏览邮件列表，按时间倒序，支持 keyset 分页 |
 | `lore_get_raw_email` | `GET /api/raw` | 获取原始 RFC 2822 邮件 |
+| `lore_get_series` | `GET /api/series` | patch series 元数据（版本检测、trailer 收集）；`download=true` 下载 mbox |
+| `lore_get_stats` | `GET /api/stats` | 全局统计（消息数、数据库大小等） |
 
 ### 故障排查
 
