@@ -219,6 +219,22 @@ def sync_inbox(config: dict, inbox_name: str) -> dict:
     conn.close()
 
     log.info(f"[{inbox_name}] Import complete: {count} total messages in DB")
+
+    # Step 3: Update vector embeddings (if enabled)
+    vec_config = config.get("vector_search", {})
+    if vec_config.get("enabled", False):
+        try:
+            sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+            from embed import embed_inbox
+            embed_result = embed_inbox(inbox_name, config)
+            summary["embedding"] = {
+                "new_vectors": embed_result.get("new_vectors", 0),
+                "total_vectors": embed_result.get("total_vectors", 0),
+            }
+            log.info(f"[{inbox_name}] Embeddings updated: {embed_result.get('new_vectors', 0)} new vectors")
+        except Exception as e:
+            log.warning(f"[{inbox_name}] Embedding update failed (non-fatal): {e}")
+            summary["embedding_error"] = str(e)
     return summary
 
 

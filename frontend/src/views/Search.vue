@@ -91,6 +91,9 @@ function onInboxChange() {
     <div v-else-if="loading" class="loading">Searching for "{{ route.query.q }}"...</div>
     <div v-else-if="error" class="error">Error: {{ error }}</div>
     <template v-else-if="data">
+      <div v-if="data.search_type === 'semantic'" class="semantic-banner">
+        No exact matches found. Showing semantically similar results.
+      </div>
       <div class="search-summary">
         Search: "<strong>{{ data.query }}</strong>"<template v-if="route.query.inbox"> in {{ route.query.inbox }}</template> &mdash; {{ data.total }} results (page {{ data.page }}/{{ data.pages }})
       </div>
@@ -114,6 +117,7 @@ function onInboxChange() {
             <span class="result-date">{{ formatDate(msg.date) }}</span>
             <AddressLink :address="msg.sender" short />
             <router-link :to="`/inbox/${msg.inbox_name}`" class="result-inbox">{{ msg.inbox_name }}</router-link>
+            <span v-if="msg.score != null" class="result-score">score: {{ msg.score.toFixed(3) }}</span>
           </div>
           <div v-if="msg.snippet" v-html="msg.snippet" class="snippet"></div>
         </div>
@@ -170,6 +174,24 @@ function onInboxChange() {
   font-size: 13px;
   color: #656d76;
   margin-bottom: 12px;
+}
+
+.semantic-banner {
+  font-size: 13px;
+  color: #9a6700;
+  background: #fff8c5;
+  border: 1px solid #f0d060;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+}
+
+.result-score {
+  font-size: 11px;
+  background: #ddf4ff;
+  padding: 1px 6px;
+  border-radius: 12px;
+  color: #0969da;
 }
 
 .search-results {
@@ -232,4 +254,6 @@ html.dark .result-inbox { background: #21262d; color: #8b949e; }
 html.dark .result-inbox:hover { background: #30363d; }
 html.dark .snippet { color: #8b949e; }
 html.dark .search-summary { color: #8b949e; }
+html.dark .semantic-banner { background: #3d2e00; color: #d29922; border-color: #6e4b00; }
+html.dark .result-score { background: #0c2d6b; color: #58a6ff; }
 </style>

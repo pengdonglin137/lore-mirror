@@ -50,6 +50,10 @@ _config = _load_config()
 DB_DIR = Path(_config["database"]["dir"])
 INBOXES_CONFIG = {ib["name"]: ib.get("description", "") for ib in _config["inboxes"]}
 
+# Vector search (lazy init)
+from server.vector_search import set_config as _vs_set_config
+_vs_set_config(_config)
+
 app = FastAPI(title="Lore Mirror API", version="0.2.0")
 
 app.add_middleware(
@@ -1051,7 +1055,85 @@ def search(
     if timed_out:
         result["warning"] = "Some results may be incomplete due to query timeout"
 
+    # FTS fallback: if no results and query has no prefix syntax, try semantic search
+    if total == 0 and fts_query:
+        has_prefix = bool(re.match(r'\w+:', q.strip()))
+        if not has_prefix:
+            try:
+                from server.vector_search import semantic_search as _semantic_search
+                vec_results = _semantic_search(q, inbox=inbox, top_k=per_page)
+                if vec_results:
+                    vec_messages = _fetch_vec_messages(vec_results)
+                    if vec_messages:
+                        result["messages"] = vec_messages
+                        result["total"] = len(vec_messages)
+                        result["pages"] = 1
+                        result["search_type"] = "semantic"
+                        result["fallback"] = True
+            except Exception:
+                pass  # vector search unavailable, return empty FTS result
+
+    if "search_type" not in result:
+        result["search_type"] = "fts"
+
     return result
+
+
+def _fetch_vec_messages(vec_results: list[dict]) -> list[dict]:
+    """Fetch message details from SQLite for vector search results."""
+    messages = []
+    for vr in vec_results:
+        try:
+            conn = get_db(vr["inbox_name"])
+        except HTTPException:
+            continue
+        row = conn.execute(
+            """SELECT id, message_id, subject, sender, date, in_reply_to
+               FROM messages WHERE id = ?""",
+            (vr["message_id"],),
+        ).fetchone()
+        conn.close()
+        if row:
+            d = row_to_dict(row)
+            d["inbox_name"] = vr["inbox_name"]
+            d["snippet"] = ""
+            d["score"] = round(vr["score"], 4)
+            messages.append(d)
+    return messages
+
+
+@app.get("/api/search/semantic")
+def semantic_search_endpoint(
+    q: str = Query(..., min_length=1),
+    inbox: Optional[str] = None,
+    per_page: int = Query(50, ge=1, le=200),
+):
+    """Semantic/vector search across mailing list messages."""
+    from server.vector_search import semantic_search
+
+    vec_results = semantic_search(q, inbox=inbox, top_k=per_page)
+
+    if not vec_results:
+        return {
+            "query": q, "total": 0, "page": 1,
+            "per_page": per_page, "pages": 0,
+            "messages": [], "search_type": "semantic",
+        }
+
+    messages = _fetch_vec_messages(vec_results)
+    return {
+        "query": q, "total": len(messages), "page": 1,
+        "per_page": per_page, "pages": 1,
+        "messages": messages, "search_type": "semantic",
+    }
+
+
+@app.get("/api/search/vector-status")
+def vector_search_status():
+    """Report which inboxes have vector indexes available."""
+    from server.vector_search import get_available_vector_inboxes
+    available = get_available_vector_inboxes()
+    return {"available": available, "count": len(available)}
 
 
 # ── Stats ────────────────────────────────────────────

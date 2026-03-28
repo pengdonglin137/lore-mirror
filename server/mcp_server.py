@@ -21,7 +21,8 @@ mcp = FastMCP(
         "Search and browse Linux kernel mailing list archives "
         "(lore.kernel.org mirror). Use search_emails with prefix syntax "
         "for targeted queries: s: (subject), f: (from), d: (date range), "
-        "b: (body), t: (to), c: (cc)."
+        "b: (body), t: (to), c: (cc). Use semantic_search for concept-based "
+        "queries when exact keywords are unknown."
     ),
 )
 
@@ -269,6 +270,47 @@ async def get_raw_email(message_id: str) -> str:
     try:
         data = await _api_get("/api/raw", params={"id": message_id})
         return data if isinstance(data, str) else json.dumps(data)
+    except Exception as e:
+        return _handle_error(e)
+
+
+@mcp.tool(
+    name="lore_semantic_search",
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+    },
+)
+async def semantic_search_tool(
+    query: str,
+    inbox: str = "",
+) -> str:
+    """Search kernel mailing list emails by semantic similarity.
+
+    Unlike search_emails which uses keyword/FTS matching, this tool finds
+    emails whose meaning is similar to your query, even if the exact words
+    differ. Best for conceptual queries like:
+      "memory fragmentation issues"
+      "network performance regression"
+      "filesystem corruption bugs"
+
+    Does NOT support prefix syntax (s:, f:, b:, d:, etc.) — use
+    search_emails for structured queries.
+
+    Args:
+        query: Natural language description of what you're looking for.
+        inbox: Limit search to a specific inbox. Empty = all indexed inboxes.
+
+    Returns JSON with matching messages ranked by semantic similarity score.
+    """
+    try:
+        params: dict = {"q": query}
+        if inbox:
+            params["inbox"] = inbox
+        data = await _api_get("/api/search/semantic", params=params)
+        return json.dumps(data, indent=2)
     except Exception as e:
         return _handle_error(e)
 

@@ -18,6 +18,21 @@ sync:
   # cron expression: default every 6 hours
   schedule: "0 */6 * * *"
 
+vector_search:
+  enabled: true
+  # Sentence-transformers model name
+  model_name: "all-MiniLM-L6-v2"
+  # Max words of body text to embed per message (model limit: 256 tokens)
+  max_body_words: 400
+  # Shorter for PATCH subjects (commit message only, not diff)
+  patch_body_words: 200
+  # Batch size for embedding generation
+  batch_size: 256
+  # FAISS IVF clusters (0 = use Flat index for <500K vectors)
+  nlist: 4096
+  # IVF probes at query time (higher = more accurate, slower)
+  nprobe: 16
+
 # ============================================================
 # Inboxes to mirror
 # Uncomment the ones you want to enable.
@@ -195,14 +210,14 @@ inboxes:
     description: >-
       Linux ext4 filesystem — journaling, extent tree, inline data, encryption (fscrypt),
       verity (fsverity), online resize, fast commit, and e2fsprogs userspace tools.
-  # - name: linux-f2fs-devel
-  #   description: >-
-  #     Linux F2FS (Flash-Friendly File System) — log-structured filesystem optimized for NAND flash,
-  #     SSDs, and eMMC. Supports compression, encryption (fscrypt), verity, GC tuning, and zoned storage.
-  # - name: linux-nfs
-  #   description: >-
-  #     Linux NFS (Network File System) — NFS client and server (nfsd), NFSv3/v4/v4.1/v4.2,
-  #     pNFS layouts, Kerberos authentication, state management, and nfs-utils tools.
+  - name: linux-f2fs-devel
+    description: >-
+      Linux F2FS (Flash-Friendly File System) — log-structured filesystem optimized for NAND flash,
+      SSDs, and eMMC. Supports compression, encryption (fscrypt), verity, GC tuning, and zoned storage.
+  - name: linux-nfs
+    description: >-
+      Linux NFS (Network File System) — NFS client and server (nfsd), NFSv3/v4/v4.1/v4.2,
+      pNFS layouts, Kerberos authentication, state management, and nfs-utils tools.
   # - name: linux-cifs
   #   description: >-
   #     Linux CIFS/SMB filesystem — SMB2/SMB3 client (cifs.ko), DFS referrals, multichannel,
@@ -245,38 +260,38 @@ inboxes:
   #   description: >-
   #     Linux network filesystem library (netfslib) — shared read/write helpers for NFS, CIFS,
   #     AFS, Ceph, and 9P; local caching (fscache/cachefiles), and bounce buffer management.
-  # - name: fstests
-  #   description: >-
-  #     fstests (xfstests) — filesystem test suite for XFS, ext4, Btrfs, F2FS, and others.
-  #     Test development, generic and filesystem-specific test cases, and CI results.
-  # - name: fsverity
-  #   description: >-
-  #     Linux fs-verity — file-level integrity/authenticity via Merkle trees,
-  #     built-in signature verification, and integration with IMA/dm-verity.
-  # - name: linux-fscrypt
-  #   description: >-
-  #     Linux fscrypt — filesystem-level encryption framework used by ext4, F2FS, and UBIFS.
-  #     Per-file/per-directory encryption policies, v1/v2 key management, and hardware inline crypto.
+  - name: fstests
+    description: >-
+      fstests (xfstests) — filesystem test suite for XFS, ext4, Btrfs, F2FS, and others.
+      Test development, generic and filesystem-specific test cases, and CI results.
+  - name: fsverity
+    description: >-
+      Linux fs-verity — file-level integrity/authenticity via Merkle trees,
+      built-in signature verification, and integration with IMA/dm-verity.
+  - name: linux-fscrypt
+    description: >-
+      Linux fscrypt — filesystem-level encryption framework used by ext4, F2FS, and UBIFS.
+      Per-file/per-directory encryption policies, v1/v2 key management, and hardware inline crypto.
   # - name: ecryptfs
   #   description: "Linux eCryptfs — stacked cryptographic filesystem for per-file encryption in userspace home directories"
   # - name: autofs
   #   description: "Linux autofs — kernel-based automounter for NFS, CIFS, and other on-demand mounts"
 
   # ── Storage & drivers ──────────────────────────────
-  # - name: linux-scsi
-  #   description: >-
-  #     Linux SCSI subsystem — SCSI core, host bus adapters (HBA), UFS, SAS, iSCSI,
-  #     SCSI target framework, and SCSI device drivers.
-  # - name: linux-nvme
-  #   description: >-
-  #     Linux NVMe — NVMe host and target drivers, NVMe over Fabrics (NVMe-oF),
-  #     NVMe multipath, NVMe-TCP, NVMe-RDMA, and nvme-cli tools.
-  # - name: linux-raid
-  #   description: "Linux software RAID (md) — mdadm, RAID levels, bitmap, and journal"
-  # - name: dm-devel
-  #   description: >-
-  #     Linux Device Mapper — dm-crypt (LUKS), dm-thin, dm-cache, dm-integrity,
-  #     dm-multipath, LVM, and DM target development.
+  - name: linux-scsi
+    description: >-
+      Linux SCSI subsystem — SCSI core, host bus adapters (HBA), UFS, SAS, iSCSI,
+      SCSI target framework, and SCSI device drivers.
+  - name: linux-nvme
+    description: >-
+      Linux NVMe — NVMe host and target drivers, NVMe over Fabrics (NVMe-oF),
+      NVMe multipath, NVMe-TCP, NVMe-RDMA, and nvme-cli tools.
+  - name: linux-raid
+    description: "Linux software RAID (md) — mdadm, RAID levels, bitmap, and journal"
+  - name: dm-devel
+    description: >-
+      Linux Device Mapper — dm-crypt (LUKS), dm-thin, dm-cache, dm-integrity,
+      dm-multipath, LVM, and DM target development.
   # - name: linux-mtd
   #   description: >-
   #     Linux MTD (Memory Technology Devices) — raw NAND/NOR flash, SPI-NOR, UBIFS, JFFS2,
@@ -295,16 +310,16 @@ inboxes:
   #   description: >-
   #     Linux NVDIMM and Persistent Memory — libnvdimm, DAX (direct access), PMEM driver,
   #     BTT (block translation table), namespace management, and ndctl tools.
-  # - name: linux-cxl
-  #   description: >-
-  #     Linux CXL (Compute Express Link) — CXL memory devices, CXL.mem/CXL.cache protocols,
-  #     CXL port/decoder topology, region/interleave, RAS/poison, and CXL memory hotplug.
+  - name: linux-cxl
+    description: >-
+      Linux CXL (Compute Express Link) — CXL memory devices, CXL.mem/CXL.cache protocols,
+      CXL port/decoder topology, region/interleave, RAS/poison, and CXL memory hotplug.
   # - name: linux-bcache
   #   description: "Linux bcache — SSD caching layer for block devices, writeback/writethrough modes, and cache device management"
-  # - name: io-uring
-  #   description: >-
-  #     Linux io_uring — async I/O framework, submission/completion queues, io_uring_setup,
-  #     registered buffers/files, multishot, linked requests, and liburing userspace library.
+  - name: io-uring
+    description: >-
+      Linux io_uring — async I/O framework, submission/completion queues, io_uring_setup,
+      registered buffers/files, multishot, linked requests, and liburing userspace library.
 
   # ── GPU & graphics ─────────────────────────────────
   # - name: dri-devel
@@ -335,10 +350,10 @@ inboxes:
   #   description: "Linux framebuffer subsystem — legacy fbdev API, fbcon console, and framebuffer device drivers"
 
   # ── Architecture specific ──────────────────────────
-  # - name: linux-arm-kernel
-  #   description: >-
-  #     Linux ARM/ARM64 architecture — ARMv7/ARMv8/ARMv9 core support, exception handling, NEON/SVE,
-  #     memory management (LPAE, ARM64 page tables), EFI, perf PMU, and ARM-specific errata workarounds.
+  - name: linux-arm-kernel
+    description: >-
+      Linux ARM/ARM64 architecture — ARMv7/ARMv8/ARMv9 core support, exception handling, NEON/SVE,
+      memory management (LPAE, ARM64 page tables), EFI, perf PMU, and ARM-specific errata workarounds.
   # - name: linux-arm-msm
   #   description: >-
   #     Linux Qualcomm MSM/Snapdragon SoC — Qualcomm platform drivers, DSI/DP display,
@@ -529,10 +544,10 @@ inboxes:
   #   description: >-
   #     Linux Integrity Measurement Architecture (IMA) — file integrity measurement/appraisal,
   #     EVM (Extended Verification Module), and TPM-based platform integrity.
-  # - name: selinux
-  #   description: >-
-  #     SELinux (Security-Enhanced Linux) — mandatory access control, SELinux policy,
-  #     labeling, type enforcement, and kernel SELinux infrastructure.
+  - name: selinux
+    description: >-
+      SELinux (Security-Enhanced Linux) — mandatory access control, SELinux policy,
+      labeling, type enforcement, and kernel SELinux infrastructure.
   # - name: linux-sgx
   #   description: >-
   #     Intel SGX (Software Guard Extensions) — SGX enclave support in Linux,
@@ -541,10 +556,10 @@ inboxes:
   #   description: >-
   #     Linux Confidential Computing — AMD SEV/SEV-ES/SEV-SNP, Intel TDX,
   #     guest attestation, shared/private memory, and confidential VM infrastructure.
-  # - name: audit
-  #   description: >-
-  #     Linux audit subsystem — syscall auditing, audit rules/filters, audit log generation,
-  #     fanotify/inotify integration, and auditd kernel interface.
+  - name: audit
+    description: >-
+      Linux audit subsystem — syscall auditing, audit rules/filters, audit log generation,
+      fanotify/inotify integration, and auditd kernel interface.
   # - name: kernel-tls-handshake
   #   description: "Linux in-kernel TLS handshake — TLS handshake helper for kTLS consumers (NFS, SMB)"
 
@@ -557,38 +572,38 @@ inboxes:
     description: >-
       Linux perf tool users — perf record/report/stat/top usage, PMU events, flame graphs,
       perf scripting, hardware performance counters, and perf tooling discussion.
-  # - name: linux-kselftest
-  #   description: >-
-  #     Linux kernel selftests (kselftest) — test development for all subsystems,
-  #     test framework improvements, CI integration, and test result reporting.
-  # - name: ltp
-  #   description: >-
-  #     Linux Test Project (LTP) — POSIX compliance tests, syscall tests, filesystem tests,
-  #     kernel regression tests, and LTP framework development.
+  - name: linux-kselftest
+    description: >-
+      Linux kernel selftests (kselftest) — test development for all subsystems,
+      test framework improvements, CI integration, and test result reporting.
+  - name: ltp
+    description: >-
+      Linux Test Project (LTP) — POSIX compliance tests, syscall tests, filesystem tests,
+      kernel regression tests, and LTP framework development.
   # - name: syzbot
   #   description: >-
   #     syzbot automated bug reports — archive-only list for syzkaller/syzbot kernel fuzzer
   #     crash reports, reproducers, and fix notifications.
-  # - name: rcu
-  #   description: >-
-  #     Linux RCU (Read-Copy-Update) — RCU core implementation (tree/tiny/tasks),
-  #     SRCU, RCU callbacks, grace periods, and read-side critical section primitives.
-  # - name: damon
-  #   description: >-
-  #     Linux DAMON (Data Access MONitor) — data access pattern monitoring,
-  #     DAMOS (access-aware operations), proactive reclaim, and memory tiering.
-  # - name: live-patching
-  #   description: >-
-  #     Linux live patching — kpatch/livepatch infrastructure, function patching at runtime,
-  #     consistency model, and stack checking for safe patch application.
-  # - name: linux-rt-devel
-  #   description: >-
-  #     Linux PREEMPT_RT real-time development — RT mutex, threaded interrupts,
-  #     preemptible spinlocks, RT scheduling latency, and PREEMPT_RT patchset.
-  # - name: linux-edac
-  #   description: >-
-  #     Linux EDAC (Error Detection And Correction) — memory ECC error handling,
-  #     EDAC drivers for memory controllers, RAS/CPER, and hardware error reporting.
+  - name: rcu
+    description: >-
+      Linux RCU (Read-Copy-Update) — RCU core implementation (tree/tiny/tasks),
+      SRCU, RCU callbacks, grace periods, and read-side critical section primitives.
+  - name: damon
+    description: >-
+      Linux DAMON (Data Access MONitor) — data access pattern monitoring,
+      DAMOS (access-aware operations), proactive reclaim, and memory tiering.
+  - name: live-patching
+    description: >-
+      Linux live patching — kpatch/livepatch infrastructure, function patching at runtime,
+      consistency model, and stack checking for safe patch application.
+  - name: linux-rt-devel
+    description: >-
+      Linux PREEMPT_RT real-time development — RT mutex, threaded interrupts,
+      preemptible spinlocks, RT scheduling latency, and PREEMPT_RT patchset.
+  - name: linux-edac
+    description: >-
+      Linux EDAC (Error Detection And Correction) — memory ECC error handling,
+      EDAC drivers for memory controllers, RAS/CPER, and hardware error reporting.
   # - name: dwarves
   #   description: >-
   #     dwarves DWARF tools — pahole (structure layout analysis), BTF generation for BPF,
@@ -629,16 +644,16 @@ inboxes:
     description: >-
       Linux cgroups (control groups) — cgroup v1/v2, CPU/memory/IO/PID controllers,
       resource limits, cgroupfs, systemd integration, and container resource management.
-  # - name: sched-ext
-  #   description: >-
-  #     Linux sched_ext — BPF-extensible CPU scheduler, custom scheduling policies via BPF programs,
-  #     scx_* example schedulers, and pluggable scheduler framework.
+  - name: sched-ext
+    description: >-
+      Linux sched_ext — BPF-extensible CPU scheduler, custom scheduling policies via BPF programs,
+      scx_* example schedulers, and pluggable scheduler framework.
 
   # ── IOMMU & ACPI & EFI ────────────────────────────
-  # - name: linux-iommu
-  #   description: >-
-  #     Linux IOMMU subsystem — IOMMU core/domain API, Intel VT-d, AMD-Vi, ARM SMMU,
-  #     DMA remapping, SVA (Shared Virtual Addressing), and VFIO/IOMMUFD passthrough.
+  - name: linux-iommu
+    description: >-
+      Linux IOMMU subsystem — IOMMU core/domain API, Intel VT-d, AMD-Vi, ARM SMMU,
+      DMA remapping, SVA (Shared Virtual Addressing), and VFIO/IOMMUFD passthrough.
   # - name: linux-acpi
   #   description: >-
   #     Linux ACPI (Advanced Configuration and Power Interface) — ACPI tables, ACPICA,
@@ -651,24 +666,24 @@ inboxes:
   #   description: "x86 CPUID — CPU feature identification, x86 feature flags, and CPUID leaf documentation"
 
   # ── Remoteproc / firmware ──────────────────────────
-  # - name: linux-remoteproc
-  #   description: >-
-  #     Linux remoteproc/rpmsg — remote processor lifecycle management, firmware loading,
-  #     crash recovery, rpmsg (inter-processor messaging), and virtio-based RPMsg transport.
+  - name: linux-remoteproc
+    description: >-
+      Linux remoteproc/rpmsg — remote processor lifecycle management, firmware loading,
+      crash recovery, rpmsg (inter-processor messaging), and virtio-based RPMsg transport.
   # - name: linux-firmware
   #   description: >-
   #     Linux firmware repository — binary firmware blobs for GPUs, Wi-Fi, Bluetooth, DSP,
   #     and other hardware requiring firmware loading at runtime.
-  # - name: arm-scmi
-  #   description: >-
-  #     ARM SCMI (System Control and Management Interface) — firmware protocol for clock, power domain,
-  #     sensor, performance domain management between OS and SCP firmware.
+  - name: arm-scmi
+    description: >-
+      ARM SCMI (System Control and Management Interface) — firmware protocol for clock, power domain,
+      sensor, performance domain management between OS and SCP firmware.
 
   # ── Build systems & tooling ────────────────────────
-  # - name: rust-for-linux
-  #   description: >-
-  #     Rust for Linux — Rust language support in the kernel, Rust abstractions for kernel APIs,
-  #     Rust drivers (e.g. nova-core, binder), and Rust build/toolchain integration.
+  - name: rust-for-linux
+    description: >-
+      Rust for Linux — Rust language support in the kernel, Rust abstractions for kernel APIs,
+      Rust drivers (e.g. nova-core, binder), and Rust build/toolchain integration.
   # - name: llvm
   #   description: >-
   #     ClangBuiltLinux — building the Linux kernel with Clang/LLVM, compiler bug reports,
@@ -681,9 +696,9 @@ inboxes:
   #   description: "Linux kernel tools/ directory — perf, bpftool, selftests, and misc userspace tools shipped with the kernel"
   # - name: workflows
   #   description: "Linux kernel maintainer workflows — git best practices, pull request conventions, and CI/automation for maintainers"
-  # - name: linux-spdx
-  #   description: "Linux SPDX license identifiers — license compliance, SPDX tags in source files, and licensing discussions"
-  # - name: linux-man
+  - name: linux-spdx
+    description: "Linux SPDX license identifiers — license compliance, SPDX tags in source files, and licensing discussions"
+  - name: linux-man
   #   description: "Linux man-pages project — syscall/library documentation (man2/man3/man7), API docs, and manpage formatting"
   # - name: kernelci
   #   description: >-
@@ -755,10 +770,10 @@ inboxes:
   #     merge strategies, and git tooling (gitk, git-gui).
   # - name: ddprobe
   #   description: "ddprobe — roundtrip monitoring probe for lore.kernel.org infrastructure health"
-  # - name: dpdk-dev
-  #   description: >-
-  #     DPDK (Data Plane Development Kit) — userspace networking, PMD (Poll Mode Drivers),
-  #     packet processing, DPDK EAL, and high-performance I/O libraries.
+  - name: dpdk-dev
+    description: >-
+      DPDK (Data Plane Development Kit) — userspace networking, PMD (Poll Mode Drivers),
+      packet processing, DPDK EAL, and high-performance I/O libraries.
   # - name: openbmc
   #   description: >-
   #     OpenBMC — open-source BMC firmware based on Yocto/Linux, BMC management,
