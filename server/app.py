@@ -150,13 +150,22 @@ def get_db(inbox_name: str) -> sqlite3.Connection:
 
 
 def get_available_inboxes() -> list[str]:
-    """List inbox names that have a database file."""
+    """List inbox names that have a valid database with messages table."""
     if not DB_DIR.exists():
         return []
-    return sorted(
-        p.stem for p in DB_DIR.glob("*.db")
-        if p.stem not in ("schema", "stats")
-    )
+    result = []
+    for p in DB_DIR.glob("*.db"):
+        if p.stem in ("schema", "stats"):
+            continue
+        # Skip empty/corrupt databases (no messages table)
+        try:
+            conn = sqlite3.connect(str(p))
+            conn.execute("SELECT 1 FROM messages LIMIT 1")
+            conn.close()
+            result.append(p.stem)
+        except Exception:
+            pass
+    return sorted(result)
 
 
 def row_to_dict(row: sqlite3.Row) -> dict:
