@@ -973,41 +973,83 @@ def search(
         where_clauses = list(extra_where)
         params = list(extra_params)
 
-        if fts_query:
-            where_clauses.insert(0, "messages_fts MATCH ?")
-            params.insert(0, fts_query)
-
-        if not where_clauses:
+        if not fts_query and not where_clauses:
             conn.close()
             continue
 
-        where = " AND ".join(where_clauses)
+        # Separate date filters from other SQL filters — used for query optimization
+        date_clauses = [c for c in where_clauses if "m.date" in c]
+        other_clauses = [c for c in where_clauses if "m.date" not in c]
+        date_params = [p for c, p in zip(where_clauses, params) if "m.date" in c]
+        other_params = [p for c, p in zip(where_clauses, params) if "m.date" not in c]
 
-        # Need FTS join only if we have a MATCH clause
         COUNT_CAP = 10001  # Cap COUNT for performance (avoids full scan)
         if fts_query:
-            if extra_where:
-                # FTS + SQL filters: need JOIN for WHERE clauses
+            if date_clauses and not other_clauses:
+                # FTS + date only: first check date range, then do FTS only if
+                # there are rows in range. This avoids scanning the entire FTS
+                # index when the date range has 0 rows (the common timeout cause).
+                date_where = " AND ".join(d.replace("m.date", "date") for d in date_clauses)
+                date_count = conn.execute(
+                    f"SELECT COUNT(*) FROM (SELECT 1 FROM messages WHERE {date_where} LIMIT 1)",
+                    date_params,
+                ).fetchone()[0]
+                if date_count == 0:
+                    # No rows in date range — skip expensive FTS scan entirely
+                    conn.close()
+                    continue
+                # Fetch matching rowids to constrain FTS (avoids FTS full scan)
+                date_rowids = conn.execute(
+                    f"SELECT id FROM messages WHERE {date_where}",
+                    date_params,
+                ).fetchall()
+                id_list = ",".join(str(r[0]) for r in date_rowids)
+                fts_match = "messages_fts MATCH ?"
                 count_sql = f"""SELECT COUNT(*) FROM (
                     SELECT 1 FROM messages_fts
+                    WHERE {fts_match}
+                      AND rowid IN ({id_list})
+                    LIMIT {COUNT_CAP})"""
+                search_sql = f"""SELECT m.id, m.message_id, m.subject, m.sender, m.date,
+                           m.in_reply_to,
+                           snippet(messages_fts, 2, '<mark>', '</mark>', '...', 40) as snippet,
+                           rank
+                    FROM messages_fts
                     JOIN messages m ON m.id = messages_fts.rowid
-                    WHERE {where} LIMIT {COUNT_CAP})"""
+                    WHERE {fts_match}
+                      AND m.id IN ({id_list})
+                    ORDER BY rank
+                    LIMIT ?"""
+                count_params = [fts_query]
+                search_params = [fts_query]
             else:
-                # Pure FTS: skip JOIN for counting
-                count_sql = f"""SELECT COUNT(*) FROM (
-                    SELECT 1 FROM messages_fts
-                    WHERE {where} LIMIT {COUNT_CAP})"""
-            search_sql = f"""SELECT m.id, m.message_id, m.subject, m.sender, m.date,
-                       m.in_reply_to,
-                       snippet(messages_fts, 2, '<mark>', '</mark>', '...', 40) as snippet,
-                       rank
-                FROM messages_fts
-                JOIN messages m ON m.id = messages_fts.rowid
-                WHERE {where}
-                ORDER BY rank
-                LIMIT ?"""
+                # FTS + non-date filters, or FTS-only: use original approach
+                all_where_clauses = ["messages_fts MATCH ?"] + other_clauses
+                all_params = [fts_query] + other_params
+                where = " AND ".join(all_where_clauses)
+                if other_clauses:
+                    count_sql = f"""SELECT COUNT(*) FROM (
+                        SELECT 1 FROM messages_fts
+                        JOIN messages m ON m.id = messages_fts.rowid
+                        WHERE {where} LIMIT {COUNT_CAP})"""
+                else:
+                    count_sql = f"""SELECT COUNT(*) FROM (
+                        SELECT 1 FROM messages_fts
+                        WHERE {where} LIMIT {COUNT_CAP})"""
+                search_sql = f"""SELECT m.id, m.message_id, m.subject, m.sender, m.date,
+                           m.in_reply_to,
+                           snippet(messages_fts, 2, '<mark>', '</mark>', '...', 40) as snippet,
+                           rank
+                    FROM messages_fts
+                    JOIN messages m ON m.id = messages_fts.rowid
+                    WHERE {where}
+                    ORDER BY rank
+                    LIMIT ?"""
+                count_params = all_params
+                search_params = all_params
         else:
             # Pure SQL search (e.g. d: only, no FTS)
+            where = " AND ".join(where_clauses)
             count_sql = f"""SELECT COUNT(*) FROM (
                 SELECT 1 FROM messages m WHERE {where} LIMIT {COUNT_CAP})"""
             search_sql = f"""SELECT m.id, m.message_id, m.subject, m.sender, m.date,
@@ -1016,16 +1058,18 @@ def search(
                 WHERE {where}
                 ORDER BY m.date DESC
                 LIMIT ?"""
+            count_params = params
+            search_params = params
 
         try:
             # Skip SELECT if we already have enough results for this page
             need_rows = len(all_results) < offset + per_page
 
-            count = conn.execute(count_sql, params).fetchone()[0]
+            count = conn.execute(count_sql, count_params).fetchone()[0]
             total += count
 
             if need_rows:
-                rows = conn.execute(search_sql, params + [offset + per_page]).fetchall()
+                rows = conn.execute(search_sql, search_params + [offset + per_page]).fetchall()
                 for r in rows:
                     d = row_to_dict(r)
                     d["inbox_name"] = name

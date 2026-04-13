@@ -330,6 +330,7 @@ lore-mirror/
 | 慢查询保护 | sqlite3 progress_handler 30 秒超时 | 避免无限等待 |
 | f: 发件人搜索 | SQL LIKE → FTS5 sender 列（倒排索引） | lkml 全表扫描挂起 → 0.001s |
 | 搜索 COUNT 优化 | COUNT 子查询 LIMIT 10001 封顶 + 纯 FTS 跳过 JOIN | 避免大结果集计数超时 |
+| FTS+日期搜索优化 | 先检查日期范围是否有数据(0则跳过FTS)；有数据时取 rowid 列表约束 FTS | lkml 30s+ 超时 → 0.015s；linux-mm 20s → 0.38s |
 | 跨 inbox 搜索 | 已有足够结果时跳过后续 inbox 的 SELECT | f:torvalds 15s → 0.02s |
 | 同步仅更新 epoch | fetch 后只 import 有新 commit 的 epoch | 9.5h → 1.5min |
 | Last page 优化 | `last=1` 参数用 `ORDER BY ASC LIMIT N` + 反转 | lkml 30s 超时 → 0.12s |
