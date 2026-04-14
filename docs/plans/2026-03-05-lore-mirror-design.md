@@ -330,13 +330,35 @@ lore-mirror/
 | 慢查询保护 | sqlite3 progress_handler 30 秒超时 | 避免无限等待 |
 | f: 发件人搜索 | SQL LIKE → FTS5 sender 列（倒排索引） | lkml 全表扫描挂起 → 0.001s |
 | 搜索 COUNT 优化 | COUNT 子查询 LIMIT 10001 封顶 + 纯 FTS 跳过 JOIN | 避免大结果集计数超时 |
-| FTS+日期搜索优化 | 先检查日期范围是否有数据(0则跳过FTS)；有数据时用 SQL LIKE 替代 FTS5 MATCH | lkml 30s+ 超时 → 0.017s |
+| FTS+日期搜索优化 | 先检查日期范围是否有数据(0则跳过FTS)；有数据时用 temp table 存 FTS rowid，JOIN date 索引 | lkml 30s+ 超时 → 0.017s；f:torvalds d:2025 37s → 0.07s |
+| 复合 FTS+日期查询 | 解析所有 col:term 对转换 SQL LIKE，支持 s:+f:+d: 等组合 | s:XArray f:wilcox d:2017.. 从 0 结果 → 198 条 |
 | 跨 inbox 搜索 | 已有足够结果时跳过后续 inbox 的 SELECT 和 COUNT | f:torvalds 15s → 0.02s |
 | get_available_inboxes 缓存 | 5 分钟 TTL，避免每次 46 个 SQLite 连接开销 | ~200ms → <2ms |
-| FTS+date 直接 WHERE | 替代 JOIN 子查询，消除 temp B-tree 排序 | 减少内存和 CPU |
+| 查询超时 | 30 秒 → 60 秒 | 大范围查询不再误超时 |
 | 同步仅更新 epoch | fetch 后只 import 有新 commit 的 epoch | 9.5h → 1.5min |
 | Last page 优化 | `last=1` 参数用 `ORDER BY ASC LIMIT N` + 反转 | lkml 30s 超时 → 0.12s |
 | 深度分页双向扫描 | 靠近末尾的页用 ASC + 小 OFFSET + 反转 | 任意页 < 0.2s |
+
+---
+
+## 测试
+
+零依赖测试框架（纯 stdlib），4 个测试文件共 164+ 用例：
+
+| 文件 | 用例数 | 说明 |
+|------|--------|------|
+| `scripts/test_unit.py` | 70 | 纯函数单元测试（parse_email_bytes, fix_date, _strip_surrogates, _parse_patch_subject, _extract_trailers, _inject_trailers, _sanitize_filename, cache, database） |
+| `scripts/test_search.py` | 28 | 搜索解析器测试（parse_search_query 各前缀和组合） |
+| `scripts/test_api.py` | 57 | API 集成测试（所有端点 + 搜索组合 + 边界条件） |
+| `scripts/test_perf.py` | 11 | 性能回归检测（关键路径时间预算 + 基线对比） |
+
+```bash
+python3 scripts/test_unit.py                          # 不需要服务器
+python3 scripts/test_search.py                        # 不需要服务器
+python3 scripts/test_api.py --url http://localhost:8000  # 需要服务器
+python3 scripts/test_perf.py                          # 需要服务器
+python3 scripts/test_perf.py --update-baselines       # 更新性能基线
+```
 
 ---
 
