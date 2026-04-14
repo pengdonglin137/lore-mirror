@@ -124,7 +124,7 @@ class StatsMiddleware(BaseHTTPMiddleware):
 app.add_middleware(StatsMiddleware)
 
 
-QUERY_TIMEOUT_SECONDS = 30
+QUERY_TIMEOUT_SECONDS = 60
 
 
 def get_db(inbox_name: str) -> sqlite3.Connection:
