@@ -49,11 +49,11 @@ tests = [
 
     # Subject with quoted phrase
     ("s: quoted phrase", 's:"memory leak"',
-     {"expect_fts": "subject:memory leak", "expect_where_count": 0}),
+     {"expect_fts": 'subject:"memory leak"', "expect_where_count": 0}),
 
     # From prefix
     ("f: from/sender", "f:torvalds",
-     {"expect_fts": None, "expect_where_count": 1, "expect_params_contains": ["%torvalds%"]}),
+     {"expect_fts": "sender:torvalds", "expect_where_count": 0}),
 
     # Body prefix
     ("b: body", "b:kasan",
@@ -95,13 +95,12 @@ tests = [
 
     # Combined: subject + from + date
     ("combined s: f: d:", "s:PATCH f:torvalds d:2026-01-01..",
-     {"expect_fts": "subject:PATCH", "expect_where_count": 2,
-      "expect_params_contains": ["%torvalds%", "2026-01-01"]}),
+     {"expect_fts": "subject:PATCH sender:torvalds", "expect_where_count": 1,
+      "expect_params_contains": ["2026-01-01"]}),
 
     # Combined: plain text + from
     ("combined plain + f:", "memory leak f:kasan",
-     {"expect_fts": "memory leak", "expect_where_count": 1,
-      "expect_params_contains": ["%kasan%"]}),
+     {"expect_fts": "memory leak sender:kasan", "expect_where_count": 0}),
 
     # Message-ID prefix
     ("m: message-id", "m:20260110-can_usb@pengutronix.de",
@@ -112,6 +111,58 @@ tests = [
     ("m: message-id brackets", "m:<foo@bar.com>",
      {"expect_fts": None, "expect_where_count": 1,
       "expect_params_contains": ["foo@bar.com"]}),
+
+    # --- Extended tests ---
+
+    # Multi-prefix: s: + f: + d: + b:
+    ("multi-prefix s:f:d:b:", "s:PATCH f:torvalds d:2026-01-01..2026-06-01 b:memory",
+     {"expect_fts": "subject:PATCH sender:torvalds body_text:memory",
+      "expect_where_count": 2}),
+
+    # tc: prefix
+    ("tc: to+cc", "tc:stable@vger.kernel.org",
+     {"expect_fts": None, "expect_where_count": 1}),
+
+    # Quoted value preserves quotes
+    ("s: quoted keeps quotes", 's:"memory leak"',
+     {"expect_fts": 'subject:"memory leak"', "expect_where_count": 0}),
+
+    # Plain text only
+    ("plain multi-word", "scheduler latency",
+     {"expect_fts": "scheduler latency", "expect_where_count": 0}),
+
+    # d: open-ended start
+    ("d: open start", "d:2025-06-01..",
+     {"expect_fts": None, "expect_where_count": 1,
+      "expect_params_contains": ["2025-06-01"]}),
+
+    # d: open-ended end
+    ("d: open end", "d:..2026-12-31",
+     {"expect_fts": None, "expect_where_count": 1,
+      "expect_params_contains": ["2026-12-31T23:59:59"]}),
+
+    # m: strips angle brackets
+    ("m: brackets strip", "m:<test@example.com>",
+     {"expect_fts": None, "expect_where_count": 1,
+      "expect_params_contains": ["test@example.com"]}),
+
+    # Duplicate prefix
+    ("duplicate f:", "f:torvalds f:gregkh",
+     {"expect_fts": "sender:torvalds sender:gregkh", "expect_where_count": 0}),
+
+    # Special chars get quoted by FTS
+    ("special chars quoted", "s:100%_done",
+     {"expect_fts": 'subject:"100%_done"', "expect_where_count": 0}),
+
+    # a: prefix
+    ("a: any address", "a:torvalds",
+     {"expect_fts": None, "expect_where_count": 1,
+      "expect_params_contains": ["%torvalds%"]}),
+
+    # bs: + d: combination
+    ("bs: + d:", "bs:regression d:2026-01-01..2026-03-01",
+     {"expect_fts": "(subject:regression OR body_text:regression)",
+      "expect_where_count": 2}),
 ]
 
 for name, query, kwargs in tests:

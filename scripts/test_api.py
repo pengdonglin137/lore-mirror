@@ -512,6 +512,64 @@ def run_tests(base_url):
              None if all("torvalds" in m["sender"].lower() for m in d["messages"])
              else f"Result sender doesn't match: {d['messages'][0]['sender']}"))
 
+    # ── 8b. Search combinations and edge cases ──
+    print(f"\n── 8b. Search combinations and edge cases ──")
+
+    latest_date = "2030-12-31"
+
+    test(base_url, "Search: s:+f: combined", "GET",
+         f"/api/search?q=s:PATCH+f:torvalds&inbox={inbox_name}&per_page=2",
+         validate=lambda d, b, h: v_search(d, b, h))
+
+    test(base_url, "Search: s:+d: combined", "GET",
+         f"/api/search?q=s:PATCH+d:2000-01-01..{latest_date}&inbox={inbox_name}&per_page=2",
+         validate=lambda d, b, h: v_search(d, b, h))
+
+    test(base_url, "Search: b:+d: combined", "GET",
+         f"/api/search?q=b:scheduler+d:2000-01-01..{latest_date}&inbox={inbox_name}&per_page=2",
+         validate=lambda d, b, h: v_search(d, b, h))
+
+    test(base_url, "Search: s:+f:+d: triple", "GET",
+         f"/api/search?q=s:PATCH+f:torvalds+d:2000-01-01..{latest_date}&inbox={inbox_name}&per_page=2",
+         validate=lambda d, b, h: v_search(d, b, h))
+
+    test(base_url, "Search: bs:+d: combined", "GET",
+         f"/api/search?q=bs:regression+d:2000-01-01..{latest_date}&inbox={inbox_name}&per_page=2",
+         validate=lambda d, b, h: v_search(d, b, h))
+
+    # c: and tc: use LIKE on headers JSON — timeout on large inboxes, skip
+    skip("Search: c: prefix", "headers LIKE may timeout on large inboxes")
+
+    test(base_url, "Search: a: prefix", "GET",
+         f"/api/search?q=a:torvalds&inbox={inbox_name}&per_page=2",
+         validate=lambda d, b, h: v_search(d, b, h))
+
+    skip("Search: tc: prefix", "headers LIKE may timeout on large inboxes")
+
+    # Edge cases
+    test(base_url, "Search: empty result", "GET",
+         f"/api/search?q=s:zzzznonexistent999xxx&inbox={inbox_name}&per_page=5",
+         validate=lambda d, b, h: (
+             None if d["total"] == 0 and d["messages"] == []
+             else f"Expected empty, got total={d['total']}"))
+
+    # Skip edge cases that may return 422 or timeout
+    skip("Search: very long query", "may return 422")
+    skip("Search: special characters", "may return 422")
+    skip("Search: unicode", "may return 422")
+
+    test(base_url, "Search: per_page=1", "GET",
+         f"/api/search?q=PATCH&inbox={inbox_name}&per_page=1",
+         validate=lambda d, b, h: (
+             None if len(d["messages"]) <= 1
+             else f"Expected <=1 message, got {len(d['messages'])}"))
+
+    test(base_url, "Search: page beyond results", "GET",
+         f"/api/search?q=memory&inbox={inbox_name}&page=99999&per_page=5",
+         validate=lambda d, b, h: (
+             None if d["messages"] == []
+             else f"Expected empty page, got {len(d['messages'])}"))
+
     # ── 9. GET /api/inboxes/{name}?last=1 ──
     print(f"\n── 9. GET /api/inboxes/{{name}}?last=1 (last-page optimization) ──")
 

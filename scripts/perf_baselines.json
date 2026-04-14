@@ -1,0 +1,13 @@
+{
+  "search_plain": 0.1179,
+  "search_subject": 3.8307,
+  "search_sender": 0.0084,
+  "search_date_range": 0.0016,
+  "search_combo_s_f_d": 0.3464,
+  "search_body": 0.0968,
+  "search_empty": 0.0015,
+  "inbox_list": 0.0011,
+  "inbox_first_page": 0.0012,
+  "inbox_last_page": 0.0011,
+  "stats": 0.0006
+}
