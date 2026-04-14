@@ -65,7 +65,10 @@ def get_db_path(config: dict, inbox_name: str) -> Path:
 
 def parse_email_bytes(raw: bytes) -> dict:
     """Parse raw email bytes into a structured dict."""
-    msg = email.message_from_bytes(raw, policy=email.policy.default)
+    # Use compat32 policy to avoid Python bug with RFC 5322 Group addresses
+    # in To/Cc headers (e.g. "unlisted-recipients:;") which triggers
+    # "AttributeError: 'Group' object has no attribute 'local_part'".
+    msg = email.message_from_bytes(raw, policy=email.policy.compat32)
 
     # Extract basic headers
     message_id = msg.get("Message-ID", "").strip("<>").strip()
