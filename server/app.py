@@ -986,42 +986,61 @@ def search(
         COUNT_CAP = 10001  # Cap COUNT for performance (avoids full scan)
         if fts_query:
             if date_clauses and not other_clauses:
-                # FTS + date only: first check date range, then do FTS only if
-                # there are rows in range. This avoids scanning the entire FTS
-                # index when the date range has 0 rows (the common timeout cause).
-                date_where = " AND ".join(d.replace("m.date", "date") for d in date_clauses)
+                # FTS + date: FTS5 scans the entire index before applying date
+                # filters, causing 30s+ timeouts on large inboxes (e.g. lkml with
+                # 5M rows where "PATCH" matches 4.9M). Fix: use date index first
+                # via JOIN, then apply SQL LIKE instead of FTS MATCH.
+                date_sub = " AND ".join(d.replace("m.date", "date") for d in date_clauses)
                 date_count = conn.execute(
-                    f"SELECT COUNT(*) FROM (SELECT 1 FROM messages WHERE {date_where} LIMIT 1)",
+                    f"SELECT COUNT(*) FROM (SELECT 1 FROM messages WHERE {date_sub} LIMIT 1)",
                     date_params,
                 ).fetchone()[0]
                 if date_count == 0:
-                    # No rows in date range — skip expensive FTS scan entirely
                     conn.close()
                     continue
-                # Fetch matching rowids to constrain FTS (avoids FTS full scan)
-                date_rowids = conn.execute(
-                    f"SELECT id FROM messages WHERE {date_where}",
-                    date_params,
-                ).fetchall()
-                id_list = ",".join(str(r[0]) for r in date_rowids)
-                fts_match = "messages_fts MATCH ?"
+                # Convert FTS MATCH to SQL LIKE on the date-narrowed set.
+                # FTS query format: "col:term" or "(col:term OR col2:term)" or plain "term"
+                like_clauses = []
+                like_params_list = []
+                if fts_query.startswith("subject:"):
+                    kw = fts_query.split(":", 1)[1].strip('"')
+                    like_clauses.append("m.subject LIKE ?")
+                    like_params_list.append(f"%{kw}%")
+                elif fts_query.startswith("sender:"):
+                    kw = fts_query.split(":", 1)[1].strip('"')
+                    like_clauses.append("m.sender LIKE ?")
+                    like_params_list.append(f"%{kw}%")
+                elif fts_query.startswith("body_text:"):
+                    kw = fts_query.split(":", 1)[1].strip('"')
+                    like_clauses.append("m.body_text LIKE ?")
+                    like_params_list.append(f"%{kw}%")
+                elif "subject:" in fts_query and "body_text:" in fts_query:
+                    # bs: prefix — subject OR body
+                    kw = re.search(r'subject:(\S+)', fts_query)
+                    if kw:
+                        kw = kw.group(1).strip('"').strip("()")
+                        like_clauses.append("(m.subject LIKE ? OR m.body_text LIKE ?)")
+                        like_params_list.extend([f"%{kw}%", f"%{kw}%"])
+                else:
+                    # Plain keyword or complex FTS query — search all text columns
+                    kw = fts_query.strip('"')
+                    like_clauses.append("(m.subject LIKE ? OR m.body_text LIKE ? OR m.sender LIKE ?)")
+                    like_params_list.extend([f"%{kw}%", f"%{kw}%", f"%{kw}%"])
+                like_where = " AND ".join(like_clauses)
                 count_sql = f"""SELECT COUNT(*) FROM (
-                    SELECT 1 FROM messages_fts
-                    WHERE {fts_match}
-                      AND rowid IN ({id_list})
+                    SELECT 1 FROM messages m
+                    JOIN (SELECT id FROM messages WHERE {date_sub}) d ON m.id = d.id
+                    WHERE {like_where}
                     LIMIT {COUNT_CAP})"""
                 search_sql = f"""SELECT m.id, m.message_id, m.subject, m.sender, m.date,
-                           m.in_reply_to,
-                           snippet(messages_fts, 2, '<mark>', '</mark>', '...', 40) as snippet,
-                           rank
-                    FROM messages_fts
-                    JOIN messages m ON m.id = messages_fts.rowid
-                    WHERE {fts_match}
-                      AND m.id IN ({id_list})
-                    ORDER BY rank
+                           m.in_reply_to, '' as snippet, 0 as rank
+                    FROM messages m
+                    JOIN (SELECT id FROM messages WHERE {date_sub}) d ON m.id = d.id
+                    WHERE {like_where}
+                    ORDER BY m.date DESC
                     LIMIT ?"""
-                count_params = [fts_query]
-                search_params = [fts_query]
+                count_params = date_params + like_params_list
+                search_params = date_params + like_params_list
             else:
                 # FTS + non-date filters, or FTS-only: use original approach
                 all_where_clauses = ["messages_fts MATCH ?"] + other_clauses
