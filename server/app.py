@@ -996,55 +996,77 @@ def search(
                 # 5M rows where "PATCH" matches 4.9M). Fix: use date index first,
                 # then apply SQL LIKE instead of FTS MATCH.
                 date_sub = " AND ".join(date_clauses)
-                if not conn.execute(
-                    f"SELECT EXISTS(SELECT 1 FROM messages m WHERE {date_sub})",
+                # Count rows in date range to decide strategy: LIKE is fast on
+                # small sets (<50K), but FTS MATCH is better for large ranges.
+                date_row_count = conn.execute(
+                    f"SELECT COUNT(*) FROM (SELECT 1 FROM messages m WHERE {date_sub} LIMIT 50001)",
                     date_params,
-                ).fetchone()[0]:
+                ).fetchone()[0]
+                if date_row_count == 0:
                     conn.close()
                     continue
-                # Convert FTS MATCH to SQL LIKE on the date-narrowed set.
-                # FTS query format: "col:term" or "(col:term OR col2:term)" or plain "term"
-                like_clauses = []
-                like_params_list = []
-                if fts_query.startswith("subject:"):
-                    kw = fts_query.split(":", 1)[1].strip('"')
-                    like_clauses.append("m.subject LIKE ?")
-                    like_params_list.append(f"%{kw}%")
-                elif fts_query.startswith("sender:"):
-                    kw = fts_query.split(":", 1)[1].strip('"')
-                    like_clauses.append("m.sender LIKE ?")
-                    like_params_list.append(f"%{kw}%")
-                elif fts_query.startswith("body_text:"):
-                    kw = fts_query.split(":", 1)[1].strip('"')
-                    like_clauses.append("m.body_text LIKE ?")
-                    like_params_list.append(f"%{kw}%")
-                elif "subject:" in fts_query and "body_text:" in fts_query:
-                    # bs: prefix — subject OR body
-                    kw = re.search(r'subject:(\S+)', fts_query)
-                    if kw:
-                        kw = kw.group(1).strip('"').strip("()")
-                        like_clauses.append("(m.subject LIKE ? OR m.body_text LIKE ?)")
-                        like_params_list.extend([f"%{kw}%", f"%{kw}%"])
+                if date_row_count > 50000:
+                    # Large date range — FTS MATCH is faster than LIKE on millions of rows
+                    all_where_clauses = ["messages_fts MATCH ?"] + date_clauses
+                    all_params = [fts_query] + date_params
+                    where = " AND ".join(all_where_clauses)
+                    count_sql = f"""SELECT COUNT(*) FROM (
+                        SELECT 1 FROM messages_fts
+                        JOIN messages m ON m.id = messages_fts.rowid
+                        WHERE {where} LIMIT {COUNT_CAP})"""
+                    search_sql = f"""SELECT m.id, m.message_id, m.subject, m.sender, m.date,
+                               m.in_reply_to,
+                               snippet(messages_fts, 2, '<mark>', '</mark>', '...', 40) as snippet,
+                               rank
+                        FROM messages_fts
+                        JOIN messages m ON m.id = messages_fts.rowid
+                        WHERE {where}
+                        ORDER BY rank
+                        LIMIT ?"""
+                    count_params = all_params
+                    search_params = all_params
                 else:
-                    # Plain keyword or complex FTS query — search all text columns
-                    kw = fts_query.strip('"')
-                    like_clauses.append("(m.subject LIKE ? OR m.body_text LIKE ? OR m.sender LIKE ?)")
-                    like_params_list.extend([f"%{kw}%", f"%{kw}%", f"%{kw}%"])
-                like_where = " AND ".join(like_clauses)
-                # Direct WHERE (no JOIN subquery) lets SQLite use the date index
-                # for ordering — avoids temp B-tree sort.
-                count_sql = f"""SELECT COUNT(*) FROM (
-                    SELECT 1 FROM messages m
-                    WHERE {date_sub} AND {like_where}
-                    LIMIT {COUNT_CAP})"""
-                search_sql = f"""SELECT m.id, m.message_id, m.subject, m.sender, m.date,
-                           m.in_reply_to, '' as snippet, 0 as rank
-                    FROM messages m
-                    WHERE {date_sub} AND {like_where}
-                    ORDER BY m.date DESC
-                    LIMIT ?"""
-                count_params = date_params + like_params_list
-                search_params = date_params + like_params_list
+                    # Convert FTS MATCH to SQL LIKE on the date-narrowed set.
+                    # FTS query format: "col:term" or "col:term col2:term2" or plain "term"
+                    FTS_COL_MAP = {
+                        "subject": "m.subject",
+                        "sender": "m.sender",
+                        "body_text": "m.body_text",
+                    }
+                    like_clauses = []
+                    like_params_list = []
+                    # Parse "col:term" pairs from FTS query
+                    fts_tokens = re.findall(r'(\w+):(\S+)', fts_query)
+                    if fts_tokens:
+                        for col, term in fts_tokens:
+                            term = term.strip('"')
+                            if col in FTS_COL_MAP:
+                                like_clauses.append(f"{FTS_COL_MAP[col]} LIKE ?")
+                                like_params_list.append(f"%{term}%")
+                            elif col == "bs":
+                                # bs: prefix — subject OR body
+                                like_clauses.append("(m.subject LIKE ? OR m.body_text LIKE ?)")
+                                like_params_list.extend([f"%{term}%", f"%{term}%"])
+                    else:
+                        # Plain keyword — search all text columns
+                        kw = fts_query.strip('"')
+                        like_clauses.append("(m.subject LIKE ? OR m.body_text LIKE ? OR m.sender LIKE ?)")
+                        like_params_list.extend([f"%{kw}%", f"%{kw}%", f"%{kw}%"])
+                    like_where = " AND ".join(like_clauses)
+                    # Direct WHERE (no JOIN subquery) lets SQLite use the date index
+                    # for ordering — avoids temp B-tree sort.
+                    count_sql = f"""SELECT COUNT(*) FROM (
+                        SELECT 1 FROM messages m
+                        WHERE {date_sub} AND {like_where}
+                        LIMIT {COUNT_CAP})"""
+                    search_sql = f"""SELECT m.id, m.message_id, m.subject, m.sender, m.date,
+                               m.in_reply_to, '' as snippet, 0 as rank
+                        FROM messages m
+                        WHERE {date_sub} AND {like_where}
+                        ORDER BY m.date DESC
+                        LIMIT ?"""
+                    count_params = date_params + like_params_list
+                    search_params = date_params + like_params_list
             else:
                 # FTS + non-date filters, or FTS-only: use original approach
                 all_where_clauses = ["messages_fts MATCH ?"] + other_clauses
