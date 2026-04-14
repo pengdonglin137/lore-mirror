@@ -16,6 +16,7 @@ import email.policy
 import email.utils
 import json
 import logging
+import re
 import signal
 import subprocess
 import sys
@@ -61,6 +62,14 @@ def get_db_path(config: dict, inbox_name: str) -> Path:
     db_dir = Path(config["database"]["dir"])
     db_dir.mkdir(parents=True, exist_ok=True)
     return db_dir / f"{inbox_name}.db"
+
+
+_SURROGATE_RE = re.compile(r'[\ud800-\udfff]')
+
+
+def _strip_surrogates(s: str) -> str:
+    """Remove Unicode surrogate characters that can't be encoded as UTF-8."""
+    return _SURROGATE_RE.sub('', s)
 
 
 def parse_email_bytes(raw: bytes) -> dict:
@@ -150,14 +159,14 @@ def parse_email_bytes(raw: bytes) -> dict:
         headers[key] = vals if len(vals) > 1 else vals[0]
 
     return {
-        "message_id": message_id,
-        "subject": subject,
-        "sender": sender,
+        "message_id": _strip_surrogates(message_id),
+        "subject": _strip_surrogates(subject),
+        "sender": _strip_surrogates(sender),
         "date": date_iso,
         "in_reply_to": in_reply_to,
         "references_ids": json.dumps(references),
-        "body_text": body_text,
-        "body_html": body_html,
+        "body_text": _strip_surrogates(body_text),
+        "body_html": _strip_surrogates(body_html),
         "headers": json.dumps(headers, ensure_ascii=False, default=str),
         "attachments": attachments,
         "raw_email": raw,
