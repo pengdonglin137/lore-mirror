@@ -151,6 +151,9 @@ def get_db(inbox_name: str) -> sqlite3.Connection:
 
 def get_available_inboxes() -> list[str]:
     """List inbox names that have a valid database with messages table."""
+    cached = cache_get("available_inboxes")
+    if cached is not None:
+        return cached
     if not DB_DIR.exists():
         return []
     result = []
@@ -165,7 +168,9 @@ def get_available_inboxes() -> list[str]:
             result.append(p.stem)
         except Exception:
             pass
-    return sorted(result)
+    result.sort()
+    cache_set("available_inboxes", result)
+    return result
 
 
 def row_to_dict(row: sqlite3.Row) -> dict:
@@ -988,14 +993,13 @@ def search(
             if date_clauses and not other_clauses:
                 # FTS + date: FTS5 scans the entire index before applying date
                 # filters, causing 30s+ timeouts on large inboxes (e.g. lkml with
-                # 5M rows where "PATCH" matches 4.9M). Fix: use date index first
-                # via JOIN, then apply SQL LIKE instead of FTS MATCH.
-                date_sub = " AND ".join(d.replace("m.date", "date") for d in date_clauses)
-                date_count = conn.execute(
-                    f"SELECT COUNT(*) FROM (SELECT 1 FROM messages WHERE {date_sub} LIMIT 1)",
+                # 5M rows where "PATCH" matches 4.9M). Fix: use date index first,
+                # then apply SQL LIKE instead of FTS MATCH.
+                date_sub = " AND ".join(date_clauses)
+                if not conn.execute(
+                    f"SELECT EXISTS(SELECT 1 FROM messages m WHERE {date_sub})",
                     date_params,
-                ).fetchone()[0]
-                if date_count == 0:
+                ).fetchone()[0]:
                     conn.close()
                     continue
                 # Convert FTS MATCH to SQL LIKE on the date-narrowed set.
@@ -1027,16 +1031,16 @@ def search(
                     like_clauses.append("(m.subject LIKE ? OR m.body_text LIKE ? OR m.sender LIKE ?)")
                     like_params_list.extend([f"%{kw}%", f"%{kw}%", f"%{kw}%"])
                 like_where = " AND ".join(like_clauses)
+                # Direct WHERE (no JOIN subquery) lets SQLite use the date index
+                # for ordering — avoids temp B-tree sort.
                 count_sql = f"""SELECT COUNT(*) FROM (
                     SELECT 1 FROM messages m
-                    JOIN (SELECT id FROM messages WHERE {date_sub}) d ON m.id = d.id
-                    WHERE {like_where}
+                    WHERE {date_sub} AND {like_where}
                     LIMIT {COUNT_CAP})"""
                 search_sql = f"""SELECT m.id, m.message_id, m.subject, m.sender, m.date,
                            m.in_reply_to, '' as snippet, 0 as rank
                     FROM messages m
-                    JOIN (SELECT id FROM messages WHERE {date_sub}) d ON m.id = d.id
-                    WHERE {like_where}
+                    WHERE {date_sub} AND {like_where}
                     ORDER BY m.date DESC
                     LIMIT ?"""
                 count_params = date_params + like_params_list
@@ -1083,6 +1087,13 @@ def search(
         try:
             # Skip SELECT if we already have enough results for this page
             need_rows = len(all_results) < offset + per_page
+
+            # In cross-inbox search, skip COUNT for remaining inboxes once we
+            # have enough rows — avoids expensive FTS COUNT queries (e.g. 5s each
+            # on lkml for common terms) for inboxes we won't fetch rows from.
+            if not need_rows and len(inboxes_to_search) > 1:
+                conn.close()
+                continue
 
             count = conn.execute(count_sql, count_params).fetchone()[0]
             total += count
