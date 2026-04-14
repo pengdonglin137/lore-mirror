@@ -330,13 +330,33 @@ lore-mirror/
 | 慢查询保护 | sqlite3 progress_handler 30 秒超时 | 避免无限等待 |
 | f: 发件人搜索 | SQL LIKE → FTS5 sender 列（倒排索引） | lkml 全表扫描挂起 → 0.001s |
 | 搜索 COUNT 优化 | COUNT 子查询 LIMIT 10001 封顶 + 纯 FTS 跳过 JOIN | 避免大结果集计数超时 |
-| FTS+日期搜索优化 | 先检查日期范围是否有数据(0则跳过FTS)；有数据时取 rowid 列表约束 FTS | lkml 30s+ 超时 → 0.015s；linux-mm 20s → 0.38s |
-| 跨 inbox 搜索 | 已有足够结果时跳过后续 inbox 的 SELECT | f:torvalds 15s → 0.02s |
+| FTS+日期搜索优化 | 先检查日期范围是否有数据(0则跳过FTS)；有数据时用 SQL LIKE 替代 FTS5 MATCH | lkml 30s+ 超时 → 0.017s |
+| 跨 inbox 搜索 | 已有足够结果时跳过后续 inbox 的 SELECT 和 COUNT | f:torvalds 15s → 0.02s |
+| get_available_inboxes 缓存 | 5 分钟 TTL，避免每次 46 个 SQLite 连接开销 | ~200ms → <2ms |
+| FTS+date 直接 WHERE | 替代 JOIN 子查询，消除 temp B-tree 排序 | 减少内存和 CPU |
 | 同步仅更新 epoch | fetch 后只 import 有新 commit 的 epoch | 9.5h → 1.5min |
 | Last page 优化 | `last=1` 参数用 `ORDER BY ASC LIMIT N` + 反转 | lkml 30s 超时 → 0.12s |
 | 深度分页双向扫描 | 靠近末尾的页用 ASC + 小 OFFSET + 反转 | 任意页 < 0.2s |
 
 ---
+
+## 待优化 (TODO)
+
+### t:/c:/a: 前缀搜索 — To/Cc 收件人搜索优化
+
+**问题**：`t:`、`c:`、`a:`、`tc:` 前缀目前用 `LIKE` 在 `headers` JSON 列上搜索，lkml 580 万行全表扫描，30s+ 超时。
+
+**方案**：在 messages 表加 `to_addrs`、`cc_addrs` 列（逗号分隔的纯邮箱地址），同时加入 FTS5 索引。搜索从 JSON LIKE 改为 FTS MATCH。
+
+改动点：
+- `scripts/database.py` — messages 表加列，FTS5 加列，触发器同步
+- `scripts/import_mail.py` — `parse_email_bytes()` 用 `email.utils.getaddresses()` 提取纯地址，去重拼接；INSERT 加字段
+- `server/app.py` — `parse_search_query()` 中 `t:`/`c:`/`tc:` 改为 FTS 前缀（`to_addrs:`/`cc_addrs:`），`a:` 改为 FTS `(sender: OR to_addrs: OR cc_addrs:)`
+- 已有数据需要 ALTER TABLE + 回填（或重建数据库）
+
+**注意**：FTS5 contentless 模式下加列需要重建 FTS 索引：`INSERT INTO messages_fts(messages_fts) VALUES('rebuild')`。
+
+---|
 
 ## 使用说明
 
