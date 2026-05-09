@@ -28,7 +28,7 @@ export LORE_DEV_PORT="${DEV_PORT}"
 PIDFILE_BACKEND=".pid.backend"
 PIDFILE_FRONTEND=".pid.frontend"
 
-# ── Cleanup on exit ──────────────────────────────────────────
+# ── Cleanup on signals (NOT on normal exit — this is a daemon launcher) ──
 cleanup() {
     echo ""
     echo "Shutting down..."
@@ -36,7 +36,7 @@ cleanup() {
     [[ -f "$PIDFILE_FRONTEND" ]] && kill "$(cat "$PIDFILE_FRONTEND")" 2>/dev/null
     rm -f "$PIDFILE_BACKEND" "$PIDFILE_FRONTEND"
 }
-trap cleanup EXIT
+trap cleanup SIGINT SIGTERM SIGHUP
 
 # ── Stop existing instances (by PID file, then fallback to port check) ──
 stop_existing() {
