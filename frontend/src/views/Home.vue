@@ -13,13 +13,16 @@ let pollTimer = null
 onMounted(async () => {
   document.title = 'lore-mirror'
   try {
-    const [inboxData, statsData, syncData] = await Promise.all([
-      getInboxes(), getStats(), getSyncStatus(),
+    // Load inboxes + sync status first (fast), don't block on stats (slow)
+    const [inboxData, syncData] = await Promise.all([
+      getInboxes(), getSyncStatus(),
     ])
     allInboxes.value = inboxData
-    stats.value = statsData
     syncStatus.value = syncData
     if (syncData.running) startPolling()
+
+    // Stats loads asynchronously — page renders immediately
+    getStats().then(data => { stats.value = data }).catch(() => {})
   } finally {
     loading.value = false
   }

@@ -1222,21 +1222,43 @@ def get_stats():
 
     for name in get_available_inboxes():
         try:
-            conn = get_db(name)
-            count = conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
-            total_messages += count
+            db_path = DB_DIR / f"{name}.db"
+            total_size += db_path.stat().st_size
 
-            row = conn.execute(
-                """SELECT date, subject, sender FROM messages
-                WHERE date <= '2027'
-                ORDER BY date DESC LIMIT 1"""
-            ).fetchone()
-            if row and (not latest or (row["date"] and row["date"] > latest["date"])):
-                latest = {"date": row["date"], "subject": row["subject"],
-                          "sender": row["sender"], "inbox": name}
+            conn = sqlite3.connect(str(db_path), timeout=5)
+            conn.row_factory = sqlite3.Row
+
+            # Fast count via index statistics (O(1) vs full table scan)
+            try:
+                row = conn.execute(
+                    "SELECT MAX(rowid) AS cnt FROM messages"
+                ).fetchone()
+                if row and row["cnt"]:
+                    total_messages += row["cnt"]
+                else:
+                    total_messages += conn.execute(
+                        "SELECT COUNT(*) FROM messages"
+                    ).fetchone()[0]
+            except Exception:
+                total_messages += conn.execute(
+                    "SELECT COUNT(*) FROM messages"
+                ).fetchone()[0]
+
+            # Latest message: leverage the date index
+            try:
+                row = conn.execute(
+                    """SELECT date, subject, sender FROM messages
+                    WHERE date IS NOT NULL AND date != ''
+                    ORDER BY date DESC LIMIT 1"""
+                ).fetchone()
+                if row and row["date"] and row["date"] <= "2027":
+                    if not latest or row["date"] > latest["date"]:
+                        latest = {"date": row["date"], "subject": row["subject"],
+                                  "sender": row["sender"], "inbox": name}
+            except Exception:
+                pass
 
             conn.close()
-            total_size += (DB_DIR / f"{name}.db").stat().st_size
         except Exception:
             continue
 
