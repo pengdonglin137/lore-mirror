@@ -1228,21 +1228,12 @@ def get_stats():
             conn = sqlite3.connect(str(db_path), timeout=5)
             conn.row_factory = sqlite3.Row
 
-            # Fast count via index statistics (O(1) vs full table scan)
             try:
-                row = conn.execute(
-                    "SELECT MAX(rowid) AS cnt FROM messages"
-                ).fetchone()
-                if row and row["cnt"]:
-                    total_messages += row["cnt"]
-                else:
-                    total_messages += conn.execute(
-                        "SELECT COUNT(*) FROM messages"
-                    ).fetchone()[0]
-            except Exception:
                 total_messages += conn.execute(
                     "SELECT COUNT(*) FROM messages"
                 ).fetchone()[0]
+            except Exception:
+                pass
 
             # Latest message: leverage the date index
             try:
