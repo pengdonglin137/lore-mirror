@@ -496,6 +496,10 @@ def run_import(config: dict, inbox_filter: Optional[str] = None):
 
             db_path = get_db_path(config, name)
             conn = init_db(db_path)
+            # Disable foreign keys for import: attachments may reference
+            # messages not yet imported, and INSERT OR IGNORE skips messages
+            # but still attempts attachment inserts.
+            conn.execute("PRAGMA foreign_keys=OFF")
 
             epochs = sorted(
                 (int(p.name.replace(".git", ""))

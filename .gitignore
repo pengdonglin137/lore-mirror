@@ -8,6 +8,8 @@ db/
 # Logs and runtime state
 *.log
 sync_status.json
+.pid.*
+nohup.out
 
 # Python
 __pycache__/
