@@ -80,12 +80,14 @@ def parse_email_bytes(raw: bytes) -> dict:
     msg = email.message_from_bytes(raw, policy=email.policy.compat32)
 
     # Extract basic headers
-    message_id = msg.get("Message-ID", "").strip("<>").strip()
-    subject = msg.get("Subject", "")
-    sender = msg.get("From", "")
-    date_str = msg.get("Date", "")
-    in_reply_to = msg.get("In-Reply-To", "").strip("<>").strip()
-    references_raw = msg.get("References", "")
+    # Wrap with str() because compat32 policy may return email.header.Header
+    # objects instead of plain strings for encoded headers (e.g. Subject).
+    message_id = str(msg.get("Message-ID", "")).strip("<>").strip()
+    subject = str(msg.get("Subject", ""))
+    sender = str(msg.get("From", ""))
+    date_str = str(msg.get("Date", ""))
+    in_reply_to = str(msg.get("In-Reply-To", "")).strip("<>").strip()
+    references_raw = str(msg.get("References", ""))
 
     # Parse references into list of message IDs
     references = []
