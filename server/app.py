@@ -1211,14 +1211,22 @@ def vector_search_status():
 
 @app.get("/api/stats")
 def get_stats():
-    """Get overall statistics (cached 5 min)."""
+    """Get overall statistics (cached 5 min).
+
+    Per-database COUNT(*) can take 20-70s on large inboxes (lkml, netdev,
+    stable).  We set a per-db timeout so the endpoint returns promptly;
+    skipped counts are noted in the response.
+    """
     cached = cache_get("stats")
     if cached is not None:
         return cached
 
+    STATS_DB_TIMEOUT = 10  # seconds per database
+
     total_messages = 0
     total_size = 0
     latest = None
+    skipped_dbs = []
 
     for name in get_available_inboxes():
         try:
@@ -1228,12 +1236,22 @@ def get_stats():
             conn = sqlite3.connect(str(db_path), timeout=5)
             conn.row_factory = sqlite3.Row
 
+            # Per-database timeout via progress handler
+            deadline = time.monotonic() + STATS_DB_TIMEOUT
+
+            def _check():
+                if time.monotonic() > deadline:
+                    return 1
+                return 0
+
+            conn.set_progress_handler(_check, 100_000)
+
             try:
                 total_messages += conn.execute(
                     "SELECT COUNT(*) FROM messages"
                 ).fetchone()[0]
             except Exception:
-                pass
+                skipped_dbs.append(name)
 
             # Latest message: leverage the date index
             try:
@@ -1259,6 +1277,8 @@ def get_stats():
         "database_size_bytes": total_size,
         "latest_message": latest,
     }
+    if skipped_dbs:
+        result["warning"] = f"Count skipped for {len(skipped_dbs)} slow databases: {', '.join(skipped_dbs)}"
     cache_set("stats", result)
     return result
 

@@ -73,7 +73,7 @@ wait_for_api() {
     local retries=0
     local max=30
     while (( retries < max )); do
-        if curl -sf "http://localhost:${PORT}/api/stats" >/dev/null 2>&1; then
+        if curl -sf --max-time 5 "http://localhost:${PORT}/api/stats" >/dev/null 2>&1; then
             return 0
         fi
         # Abort if the process died
