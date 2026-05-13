@@ -181,31 +181,62 @@ def row_to_dict(row: sqlite3.Row) -> dict:
 
 @app.get("/api/inboxes")
 def list_inboxes():
-    """List all inboxes with message counts (cached 5 min)."""
+    """List all inboxes with message counts (cached 5 min).
+
+    COUNT(*) on large databases can take 10-70s.  We use a per-database
+    thread timer to forcibly interrupt slow queries so the endpoint
+    returns within a reasonable time.
+    """
     cached = cache_get("inboxes_list")
     if cached is not None:
         return cached
 
+    INBOX_DB_TIMEOUT = 8  # seconds per database
+    import threading
+
     results = []
     for name in get_available_inboxes():
         try:
-            conn = get_db(name)
-            # Use fast queries: COUNT via covering index, date range via index scan
-            count = conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
-            earliest = conn.execute(
-                "SELECT date FROM messages WHERE date >= '1990' ORDER BY date ASC LIMIT 1"
-            ).fetchone()
-            latest = conn.execute(
-                "SELECT date FROM messages WHERE date <= '2027' ORDER BY date DESC LIMIT 1"
-            ).fetchone()
-            conn.close()
-            results.append({
-                "name": name,
-                "description": INBOXES_CONFIG.get(name, ""),
-                "message_count": count,
-                "earliest": earliest["date"] if earliest else None,
-                "latest": latest["date"] if latest else None,
-            })
+            db_path = DB_DIR / f"{name}.db"
+            conn = sqlite3.connect(str(db_path), timeout=5)
+            conn.row_factory = sqlite3.Row
+            timed_out = threading.Event()
+
+            def _timeout():
+                timed_out.set()
+                try:
+                    conn.interrupt()
+                except Exception:
+                    pass
+
+            timer = threading.Timer(INBOX_DB_TIMEOUT, _timeout)
+            timer.start()
+            try:
+                count = conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
+                earliest = conn.execute(
+                    "SELECT date FROM messages WHERE date >= '1990' ORDER BY date ASC LIMIT 1"
+                ).fetchone()
+                latest = conn.execute(
+                    "SELECT date FROM messages WHERE date <= '2027' ORDER BY date DESC LIMIT 1"
+                ).fetchone()
+                results.append({
+                    "name": name,
+                    "description": INBOXES_CONFIG.get(name, ""),
+                    "message_count": count,
+                    "earliest": earliest["date"] if earliest else None,
+                    "latest": latest["date"] if latest else None,
+                })
+            except Exception:
+                results.append({
+                    "name": name,
+                    "description": INBOXES_CONFIG.get(name, ""),
+                    "message_count": 0,
+                    "earliest": None,
+                    "latest": None,
+                })
+            finally:
+                timer.cancel()
+                conn.close()
         except Exception:
             results.append({
                 "name": name,
@@ -1213,15 +1244,14 @@ def vector_search_status():
 def get_stats():
     """Get overall statistics (cached 5 min).
 
-    Per-database COUNT(*) can take 20-70s on large inboxes (lkml, netdev,
-    stable).  We set a per-db timeout so the endpoint returns promptly;
-    skipped counts are noted in the response.
+    Uses thread timer + conn.interrupt() for per-database timeout.
     """
     cached = cache_get("stats")
     if cached is not None:
         return cached
 
-    STATS_DB_TIMEOUT = 10  # seconds per database
+    STATS_DB_TIMEOUT = 8  # seconds per database
+    import threading
 
     total_messages = 0
     total_size = 0
@@ -1236,24 +1266,27 @@ def get_stats():
             conn = sqlite3.connect(str(db_path), timeout=5)
             conn.row_factory = sqlite3.Row
 
-            # Per-database timeout via progress handler
-            deadline = time.monotonic() + STATS_DB_TIMEOUT
+            timed_out = threading.Event()
 
-            def _check():
-                if time.monotonic() > deadline:
-                    return 1
-                return 0
+            def _timeout():
+                timed_out.set()
+                try:
+                    conn.interrupt()
+                except Exception:
+                    pass
 
-            conn.set_progress_handler(_check, 100_000)
-
+            timer = threading.Timer(STATS_DB_TIMEOUT, _timeout)
+            timer.start()
             try:
                 total_messages += conn.execute(
                     "SELECT COUNT(*) FROM messages"
                 ).fetchone()[0]
             except Exception:
                 skipped_dbs.append(name)
+            finally:
+                timer.cancel()
 
-            # Latest message: leverage the date index
+            # Latest message: leverage the date index (fast query)
             try:
                 row = conn.execute(
                     """SELECT date, subject, sender FROM messages
