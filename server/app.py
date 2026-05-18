@@ -64,6 +64,22 @@ app.add_middleware(
 )
 
 
+# ── Startup: pre-warm caches in background ─────────
+@app.on_event("startup")
+def _warm_caches():
+    """Pre-compute expensive stats on startup so first page load is fast."""
+    import threading
+
+    def _warm():
+        try:
+            list_inboxes()
+            get_stats()
+        except Exception:
+            pass
+
+    threading.Thread(target=_warm, daemon=True).start()
+
+
 # ── Visit statistics middleware ─────────────────────
 from server.stats import init_stats, get_stats_collector
 
@@ -191,7 +207,7 @@ def list_inboxes():
     if cached is not None:
         return cached
 
-    INBOX_DB_TIMEOUT = 8  # seconds per database
+    INBOX_DB_TIMEOUT = 25  # seconds per database (lkml=21s, netdev=12s)
     import threading
 
     results = []
@@ -297,12 +313,36 @@ def get_inbox(
     """
     conn = get_db(name)
 
-    # Use cached total count (expensive COUNT on millions of rows)
+    # Use cached total count (expensive COUNT on millions of rows).
+    # For large inboxes (lkml ~6M rows), COUNT(*) takes 20+ seconds.
+    # Cache aggressively and use stale cache if available.
     cache_key = f"inbox_total:{name}"
     total = cache_get(cache_key)
     if total is None:
-        total = conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
-        cache_set(cache_key, total)
+        # First load: use thread timer to avoid blocking forever
+        import threading
+        timed_out = threading.Event()
+
+        def _timeout():
+            timed_out.set()
+            try:
+                conn.interrupt()
+            except Exception:
+                pass
+
+        timer = threading.Timer(8, _timeout)
+        timer.start()
+        try:
+            total = conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
+            cache_set(cache_key, total)
+        except Exception:
+            # Query timed out — use MAX(rowid) as rough estimate
+            try:
+                total = conn.execute("SELECT MAX(rowid) FROM messages").fetchone()[0] or 0
+            except Exception:
+                total = 0
+        finally:
+            timer.cancel()
 
     pages = (total + per_page - 1) // per_page
 
@@ -1250,7 +1290,7 @@ def get_stats():
     if cached is not None:
         return cached
 
-    STATS_DB_TIMEOUT = 8  # seconds per database
+    STATS_DB_TIMEOUT = 25  # seconds per database (lkml=21s, netdev=12s)
     import threading
 
     total_messages = 0
