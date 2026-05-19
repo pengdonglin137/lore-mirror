@@ -24,7 +24,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 # ── In-memory cache ──────────────────────────────────
 _cache: dict[str, tuple[float, any]] = {}
-CACHE_TTL = 300  # 5 minutes
+CACHE_TTL = 3600  # 1 hour (COUNT(*) on large DBs takes minutes)
 
 
 def cache_get(key: str):
@@ -62,22 +62,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-# ── Startup: pre-warm caches in background ─────────
-@app.on_event("startup")
-def _warm_caches():
-    """Pre-compute expensive stats on startup so first page load is fast."""
-    import threading
-
-    def _warm():
-        try:
-            list_inboxes()
-            get_stats()
-        except Exception:
-            pass
-
-    threading.Thread(target=_warm, daemon=True).start()
 
 
 # ── Visit statistics middleware ─────────────────────
@@ -197,62 +181,59 @@ def row_to_dict(row: sqlite3.Row) -> dict:
 
 @app.get("/api/inboxes")
 def list_inboxes():
-    """List all inboxes with message counts (cached 5 min).
+    """List all inboxes with message counts.
 
-    COUNT(*) on large databases can take 10-70s.  We use a per-database
-    thread timer to forcibly interrupt slow queries so the endpoint
-    returns within a reasonable time.
+    Reads pre-computed counts from _counts.json (written by import_mail.py).
+    Falls back to live queries if metadata is missing.
     """
     cached = cache_get("inboxes_list")
     if cached is not None:
         return cached
 
-    INBOX_DB_TIMEOUT = 25  # seconds per database (lkml=21s, netdev=12s)
-    import threading
+    # Try pre-computed metadata (instant)
+    meta_path = DB_DIR / "_counts.json"
+    inbox_counts = {}
+    if meta_path.exists():
+        try:
+            import json as _json
+            meta = _json.loads(meta_path.read_text())
+            inbox_counts = meta.get("inbox_counts", {})
+        except Exception:
+            pass
 
     results = []
     for name in get_available_inboxes():
         try:
             db_path = DB_DIR / f"{name}.db"
-            conn = sqlite3.connect(str(db_path), timeout=5)
-            conn.row_factory = sqlite3.Row
-            timed_out = threading.Event()
+            # Use pre-computed count if available, else skip (avoid slow COUNT)
+            count = inbox_counts.get(name, 0)
+            if not count and db_path.exists():
+                # Only compute for small databases (< 100MB)
+                if db_path.stat().st_size < 100_000_000:
+                    conn = sqlite3.connect(str(db_path), timeout=5)
+                    conn.row_factory = sqlite3.Row
+                    count = conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
+                    conn.close()
 
-            def _timeout():
-                timed_out.set()
-                try:
-                    conn.interrupt()
-                except Exception:
-                    pass
-
-            timer = threading.Timer(INBOX_DB_TIMEOUT, _timeout)
-            timer.start()
-            try:
-                count = conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
+            earliest = None
+            latest = None
+            if db_path.exists():
+                conn = sqlite3.connect(str(db_path), timeout=5)
+                conn.row_factory = sqlite3.Row
                 earliest = conn.execute(
                     "SELECT date FROM messages WHERE date >= '1990' ORDER BY date ASC LIMIT 1"
                 ).fetchone()
                 latest = conn.execute(
                     "SELECT date FROM messages WHERE date <= '2027' ORDER BY date DESC LIMIT 1"
                 ).fetchone()
-                results.append({
-                    "name": name,
-                    "description": INBOXES_CONFIG.get(name, ""),
-                    "message_count": count,
-                    "earliest": earliest["date"] if earliest else None,
-                    "latest": latest["date"] if latest else None,
-                })
-            except Exception:
-                results.append({
-                    "name": name,
-                    "description": INBOXES_CONFIG.get(name, ""),
-                    "message_count": 0,
-                    "earliest": None,
-                    "latest": None,
-                })
-            finally:
-                timer.cancel()
                 conn.close()
+            results.append({
+                "name": name,
+                "description": INBOXES_CONFIG.get(name, ""),
+                "message_count": count,
+                "earliest": earliest["date"] if earliest else None,
+                "latest": latest["date"] if latest else None,
+            })
         except Exception:
             results.append({
                 "name": name,
@@ -262,9 +243,7 @@ def list_inboxes():
                 "latest": None,
             })
 
-    # Sort by latest message date descending (most active first), then by name
     results.sort(key=lambda x: (x.get("latest") or "", x.get("name", "")), reverse=True)
-
     cache_set("inboxes_list", results)
     return results
 
@@ -330,7 +309,7 @@ def get_inbox(
             except Exception:
                 pass
 
-        timer = threading.Timer(8, _timeout)
+        timer = threading.Timer(30, _timeout)
         timer.start()
         try:
             total = conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
@@ -1282,21 +1261,41 @@ def vector_search_status():
 
 @app.get("/api/stats")
 def get_stats():
-    """Get overall statistics (cached 5 min).
+    """Get overall statistics.
 
-    Uses thread timer + conn.interrupt() for per-database timeout.
+    Reads pre-computed counts from metadata file written by import_mail.py.
+    Falls back to live COUNT(*) if metadata is missing (slow on first load).
     """
     cached = cache_get("stats")
     if cached is not None:
         return cached
 
-    STATS_DB_TIMEOUT = 25  # seconds per database (lkml=21s, netdev=12s)
-    import threading
+    # Try pre-computed metadata first (instant)
+    meta_path = DB_DIR / "_counts.json"
+    if meta_path.exists():
+        try:
+            import json as _json
+            meta = _json.loads(meta_path.read_text())
+            total_size = sum(
+                (DB_DIR / f"{name}.db").stat().st_size
+                for name in get_available_inboxes()
+                if (DB_DIR / f"{name}.db").exists()
+            )
+            result = {
+                "total_messages": meta["total_messages"],
+                "total_inboxes": len(get_available_inboxes()),
+                "database_size_bytes": total_size,
+                "latest_message": meta.get("latest_message"),
+            }
+            cache_set("stats", result)
+            return result
+        except Exception:
+            pass
 
+    # Fallback: live COUNT(*) (slow, ~2 min on first load)
     total_messages = 0
     total_size = 0
     latest = None
-    skipped_dbs = []
 
     for name in get_available_inboxes():
         try:
@@ -1306,27 +1305,10 @@ def get_stats():
             conn = sqlite3.connect(str(db_path), timeout=5)
             conn.row_factory = sqlite3.Row
 
-            timed_out = threading.Event()
+            total_messages += conn.execute(
+                "SELECT COUNT(*) FROM messages"
+            ).fetchone()[0]
 
-            def _timeout():
-                timed_out.set()
-                try:
-                    conn.interrupt()
-                except Exception:
-                    pass
-
-            timer = threading.Timer(STATS_DB_TIMEOUT, _timeout)
-            timer.start()
-            try:
-                total_messages += conn.execute(
-                    "SELECT COUNT(*) FROM messages"
-                ).fetchone()[0]
-            except Exception:
-                skipped_dbs.append(name)
-            finally:
-                timer.cancel()
-
-            # Latest message: leverage the date index (fast query)
             try:
                 row = conn.execute(
                     """SELECT date, subject, sender FROM messages
@@ -1350,8 +1332,6 @@ def get_stats():
         "database_size_bytes": total_size,
         "latest_message": latest,
     }
-    if skipped_dbs:
-        result["warning"] = f"Count skipped for {len(skipped_dbs)} slow databases: {', '.join(skipped_dbs)}"
     cache_set("stats", result)
     return result
 

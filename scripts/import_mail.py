@@ -526,6 +526,47 @@ def run_import(config: dict, inbox_filter: Optional[str] = None):
     else:
         log.info("Import complete")
 
+    # Write pre-computed counts for the web frontend
+    _write_counts_file(config)
+
+
+def _write_counts_file(config: dict):
+    """Write _counts.json with pre-computed message counts for instant stats."""
+    import json as _json
+
+    db_dir = Path(config["database"]["dir"])
+    meta_path = db_dir / "_counts.json"
+    total_messages = 0
+    latest = None
+
+    for p in db_dir.glob("*.db"):
+        if p.stem in ("schema", "stats"):
+            continue
+        try:
+            conn = sqlite3.connect(str(p), timeout=5)
+            conn.row_factory = sqlite3.Row
+            count = conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
+            total_messages += count
+            try:
+                row = conn.execute(
+                    """SELECT date, subject, sender FROM messages
+                    WHERE date IS NOT NULL AND date != ''
+                    ORDER BY date DESC LIMIT 1"""
+                ).fetchone()
+                if row and row["date"] and row["date"] <= "2027":
+                    if not latest or row["date"] > latest["date"]:
+                        latest = {"date": row["date"], "subject": row["subject"],
+                                  "sender": row["sender"], "inbox": p.stem}
+            except Exception:
+                pass
+            conn.close()
+        except Exception:
+            continue
+
+    meta = {"total_messages": total_messages, "latest_message": latest}
+    meta_path.write_text(_json.dumps(meta))
+    log.info(f"Wrote counts: {total_messages:,} messages -> {meta_path}")
+
 
 def main():
     parser = argparse.ArgumentParser(description="Import emails from git repos to SQLite")

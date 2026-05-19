@@ -118,12 +118,12 @@ if [ "$BUILD" = "1" ]; then
     echo ""
     echo "Starting backend (serves frontend from frontend/dist/)..."
     echo "Access at: http://localhost:${PORT}"
-    python3 -m uvicorn server.app:app --host 0.0.0.0 --port "${PORT}" --workers 4
+    python3 -m uvicorn server.app:app --host 0.0.0.0 --port "${PORT}" --workers 1
 else
     ensure_frontend_deps
 
     echo "Starting backend on :${PORT}..."
-    nohup python3 -m uvicorn server.app:app --host 0.0.0.0 --port "${PORT}" --workers 4 > server.log 2>&1 &
+    nohup python3 -m uvicorn server.app:app --host 0.0.0.0 --port "${PORT}" --workers 1 > server.log 2>&1 &
     echo $! > "$PIDFILE_BACKEND"
 
     echo "Waiting for API to respond..."
