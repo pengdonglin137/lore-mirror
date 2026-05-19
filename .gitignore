@@ -27,3 +27,4 @@ frontend/dist/
 
 # OS
 .DS_Store
+_counts.json
