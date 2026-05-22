@@ -1326,10 +1326,27 @@ def get_stats():
 
 @app.get("/api/stats/databases")
 def get_database_stats():
-    """Get per-inbox database statistics (cached 5 min)."""
+    """Get per-inbox database statistics.
+
+    Reads pre-computed counts from _counts.json (instant).
+    Falls back to live queries if metadata is missing.
+    """
     cached = cache_get("db_stats")
     if cached is not None:
         return cached
+
+    # Load pre-computed counts
+    inbox_counts = {}
+    latest_msg = None
+    counts_file = DB_DIR / "_counts.json"
+    if counts_file.exists():
+        try:
+            import json as _json
+            meta = _json.loads(counts_file.read_text())
+            inbox_counts = meta.get("inbox_counts", {})
+            latest_msg = meta.get("latest_message")
+        except Exception:
+            pass
 
     results = []
     total_size = 0
@@ -1343,24 +1360,30 @@ def get_database_stats():
             entry["size_bytes"] = db_path.stat().st_size
             total_size += entry["size_bytes"]
 
-            conn = get_db(name)
-            entry["message_count"] = conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
+            # Use pre-computed count (instant) instead of COUNT(*)
+            entry["message_count"] = inbox_counts.get(name, 0)
             total_messages += entry["message_count"]
 
-            earliest = conn.execute(
-                "SELECT date FROM messages WHERE date >= '1990' ORDER BY date ASC LIMIT 1"
-            ).fetchone()
-            latest = conn.execute(
-                "SELECT date FROM messages WHERE date <= '2027' ORDER BY date DESC LIMIT 1"
-            ).fetchone()
-            entry["earliest"] = earliest["date"] if earliest else None
-            entry["latest"] = latest["date"] if latest else None
-            conn.close()
+            # Quick date queries (indexed, fast)
+            if db_path.exists():
+                conn = sqlite3.connect(str(db_path), timeout=5)
+                conn.row_factory = sqlite3.Row
+                try:
+                    earliest = conn.execute(
+                        "SELECT date FROM messages WHERE date >= '1990' ORDER BY date ASC LIMIT 1"
+                    ).fetchone()
+                    latest = conn.execute(
+                        "SELECT date FROM messages WHERE date <= '2027' ORDER BY date DESC LIMIT 1"
+                    ).fetchone()
+                    entry["earliest"] = earliest["date"] if earliest else None
+                    entry["latest"] = latest["date"] if latest else None
+                except Exception:
+                    pass
+                conn.close()
         except Exception:
             pass
         results.append(entry)
 
-    # Sort by size descending (largest first)
     results.sort(key=lambda x: x["size_bytes"], reverse=True)
 
     resp = {
