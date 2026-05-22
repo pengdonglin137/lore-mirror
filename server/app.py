@@ -292,36 +292,24 @@ def get_inbox(
     """
     conn = get_db(name)
 
-    # Use cached total count (expensive COUNT on millions of rows).
-    # For large inboxes (lkml ~6M rows), COUNT(*) takes 20+ seconds.
-    # Cache aggressively and use stale cache if available.
+    # Get total count for pagination.
+    # COUNT(*) on large inboxes (lkml 6M rows) takes 20+ seconds.
+    # Read from pre-computed _counts.json (instant) or cache.
     cache_key = f"inbox_total:{name}"
     total = cache_get(cache_key)
     if total is None:
-        # First load: use thread timer to avoid blocking forever
-        import threading
-        timed_out = threading.Event()
-
-        def _timeout():
-            timed_out.set()
+        # Try pre-computed counts file
+        counts_file = DB_DIR / "_counts.json"
+        if counts_file.exists():
             try:
-                conn.interrupt()
+                import json as _json
+                meta = _json.loads(counts_file.read_text())
+                total = meta.get("inbox_counts", {}).get(name)
             except Exception:
                 pass
-
-        timer = threading.Timer(30, _timeout)
-        timer.start()
-        try:
-            total = conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
-            cache_set(cache_key, total)
-        except Exception:
-            # Query timed out — use MAX(rowid) as rough estimate
-            try:
-                total = conn.execute("SELECT MAX(rowid) FROM messages").fetchone()[0] or 0
-            except Exception:
-                total = 0
-        finally:
-            timer.cancel()
+        if total is None:
+            total = 0  # fallback: unknown total
+        cache_set(cache_key, total)
 
     pages = (total + per_page - 1) // per_page
 
